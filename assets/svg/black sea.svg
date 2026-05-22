@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Capa_1" data-name="Capa 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        letter-spacing: 0em;
+      }
+
+      .cls-2 {
+        letter-spacing: -.02em;
+      }
+
+      .cls-3 {
+        letter-spacing: 0em;
+      }
+
+      .cls-4 {
+        font-family: AcuminConcept-ExtraCondensedSemibold, 'Acumin Variable Concept';
+        font-size: 225.94px;
+        font-variation-settings: 'wght' 600, 'wdth' 50, 'slnt' 0;
+        font-weight: 600;
+      }
+
+      .cls-4, .cls-5, .cls-6 {
+        fill: #8e8e8e;
+      }
+
+      .cls-7 {
+        letter-spacing: 0em;
+      }
+
+      .cls-8 {
+        letter-spacing: 0em;
+      }
+
+      .cls-5 {
+        font-family: delthami, delthami;
+        font-size: 210.91px;
+      }
+
+      .cls-6 {
+        font-family: ColonnaMT, 'Colonna MT';
+        font-size: 136.65px;
+      }
+
+      .cls-9 {
+        letter-spacing: .01em;
+      }
+
+      .cls-10 {
+        letter-spacing: 0em;
+      }
+    </style>
+  </defs>
+  <text class="cls-4" transform="translate(368.32 590.78)"><tspan class="cls-3" x="0" y="0">B</tspan><tspan class="cls-10" x="83.37" y="0">l</tspan><tspan class="cls-7" x="122" y="0">a</tspan><tspan class="cls-1" x="200.63" y="0">c</tspan><tspan x="272.93" y="0">k </tspan><tspan class="cls-9" x="376.86" y="0">S</tspan><tspan class="cls-8" x="454.58" y="0">e</tspan><tspan class="cls-7" x="530.5" y="0">a</tspan></text>
+  <text class="cls-6" transform="translate(232.43 715.78)"><tspan class="cls-2" x="0" y="0">P</tspan><tspan x="73.46" y="0">escadería</tspan></text>
+  <text class="cls-5" transform="translate(62.44 592.91) scale(1.47 1)"><tspan x="0" y="0">The</tspan></text>
+</svg>
