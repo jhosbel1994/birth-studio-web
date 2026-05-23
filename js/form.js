@@ -9,7 +9,7 @@
  */
 
 var WA_NUMBER = '56977247545';
-var MAIL_TO   = 'birth.publicidad@gmail.com';
+var MAIL_TO   = 'bstudio.designe@gmail.com';
 
 /* ══════════════════════════════════════════
    1. FORMULARIO DE COTIZACIÓN → EmailJS
