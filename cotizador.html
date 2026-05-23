@@ -653,7 +653,8 @@
       padding: 0 4px;
     }
     @media (max-width: 759px) {
-      .fab-cart.has-items { display: flex; }
+      /* FAB siempre visible en móvil — arrastrable */
+      .fab-cart { display: flex; }
     }
 
     /* Panel carrito deslizable desde abajo */
@@ -1701,7 +1702,75 @@ document.addEventListener('DOMContentLoaded', function() {
   calcLetras();
   calcPaloma();
   calcAcrilico();
+  initDragFAB();
 });
+
+/* ════════════════════════════════════════════
+   FAB ARRASTRABLE — mover con dedo o mouse
+════════════════════════════════════════════ */
+function initDragFAB() {
+  var fab = document.getElementById('fab-cart');
+  if (!fab) return;
+
+  var dragging = false;
+  var startTX, startTY, startRight, startBottom;
+
+  function getPos() {
+    return {
+      right:  parseInt(fab.style.right)  || 22,
+      bottom: parseInt(fab.style.bottom) || 22
+    };
+  }
+
+  // ── Táctil (móvil) ──
+  fab.addEventListener('touchstart', function(e) {
+    var t = e.touches[0];
+    var p = getPos();
+    startTX = t.clientX; startTY = t.clientY;
+    startRight = p.right; startBottom = p.bottom;
+    dragging = false;
+  }, { passive: true });
+
+  fab.addEventListener('touchmove', function(e) {
+    var t = e.touches[0];
+    var dx = t.clientX - startTX;
+    var dy = t.clientY - startTY;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) dragging = true;
+    if (!dragging) return;
+    e.preventDefault();
+    fab.style.right  = Math.max(8, Math.min(window.innerWidth  - 68, startRight  - dx)) + 'px';
+    fab.style.bottom = Math.max(8, Math.min(window.innerHeight - 68, startBottom - dy)) + 'px';
+  }, { passive: false });
+
+  fab.addEventListener('touchend', function(e) {
+    if (dragging) e.preventDefault();
+  });
+
+  // ── Mouse (escritorio) ──
+  var mStartX, mStartY, mRight, mBottom;
+  fab.addEventListener('mousedown', function(e) {
+    var p = getPos();
+    mStartX = e.clientX; mStartY = e.clientY;
+    mRight = p.right; mBottom = p.bottom;
+    dragging = false;
+    document.addEventListener('mousemove', onMM);
+    document.addEventListener('mouseup', onMU);
+  });
+  function onMM(e) {
+    dragging = true;
+    fab.style.right  = Math.max(8, Math.min(window.innerWidth  - 68, mRight  - (e.clientX - mStartX))) + 'px';
+    fab.style.bottom = Math.max(8, Math.min(window.innerHeight - 68, mBottom - (e.clientY - mStartY))) + 'px';
+  }
+  function onMU() {
+    document.removeEventListener('mousemove', onMM);
+    document.removeEventListener('mouseup',   onMU);
+  }
+
+  // Si fue arrastre, no ejecutar el click
+  fab.addEventListener('click', function(e) {
+    if (dragging) { e.stopImmediatePropagation(); dragging = false; }
+  }, true);
+}
 
 function verificarPin() {
   var val = document.getElementById('pin-input').value.trim();
@@ -2077,14 +2146,16 @@ function generarPDF() {
     '</style></head><body>' +
     '<div class="page">' +
 
-    // Cabecera
+    // Cabecera — logo en esquina superior derecha
     '<table style="margin-bottom:30px;"><tr>' +
-    '<td style="width:50%;border:none;"><img src="' + logoSrc + '" style="height:70px;" /></td>' +
-    '<td style="border:none;text-align:right;">' +
+    '<td style="border:none;vertical-align:bottom;">' +
     '<div style="font-size:22px;font-weight:700;color:#111;">COTIZACIÓN</div>' +
     '<div style="font-size:14px;color:#666;margin-top:4px;">N° ' + numCot + '</div>' +
     '<div style="font-size:12px;color:#888;margin-top:2px;">' + fechaFmt + '</div>' +
-    '</td></tr></table>' +
+    '</td>' +
+    '<td style="width:200px;border:none;text-align:right;vertical-align:top;">' +
+    '<img src="' + logoSrc + '" style="height:80px;filter:brightness(0);" /></td>' +
+    '</tr></table>' +
 
     // Info empresa + cliente
     '<table style="margin-bottom:24px;"><tr>' +
