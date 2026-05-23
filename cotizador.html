@@ -582,9 +582,9 @@
   <h2>Sistema de Cotizaciones</h2>
   <div id="pin-box">
     <h3>🔒 Acceso privado</h3>
-    <input id="pin-input" type="password" maxlength="12"
+    <input id="pin-input" type="password" maxlength="20"
            placeholder="••••••••" autocomplete="off"
-           inputmode="numeric" />
+           inputmode="text" />
     <div id="pin-error"></div>
     <button id="pin-btn" onclick="verificarPin()">Ingresar</button>
   </div>
@@ -919,7 +919,7 @@
 /* ════════════════════════════════════════════
    CONFIGURACIÓN
 ════════════════════════════════════════════ */
-var PIN_CORRECTO   = 'birth2025';      // PIN de acceso
+var PIN_CORRECTO   = '2025';           // PIN de acceso
 var WA_NUMBER      = '56977247545';    // WhatsApp
 var EMAILJS_KEY    = 'x6DqzGj_3ceKhk2NQ';
 var EMAILJS_SVC    = 'service_qtcrtcr';
@@ -1680,6 +1680,59 @@ function actualizarTotales() {
 }
 
 /* ════════════════════════════════════════════
+   GUARDADO AUTOMÁTICO SILENCIOSO
+   Se llama antes de PDF, WhatsApp, Telegram y Email
+════════════════════════════════════════════ */
+function autoGuardar() {
+  if (!db) return;
+  if (!itemsCotizacion.length) return;
+  var nombre = document.getElementById('c-nombre').value.trim();
+  if (!nombre) return;
+
+  var rut     = document.getElementById('c-rut').value.trim();
+  var tel     = document.getElementById('c-tel').value.trim();
+  var email   = document.getElementById('c-email').value.trim();
+  var ciudad  = document.getElementById('c-ciudad').value.trim();
+  var numCot  = document.getElementById('c-num').value.trim()    || '001';
+  var fecha   = document.getElementById('c-fecha').value         || '';
+  var validez = document.getElementById('c-validez').value       || '7';
+  var notas   = document.getElementById('notas').value           || '';
+  var descPct = parseFloat(document.getElementById('descuento').value) || 0;
+  var conIva  = document.getElementById('incluir-iva').checked;
+
+  var subtotal  = itemsCotizacion.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var base      = subtotal - subtotal * descPct / 100;
+  var iva       = conIva ? base * 0.19 : 0;
+  var total     = base + iva;
+
+  var clienteData = { nombre: nombre, rut: rut, telefono: tel, email: email, ciudad: ciudad };
+  var claveCliente = (nombre + '_' + rut).toLowerCase().replace(/\s+/g, '_');
+
+  var batch = db.batch();
+  batch.set(
+    db.collection('clientes').doc(claveCliente),
+    Object.assign({}, clienteData, { actualizadoEl: firebase.firestore.FieldValue.serverTimestamp() }),
+    { merge: true }
+  );
+  batch.set(db.collection('cotizaciones').doc(), {
+    numero: numCot, cliente: clienteData, items: itemsCotizacion,
+    subtotal: subtotal, descuento: descPct,
+    iva: conIva ? iva : 0, total: total,
+    fecha: fecha, validez: validez, notas: notas,
+    estado: 'pendiente',
+    creadoEl: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  batch.commit().then(function() {
+    mostrarToast('☁️ Guardado automáticamente', 'success');
+    cargarCotizaciones();
+    cargarClientes();
+  }).catch(function(err) {
+    console.error('Auto-guardado error:', err);
+  });
+}
+
+/* ════════════════════════════════════════════
    GENERAR PDF
 ════════════════════════════════════════════ */
 function generarPDF() {
@@ -1687,6 +1740,7 @@ function generarPDF() {
     mostrarToast('Agrega al menos un ítem antes de generar el PDF', 'error');
     return;
   }
+  autoGuardar();
 
   var cliente  = document.getElementById('c-nombre').value  || 'Sin nombre';
   var rut      = document.getElementById('c-rut').value     || '—';
@@ -1826,6 +1880,7 @@ function enviarWhatsApp() {
     mostrarToast('Agrega al menos un ítem a la cotización', 'error');
     return;
   }
+  autoGuardar();
 
   var cliente = document.getElementById('c-nombre').value || 'Cliente';
   var numCot  = document.getElementById('c-num').value    || '001';
@@ -1863,6 +1918,7 @@ function enviarTelegram() {
     mostrarToast('Agrega al menos un ítem a la cotización', 'error');
     return;
   }
+  autoGuardar();
 
   var cliente = document.getElementById('c-nombre').value || 'Cliente';
   var numCot  = document.getElementById('c-num').value    || '001';
@@ -1900,6 +1956,7 @@ function abrirModalEmail() {
     mostrarToast('Agrega al menos un ítem a la cotización', 'error');
     return;
   }
+  autoGuardar();
   // Pre-llenar con email del cliente si existe
   var emailCliente = document.getElementById('c-email').value;
   var nombreCliente = document.getElementById('c-nombre').value;
