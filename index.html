@@ -659,19 +659,19 @@
 <!-- ════════════════════════════════════════
      SCRIPTS  — orden: animations → main → form
 ════════════════════════════════════════ -->
-<script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+<script src="https://unpkg.com/@emailjs/browser@4/dist/index.min.js"></script>
 <script>
-  // Inicializar EmailJS antes que form.js
-  if (typeof emailjs !== 'undefined') {
-    emailjs.init({
-      publicKey: 'x6DqzGj_3ceKhk2NQ',
-      blockHeadless: false,
-      limitRate: {
-        id: 'positive_limit',
-        throttle: 300
+  (function() {
+    var interval = setInterval(function() {
+      if (typeof emailjs !== 'undefined') {
+        clearInterval(interval);
+        emailjs.init('x6DqzGj_3ceKhk2NQ');
+        console.log('EmailJS cargado correctamente');
       }
-    });
-  }
+    }, 100);
+    // Timeout de 5 segundos
+    setTimeout(function() { clearInterval(interval); }, 5000);
+  })();
 </script>
 <script src="js/animations.js"></script>
 <script src="js/main.js"></script>
