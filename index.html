@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Birth Studio Publicidad — Letras corpóreas, bastidores, cajétines luminosos y diseño web. Talca, Chile.">
+    <title>Birth Studio · Públicidad | Talca</title>
+
+    <!-- ── Google Fonts ── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+
+    <!-- ── Estilos ── -->
+    <link rel="stylesheet" href="css/styles.css">
+
+    <link rel="icon" type="image/png" href="assets/logo-birth.png">
+</head>
+<body class="is-loading">
+
+<!-- ════════════════════════════════════════
+     INTRO OVERLAY  — "PÚBLICIDAD" → logo
+════════════════════════════════════════ -->
+<div id="intro" class="intro" aria-hidden="true">
+    <div class="intro__word" id="intro-word">
+        <span>P</span><span>Ú</span><span>B</span><span>L</span><span>I</span>
+        <span>C</span><span>I</span><span>D</span><span>A</span><span>D</span>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     NAVEGACIÓN
+════════════════════════════════════════ -->
+<nav class="nav" id="nav" role="navigation" aria-label="Menú principal">
+    <a href="#hero" class="nav__brand">
+        <img src="assets/logo-birth.png" alt="Birth Studio Publicidad" class="nav__logo">
+    </a>
+
+    <ul class="nav__menu" id="nav-menu">
+        <li><a href="#servicios" class="nav__link">Servicios</a></li>
+        <li><a href="#nosotros"  class="nav__link">Nosotros</a></li>
+        <li><a href="#precios"   class="nav__link">Precios</a></li>
+        <li><a href="#cotizacion" class="nav__link nav__link--cta">Cotizar</a></li>
+    </ul>
+
+    <button class="nav__toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+    </button>
+</nav>
+
+<!-- ════════════════════════════════════════
+     HERO  — Mosaico + logo animado
+════════════════════════════════════════ -->
+<section id="hero" class="hero" aria-label="Portada">
+
+    <!-- Mosaico de fondo (JS genera las celdas) -->
+    <div class="mosaic" id="mosaic" aria-hidden="true"></div>
+
+    <!-- Overlay oscuro con viñeta -->
+    <div class="hero__overlay" aria-hidden="true"></div>
+
+    <!-- Contenido central -->
+    <div class="hero__content" id="hero-content">
+        <img
+            src="assets/logo-birth.png"
+            alt="Birth Studio Publicidad"
+            class="hero__logo"
+            id="hero-logo"
+        >
+        <p class="hero__tagline">Donde las marcas cobran vida.</p>
+        <div class="hero__actions">
+            <a href="#servicios"  class="btn btn--primary">Ver servicios</a>
+            <a href="#cotizacion" class="btn btn--ghost">Cotizar ahora</a>
+        </div>
+    </div>
+
+    <!-- Flecha de scroll -->
+    <div class="scroll-hint" aria-hidden="true">
+        <span>Desplázate</span>
+        <div class="scroll-hint__line"></div>
+    </div>
+</section>
+
+
+<!-- ════════════════════════════════════════
+     SERVICIOS
+════════════════════════════════════════ -->
+<section id="servicios" class="section">
+    <div class="container">
+
+        <header class="section__header reveal">
+            <span class="section__label">Lo que hacemos</span>
+            <h2 class="section__title">Nuestros <em>Servicios</em></h2>
+        </header>
+
+        <div class="services-grid">
+
+            <!-- ── Letras Corpóreas ── -->
+            <article class="service-card reveal">
+                <div class="service-card__visual">
+                    <!--
+                        IMAGEN: reemplaza el fondo CSS por tu foto real.
+                        Ejemplo: style="background-image: url('assets/service-corpóreas.jpg')"
+                    -->
+                    <div class="service-card__img service-card__img--1  "></div>
+                    <span class="service-card__badge">Iluminado</span>
+                </div>
+                <div class="service-card__body">
+                    <h3>Letras Corpóreas</h3>
+                    <p>Volumen y presencia. Aluminio + acrílico, con LED interno o sin iluminación.</p>
+                    <span class="service-card__price">Desde $80.000</span>
+                    <a href="#cotizacion" class="service-card__cta">Cotizar →</a>
+                </div>
+            </article>
+
+            <!-- ── Bastidores ── -->
+            <article class="service-card reveal">
+                <div class="service-card__visual">
+                    <div class="service-card__img service-card__img--2"></div>
+                </div>
+                <div class="service-card__body">
+                    <h3>Bastidores</h3>
+                    <p>Estructura publicitaria robusta, con o sin fachada, para interior o exterior.</p>
+                    <span class="service-card__price">Desde $80.000</span>
+                    <a href="#cotizacion" class="service-card__cta">Cotizar →</a>
+                </div>
+            </article>
+
+            <!-- ── Cajétín Luminoso ── -->
+            <article class="service-card reveal">
+                <div class="service-card__visual">
+                    <div class="service-card__img service-card__img--3"></div>
+                    <span class="service-card__badge">Luminoso</span>
+                </div>
+                <div class="service-card__body">
+                    <h3>Cajétín Luminoso</h3>
+                    <p>Backlit de alto impacto. Ideal para locales comerciales que necesitan destacar.</p>
+                    <span class="service-card__price">Desde $250.000</span>
+                    <a href="#cotizacion" class="service-card__cta">Cotizar →</a>
+                </div>
+            </article>
+
+            <!-- ── Páginas Web ── -->
+            <article class="service-card reveal">
+                <div class="service-card__visual">
+                    <div class="service-card__img service-card__img--4"></div>
+                </div>
+                <div class="service-card__body">
+                    <h3>Páginas Web</h3>
+                    <p>Presencia digital con identidad. Diseño personalizado, adaptado a tu marca.</p>
+                    <span class="service-card__price">Desde $150.000</span>
+                    <a href="#cotizacion" class="service-card__cta">Cotizar →</a>
+                </div>
+            </article>
+
+            <!-- ── Palomas y Pósteres ── -->
+            <article class="service-card reveal">
+                <div class="service-card__visual">
+                    <div class="service-card__img service-card__img--5"></div>
+                </div>
+                <div class="service-card__body">
+                    <h3>Palomas y Pósteres</h3>
+                    <p>Publicidad física de alto alcance. Afiches y material impreso de calidad.</p>
+                    <span class="service-card__price">Desde $30.000</span>
+                    <a href="#cotizacion" class="service-card__cta">Cotizar →</a>
+                </div>
+            </article>
+
+            <!-- ── Circulos Luminosos ── -->
+            <article class="service-card reveal">
+                <div class="service-card__visual">
+                    <div class="service-card__img service-card__img--6"></div>
+                </div>
+                <div class="service-card__body">
+                    <h3>Circulos acrílicos   </h3>
+                    <p>Circulo acrilico con iluminación led y sin iluminación.</p>
+                    <span class="service-card__price">Desde $55.000</span>
+                    <a href="#cotizacion" class="service-card__cta">Cotizar →</a>
+                </div>
+            </article>
+
+            
+
+        </div><!-- /services-grid -->
+    </div><!-- /container -->
+</section>
+
+
+<!-- ════════════════════════════════════════
+     QUIÉNES SOMOS
+════════════════════════════════════════ -->
+<section id="nosotros" class="section about">
+    <div class="container">
+        <div class="about__grid">
+
+            <!-- Visual izquierda -->
+            <div class="about__visual reveal">
+                <div class="about__img-wrap">
+                    <!--
+                        IMAGEN: reemplaza el CSS con tu foto del taller / equipo.
+                        Ejemplo: style="background-image: url('assets/about.jpg')"
+                    -->
+                    <div class="about__img"></div>
+                    <div class="about__img-accent" aria-hidden="true"></div>
+                </div>
+            </div>
+
+            <!-- Texto derecha -->
+            <div class="about__text reveal">
+                <span class="section__label">Quiénes somos</span>
+                <h2 class="section__title">Señalética creada <em>con propósito</em></h2>
+                <p>Birth Studio es un estudio de publicidad y señalética radicado en Talca, Maule. Fabricamos letras corpóreas, bastidores, cajétines luminosos y cualquier tipo de letrero con los más altos estándares de calidad.</p>
+                <p>Nos especializamos en dar identidad visual a negocios y marcas a través de soluciones físicas y digitales. Cada proyecto es una oportunidad de dar a luz algo nuevo.</p>
+
+                <div class="about__stats">
+                    <div class="stat">
+                        <span class="stat__num">+180</span>
+                        <span class="stat__label">Proyectos realizados</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__num">5+</span>
+                        <span class="stat__label">Años de experiencia</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__num">100%</span>
+                        <span class="stat__label">Comprometidos</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+
+<!-- ════════════════════════════════════════
+     PRECIOS
+════════════════════════════════════════ -->
+<section id="precios" class="section prices">
+    <div class="container">
+
+        <header class="section__header reveal">
+            <span class="section__label">Referencia</span>
+            <h2 class="section__title">Precios <em>Base</em></h2>
+            <p class="section__sub">Los valores varían según materiales, medidas y complejidad. Solicita tu cotización personalizada sin costo.</p>
+        </header>
+
+        <div class="prices-grid">
+
+            <div class="price-card reveal">
+                <div class="price-card__icon"></div>
+                <h3>Bastidores</h3>
+                <div class="price-card__amount">
+                    <span class="price-card__from">Desde</span>
+                    <strong class="price-card__price">$45.000</strong>
+                </div>
+                <p>Estructura con o sin fachada, para cualquier tamaño</p>
+                <a href="#cotizacion" class="btn btn--outline">Cotizar</a>
+            </div>
+
+            <div class="price-card price-card--featured reveal">
+                <span class="price-card__tag">Popular</span>
+                <div class="price-card__icon"></div>
+                <h3>Letras Corpóreas</h3>
+                <div class="price-card__amount">
+                    <span class="price-card__from">Desde</span>
+                    <strong class="price-card__price">$80.000</strong>
+                </div>
+                <p>Con o sin iluminación LED, aluminio + acrílico</p>
+                <a href="#cotizacion" class="btn btn--primary">Cotizar</a>
+            </div>
+
+            <div class="price-card reveal">
+                <div class="price-card__icon"></div>
+                <h3>Cajétín Luminoso</h3>
+                <div class="price-card__amount">
+                    <span class="price-card__from">Desde</span>
+                    <strong class="price-card__price">$250.000</strong>
+                </div>
+                <p>Retroiluminado, máximo impacto visual</p>
+                <a href="#cotizacion" class="btn btn--outline">Cotizar</a>
+            </div>
+
+            <div class="price-card reveal">
+                <div class="price-card__icon"></div>
+                <h3>Página Web</h3>
+                <div class="price-card__amount">
+                    <span class="price-card__from">Desde</span>
+                    <strong class="price-card__price">$150.000</strong>
+                </div>
+                <p>Diseño personalizado con identidad de marca</p>
+                <a href="#cotizacion" class="btn btn--outline">Cotizar</a>
+            </div>
+
+            <div class="price-card reveal">
+                <div class="price-card__icon"></div>
+                <h3>Palomas / Pósteres</h3>
+                <div class="price-card__amount">
+                    <span class="price-card__from">Desde</span>
+                    <strong class="price-card__price">$30.000</strong>
+                </div>
+                <p>Publicidad física de alta visibilidad</p>
+                <a href="#cotizacion" class="btn btn--outline">Cotizar</a>
+            </div>
+
+             <div class="price-card reveal">
+                <div class="price-card__icon"></div>
+                <h3>Palomas / Pósteres</h3>
+                <div class="price-card__amount">
+                    <span class="price-card__from">Desde</span>
+                    <strong class="price-card__price">$30.000</strong>
+                </div>
+                <p>Publicidad física de alta visibilidad</p>
+                <a href="#cotizacion" class="btn btn--outline">Cotizar</a>
+            </div>
+
+             <div class="price-card reveal">
+                <div class="price-card__icon"></div>
+                <h3>Palomas / Pósteres</h3>
+                <div class="price-card__amount">
+                    <span class="price-card__from">Desde</span>
+                    <strong class="price-card__price">$30.000</strong>
+                </div>
+                <p>Publicidad física de alta visibilidad</p>
+                <a href="#cotizacion" class="btn btn--outline">Cotizar</a>
+            </div>
+
+            
+
+        </div><!-- /prices-grid -->
+    </div>
+</section>
+
+
+<!-- ════════════════════════════════════════
+     COTIZACIÓN
+════════════════════════════════════════ -->
+<section id="cotizacion" class="section quote">
+    <div class="container">
+
+        <header class="section__header reveal">
+            <span class="section__label">Trabajemos juntos</span>
+            <h2 class="section__title">Solicita tu <em>Cotización</em></h2>
+        </header>
+
+        <div class="quote__grid">
+
+            <!-- ── Formulario ── -->
+            <div class="quote__form-wrap reveal">
+                <form id="quote-form" class="quote-form" novalidate>
+
+                    <div class="form-group">
+                        <label for="q-name">Nombre completo *</label>
+                        <input type="text" id="q-name" name="nombre" placeholder="Juan Pérez" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="q-email">Correo electrónico *</label>
+                            <input type="email" id="q-email" name="email" placeholder="juan@ejemplo.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="q-phone">Teléfono / WhatsApp</label>
+                            <input type="tel" id="q-phone" name="telefono" placeholder="+56 9 XXXX XXXX">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de letrero *</label>
+                        <div class="form-options" id="service-options">
+                            <label class="form-option">
+                                <input type="radio" name="tipo" value="Letras Corpóreas" required>
+                                <span>Letras Corpóreas</span>
+                            </label>
+                            <label class="form-option">
+                                <input type="radio" name="tipo" value="Bastidor">
+                                <span>Bastidor</span>
+                            </label>
+                            <label class="form-option">
+                                <input type="radio" name="tipo" value="Cajétín Luminoso">
+                                <span>Cajétín Luminoso</span>
+                            </label>
+                            <label class="form-option">
+                                <input type="radio" name="tipo" value="Página Web">
+                                <span>Página Web</span>
+                            </label>
+                            <label class="form-option">
+                                <input type="radio" name="tipo" value="Palomas / Pósteres">
+                                <span>Palomas / Pósteres</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Fachada (visible para Bastidor o Letras Corpóreas) -->
+                    <div class="form-group" id="fachada-group" hidden>
+                        <label>¿Con fachada?</label>
+                        <div class="form-options">
+                            <label class="form-option">
+                                <input type="radio" name="fachada" value="Con fachada">
+                                <span>Con fachada</span>
+                            </label>
+                            <label class="form-option">
+                                <input type="radio" name="fachada" value="Sin fachada">
+                                <span>Sin fachada</span>
+                            </label>
+                            <label class="form-option">
+                                <input type="radio" name="fachada" value="Ambas opciones">
+                                <span>Ambas (cotizar las dos)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- ¿Tiene medidas? -->
+                    <div class="form-group">
+                        <label>¿Tienes las medidas? *</label>
+                        <div class="form-options">
+                            <label class="form-option">
+                                <input type="radio" name="tiene_medidas" value="si" id="medidas-si">
+                                <span>Sí, tengo medidas</span>
+                            </label>
+                            <label class="form-option">
+                                <input type="radio" name="tiene_medidas" value="no" id="medidas-no">
+                                <span>No tengo la idea clara</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Campos de medidas (se muestran si elige "Sí") -->
+                    <div class="form-row" id="medidas-inputs" hidden>
+                        <div class="form-group">
+                            <label for="q-ancho">Ancho (metros)</label>
+                            <input type="number" id="q-ancho" name="ancho" placeholder="ej: 2.5" step="0.1" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="q-alto">Alto (metros)</label>
+                            <input type="number" id="q-alto" name="alto" placeholder="ej: 0.8" step="0.1" min="0">
+                        </div>
+                    </div>
+
+                    <!-- Hint visita (se muestra si elige "No tengo idea") -->
+                    <div class="hint-box" id="visita-hint" hidden>
+                        <span class="hint-box__icon">💡</span>
+                        <div>
+                            <strong>¡Sin problema!</strong>
+                            <p>Podemos visitarte y definir todo en terreno.</p>
+                            <a href="#agenda" class="link-anchor">Agendar visita sin costo →</a>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="q-notes">Descripción / Detalles adicionales</label>
+                        <textarea id="q-notes" name="descripcion" rows="4" placeholder="Cuéntanos más sobre tu proyecto, ubicación, colores, etc."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn--primary btn--full">
+                        Enviar solicitud <span class="btn__arrow">→</span>
+                    </button>
+
+                    <p class="form-note">Te responderemos a la brevedad por correo o WhatsApp.</p>
+
+                </form>
+            </div>
+
+            <!-- ── Sidebar info ── -->
+            <aside class="quote__info reveal">
+                <div class="info-card">
+                    <h4>¿Qué pasa después?</h4>
+                    <ol class="steps-list">
+                        <li class="step-item">
+                            <span class="step-item__num">01</span>
+                            <span>Recibimos tu solicitud</span>
+                        </li>
+                        <li class="step-item">
+                            <span class="step-item__num">02</span>
+                            <span>Te contactamos en menos de 24 h</span>
+                        </li>
+                        <li class="step-item">
+                            <span class="step-item__num">03</span>
+                            <span>Preparamos tu propuesta personalizada</span>
+                        </li>
+                        <li class="step-item">
+                            <span class="step-item__num">04</span>
+                            <span>¡Empezamos a crear!</span>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="info-contact">
+                    <p>¿Prefieres hablar directamente?</p>
+                    <a href="https://wa.me/+56977247545" target="_blank" rel="noopener" class="btn btn--whatsapp">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.553 4.105 1.523 5.838L.037 23.962l6.266-1.643A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.813 9.813 0 01-5.002-1.373l-.358-.213-3.72.976.993-3.634-.234-.374A9.818 9.818 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.414 0 9.818 4.403 9.818 9.818 0 5.414-4.404 9.818-9.818 9.818z"/>
+                        </svg>
+                        Escríbenos por WhatsApp
+                    </a>
+                </div>
+            </aside>
+
+        </div><!-- /quote__grid -->
+    </div>
+</section>
+
+
+<!-- ════════════════════════════════════════
+     AGENDA  — Visita + calendario → WhatsApp
+════════════════════════════════════════ -->
+<section id="agenda" class="section schedule">
+    <div class="container">
+
+        <header class="section__header reveal">
+            <span class="section__label">Sin ideas claras</span>
+            <h2 class="section__title">Agéndanos una <em>Visita</em></h2>
+            <p class="section__sub">Vamos a tu local, medimos y te asesoramos sin compromiso. La confirmación llega directo a nuestro WhatsApp.</p>
+        </header>
+
+        <div class="schedule__grid">
+
+            <!-- Formulario de agenda -->
+            <div class="schedule__form reveal">
+                <form id="schedule-form" novalidate>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="s-name">Tu nombre *</label>
+                            <input type="text" id="s-name" name="nombre" required placeholder="Juan Pérez">
+                        </div>
+                        <div class="form-group">
+                            <label for="s-phone">Tu WhatsApp *</label>
+                            <input type="tel" id="s-phone" name="telefono" required placeholder="+56 9 XXXX XXXX">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="s-date">Fecha preferida *</label>
+                        <input type="date" id="s-date" name="fecha" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Hora preferida *</label>
+                        <div class="time-slots" id="time-slots">
+                            <!-- Generado por form.js -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="s-address">Tu dirección (opcional)</label>
+                        <input type="text" id="s-address" name="direccion" placeholder="Av. Principal 123, Talca">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="s-notes">Comentarios adicionales</label>
+                        <textarea id="s-notes" name="notas" rows="3" placeholder="Tipo de letrero que tienes en mente, referencia de colores, etc."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn--primary btn--full">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.553 4.105 1.523 5.838L.037 23.962l6.266-1.643A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.813 9.813 0 01-5.002-1.373l-.358-.213-3.72.976.993-3.634-.234-.374A9.818 9.818 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.414 0 9.818 4.403 9.818 9.818 0 5.414-4.404 9.818-9.818 9.818z"/>
+                        </svg>
+                        Confirmar visita por WhatsApp
+                    </button>
+
+                    <p class="form-note">Abrirá WhatsApp con un mensaje listo. Solo envíalo.</p>
+
+                </form>
+            </div>
+
+            <!-- Info lateral -->
+            <div class="schedule__info reveal">
+                <div class="location-card">
+                    <h4>Encuéntranos</h4>
+                    <ul>
+                        <li>📍 Av. Puertas Negras – Praderas de San Miguel 4383, Talca</li>
+                        <li>📱 +56 9 7724 7545</li>
+                        <li>🕐 Lunes a Viernes · 9:00 – 18:00</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div><!-- /schedule__grid -->
+    </div>
+</section>
+
+
+<!-- ════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════ -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer__grid">
+
+            <div class="footer__brand">
+                <img src="assets/logo-birth.png" alt="Birth Studio Publicidad" class="footer__logo">
+                <p>Señalética y publicidad con propósito.<br>Talca, Maule — Chile.</p>
+                <p class="footer__rut">RUT 77.990.344-3</p>
+            </div>
+
+            <div class="footer__col">
+                <h5>Servicios</h5>
+                <ul>
+                    <li><a href="#servicios">Letras Corpóreas</a></li>
+                    <li><a href="#servicios">Bastidores</a></li>
+                    <li><a href="#servicios">Cajétines Luminosos</a></li>
+                    <li><a href="#servicios">Páginas Web</a></li>
+                    <li><a href="#servicios">Palomas / Pósteres</a></li>
+                </ul>
+            </div>
+
+            <div class="footer__col">
+                <h5>Empresa</h5>
+                <ul>
+                    <li><a href="#nosotros">Quiénes somos</a></li>
+                    <li><a href="#precios">Precios</a></li>
+                    <li><a href="#cotizacion">Solicitar cotización</a></li>
+                    <li><a href="#agenda">Agendar visita</a></li>
+                </ul>
+            </div>
+
+            <div class="footer__col">
+                <h5>Contacto</h5>
+                <ul>
+                    <li>+56 9 7724 7545</li>
+                    <li>Talca, Maule, Chile</li>
+                </ul>
+                <a href="https://wa.me/+56977247545" target="_blank" rel="noopener" class="btn btn--whatsapp btn--sm footer__wa">
+                    WhatsApp
+                </a>
+            </div>
+
+        </div><!-- /footer__grid -->
+
+        <div class="footer__bottom">
+            <p>© 2025 Birth Studio Publicidad SpA · Todos los derechos reservados</p>
+        </div>
+    </div>
+</footer>
+
+
+<!-- ════════════════════════════════════════
+     BOTÓN FLOTANTE WHATSAPP  — esfera
+════════════════════════════════════════ -->
+<a
+    href="https://wa.me/+56977247545"
+    target="_blank"
+    rel="noopener"
+    class="wa-float"
+    aria-label="Contactar por WhatsApp"
+>
+    <div class="wa-float__sphere" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.553 4.105 1.523 5.838L.037 23.962l6.266-1.643A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.813 9.813 0 01-5.002-1.373l-.358-.213-3.72.976.993-3.634-.234-.374A9.818 9.818 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.414 0 9.818 4.403 9.818 9.818 0 5.414-4.404 9.818-9.818 9.818z"/>
+        </svg>
+    </div>
+    <span class="wa-float__label">¿Hablamos?</span>
+</a>
+
+<!-- ════════════════════════════════════════
+     SCRIPTS  — orden: animations → main → form
+════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/index.min.js"></script>
+<script src="js/animations.js"></script>
+<script src="js/main.js"></script>
+<script src="js/form.js"></script>
+
+</body>
+</html>
