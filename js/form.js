@@ -57,7 +57,13 @@ function initQuoteForm() {
     form.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        if (!validateForm(form)) return;
+        if (!validateForm(form)) {
+            showFormError(form, 'Por favor completa todos los campos obligatorios (*).');
+            return;
+        }
+
+        var btn = form.querySelector('[type="submit"]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
 
         var data = new FormData(form);
 
@@ -72,22 +78,33 @@ function initQuoteForm() {
             nombre: data.get('nombre') || '',
             email: data.get('email') || '',
             telefono: data.get('telefono') || '',
-            tipo: data.get('tipo') || '',
+            tipo: data.get('tipo') || 'No especificado',
             fachada: data.get('fachada') || 'N/A',
             medidas: medidas,
             descripcion: data.get('descripcion') || 'Sin descripción'
         };
 
-        // Enviar con EmailJS
-        emailjs.send('service_qtcrtcr', 'template_3zwrb8h', params)
-            .then(function(response) {
-                showSuccess(form, '✓ ¡Cotización enviada! Te contactaremos pronto.');
-                form.reset();
-            })
-            .catch(function(error) {
-                showSuccess(form, '✗ Error al enviar. Intenta de nuevo.');
-                console.error('Error:', error);
-            });
+        function resetBtn() {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Enviar solicitud <span class="btn__arrow">→</span>'; }
+        }
+
+        try {
+            emailjs.send('service_qtcrtcr', 'template_3zwrb8h', params)
+                .then(function() {
+                    resetBtn();
+                    showSuccess(form, '¡Cotización enviada! Te contactaremos pronto.');
+                    form.reset();
+                })
+                .catch(function(error) {
+                    resetBtn();
+                    showFormError(form, 'Error al enviar. Intenta de nuevo o escríbenos por WhatsApp.');
+                    console.error('EmailJS error:', error);
+                });
+        } catch (err) {
+            resetBtn();
+            showFormError(form, 'Error de configuración. Contáctanos por WhatsApp.');
+            console.error('EmailJS excepción:', err);
+        }
     });
 }
 
@@ -233,6 +250,33 @@ function validateForm(form) {
     }
 
     return valid;
+}
+
+/**
+ * Muestra mensaje de error en la parte superior del form
+ */
+function showFormError(form, message) {
+    var existing = form.querySelector('.form-error');
+    if (existing) existing.remove();
+
+    var div = document.createElement('div');
+    div.className = 'form-error';
+    div.style.cssText = [
+        'background: rgba(255,68,68,0.1)',
+        'border: 1px solid rgba(255,68,68,0.5)',
+        'color: #ff6b6b',
+        'padding: 1rem',
+        'border-radius: 6px',
+        'font-size: 0.9rem',
+        'text-align: center',
+        'margin-bottom: 1rem'
+    ].join(';');
+    div.textContent = message;
+
+    form.insertBefore(div, form.firstChild);
+    div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    setTimeout(function() { if (div.parentNode) div.remove(); }, 6000);
 }
 
 /**
