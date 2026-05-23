@@ -112,17 +112,20 @@
 
     /* Botón eliminar cotización en la lista */
     .btn-del-cot {
+      position: absolute;
+      top: 5px;
+      right: 5px;
       background: transparent;
       color: var(--muted);
-      padding: 6px 8px;
-      border-radius: 6px;
+      padding: 3px 5px;
+      border-radius: 5px;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
-      min-width: 32px;
-      min-height: 32px;
+      min-width: 24px;
+      min-height: 24px;
       transition: color .2s, background .2s;
+      z-index: 1;
     }
     .btn-del-cot:hover, .btn-del-cot:active {
       color: var(--danger);
@@ -526,13 +529,14 @@
     .hist-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
     .hist-item {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 0.6rem;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 0.5rem 0.7rem;
+      padding: 0.5rem 2rem 0.5rem 0.7rem;
       font-size: 0.82rem;
       cursor: pointer;
       transition: border-color .2s;
@@ -554,7 +558,7 @@
 
     .hist-item .hi-pdf {
       background: #222;
-      color: #e8c97e;
+      color: #CC0000;
       font-size: 0.72rem;
       font-weight: 700;
       border-radius: 5px;
@@ -2104,110 +2108,134 @@ function construirYAbrirPDF(p) {
     ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' })
     : new Date().toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  var subtotal   = items.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
-  var descMonto  = subtotal * descPct / 100;
-  var base       = subtotal - descMonto;
-  var iva        = conIva ? base * 0.19 : 0;
-  var total      = base + iva;
+  var subtotal  = items.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var descMonto = subtotal * descPct / 100;
+  var base      = subtotal - descMonto;
+  var iva       = conIva ? base * 0.19 : 0;
+  var total     = base + iva;
 
-  var filasHTML = items.map(function(item, idx) {
+  var filasHTML = items.map(function(item) {
     return '<tr>' +
-      '<td style="padding:8px 12px;text-align:center;color:#888;">' + (idx + 1) + '</td>' +
-      '<td style="padding:8px 12px;">' + item.nombre + '</td>' +
-      '<td style="padding:8px 12px;text-align:center;">' + item.qty + '</td>' +
-      '<td style="padding:8px 12px;text-align:right;">' + formatPeso(item.precio) + '</td>' +
-      '<td style="padding:8px 12px;text-align:right;font-weight:600;">' + formatPeso(item.precio * item.qty) + '</td>' +
+      '<td style="padding:9px 12px;border-bottom:1px solid #ebebeb;font-size:12px;">' + item.nombre + '</td>' +
+      '<td style="padding:9px 12px;border-bottom:1px solid #ebebeb;font-size:12px;text-align:center;">' + item.qty + '</td>' +
+      '<td style="padding:9px 12px;border-bottom:1px solid #ebebeb;font-size:12px;text-align:right;">' + formatPeso(item.precio) + '</td>' +
+      '<td style="padding:9px 12px;border-bottom:1px solid #ebebeb;font-size:12px;text-align:right;font-weight:600;">' + formatPeso(item.precio * item.qty) + '</td>' +
       '</tr>';
   }).join('');
 
-  var descFila = descPct > 0
-    ? '<tr><td colspan="4" style="text-align:right;padding:6px 12px;color:#888;">Descuento (' + descPct + '%)</td>' +
-      '<td style="text-align:right;padding:6px 12px;color:#e05555;">−' + formatPeso(descMonto) + '</td></tr>'
-    : '';
-
-  var ivaFila = conIva
-    ? '<tr><td colspan="4" style="text-align:right;padding:6px 12px;color:#888;">IVA (19%)</td>' +
-      '<td style="text-align:right;padding:6px 12px;">' + formatPeso(iva) + '</td></tr>'
-    : '';
-
-  var notasHTML = notas
-    ? '<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:14px 18px;font-size:12px;color:#555;white-space:pre-line;">' + notas + '</div>'
-    : '';
-
-  // Logo en base64 o URL relativa — usamos URL relativa
   var logoSrc = 'assets/logo-birth-dark.png';
 
   var html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
     '<title>Cotización N° ' + numCot + ' — Birth Studio</title>' +
     '<style>' +
-    'body{font-family:Arial,sans-serif;background:#fff;color:#222;margin:0;padding:0;}' +
-    '.page{width:794px;margin:0 auto;padding:40px 50px;}' +
+    '*{box-sizing:border-box;margin:0;padding:0;}' +
+    'body{font-family:Arial,Helvetica,sans-serif;background:#fff;color:#222;font-size:12px;}' +
+    '.page{width:794px;margin:0 auto;padding:44px 52px;}' +
     'table{width:100%;border-collapse:collapse;}' +
-    'th{background:#111;color:#e8c97e;padding:10px 12px;text-align:left;font-size:12px;}' +
-    'td{border-bottom:1px solid #eee;font-size:13px;}' +
-    'tr:nth-child(even) td{background:#fafafa;}' +
-    '@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}' +
-    '</style></head><body>' +
-    '<div class="page">' +
+    '@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}.page{padding:28px 36px;}}' +
+    '</style></head><body><div class="page">' +
 
-    // Cabecera — logo en esquina superior derecha
-    '<table style="margin-bottom:30px;"><tr>' +
-    '<td style="border:none;vertical-align:bottom;">' +
-    '<div style="font-size:22px;font-weight:700;color:#111;">COTIZACIÓN</div>' +
-    '<div style="font-size:14px;color:#666;margin-top:4px;">N° ' + numCot + '</div>' +
-    '<div style="font-size:12px;color:#888;margin-top:2px;">' + fechaFmt + '</div>' +
+    /* ── CABECERA: logo izquierda, COTIZACIÓN derecha ── */
+    '<table style="margin-bottom:0;"><tr>' +
+    '<td style="border:none;vertical-align:middle;">' +
+    '<img src="' + logoSrc + '" style="height:64px;filter:brightness(0);" />' +
     '</td>' +
-    '<td style="width:200px;border:none;text-align:right;vertical-align:top;">' +
-    '<img src="' + logoSrc + '" style="height:80px;filter:brightness(0);" /></td>' +
+    '<td style="border:none;text-align:right;vertical-align:middle;">' +
+    '<div style="font-size:22px;font-weight:900;letter-spacing:2px;color:#CC0000;">COTIZACIÓN</div>' +
+    '<div style="font-size:14px;font-weight:700;color:#333;margin-top:3px;">N° ' + numCot + '</div>' +
+    '</td>' +
     '</tr></table>' +
 
-    // Info empresa + cliente
-    '<table style="margin-bottom:24px;"><tr>' +
-    '<td style="width:50%;vertical-align:top;border:none;background:#f5f5f5;border-radius:8px;padding:14px 18px;">' +
-    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Emisor</div>' +
-    '<div style="font-weight:700;font-size:14px;">Birth Studio Publicidad</div>' +
-    '<div style="font-size:12px;color:#555;margin-top:4px;">Talca, Región del Maule</div>' +
-    '<div style="font-size:12px;color:#555;">Tel: +56 9 7724 7545</div>' +
-    '<div style="font-size:12px;color:#555;">bstudio.designe@gmail.com</div>' +
+    /* ── LÍNEA SEPARADORA ── */
+    '<hr style="border:none;border-top:2px solid #CC0000;margin:14px 0 18px;" />' +
+
+    /* ── DOS COLUMNAS: EMPRESA | CLIENTE ── */
+    '<table style="margin-bottom:22px;"><tr>' +
+    '<td style="width:50%;vertical-align:top;border:none;padding-right:24px;">' +
+    '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:8px;">Datos de la Empresa</div>' +
+    '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">Birth Studio Publicidad SpA</div>' +
+    '<div style="color:#555;line-height:1.7;">RUT: 77.990.344-3</div>' +
+    '<div style="color:#555;line-height:1.7;">Talca, Región del Maule</div>' +
+    '<div style="color:#555;line-height:1.7;">Av. Puertas Negras 4383</div>' +
+    '<div style="color:#555;line-height:1.7;">contacto@birthstudio.cl</div>' +
+    '<div style="color:#555;line-height:1.7;margin-top:6px;">Fecha: ' + fechaFmt + '</div>' +
     '</td>' +
-    '<td style="width:4%;border:none;"></td>' +
-    '<td style="vertical-align:top;border:none;background:#f5f5f5;border-radius:8px;padding:14px 18px;">' +
-    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Cliente</div>' +
-    '<div style="font-weight:700;font-size:14px;">' + cliente + '</div>' +
-    (rut !== '—' ? '<div style="font-size:12px;color:#555;margin-top:4px;">RUT: ' + rut + '</div>' : '') +
-    (tel !== '—' ? '<div style="font-size:12px;color:#555;">Tel: ' + tel + '</div>' : '') +
-    (email !== '—' ? '<div style="font-size:12px;color:#555;">' + email + '</div>' : '') +
-    (ciudad !== '—' ? '<div style="font-size:12px;color:#555;">' + ciudad + '</div>' : '') +
-    '</td></tr></table>' +
+    '<td style="vertical-align:top;border:none;border-left:2px solid #ebebeb;padding-left:24px;">' +
+    '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:8px;">Cliente</div>' +
+    '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">' + cliente + '</div>' +
+    (rut !== '—'    ? '<div style="color:#555;line-height:1.7;">RUT: ' + rut + '</div>' : '') +
+    (tel !== '—'    ? '<div style="color:#555;line-height:1.7;">Tel: ' + tel + '</div>' : '') +
+    (email !== '—'  ? '<div style="color:#555;line-height:1.7;">' + email + '</div>' : '') +
+    (ciudad !== '—' ? '<div style="color:#555;line-height:1.7;">' + ciudad + '</div>' : '') +
+    '</td>' +
+    '</tr></table>' +
 
-    // Tabla ítems
-    '<table>' +
-    '<thead><tr>' +
-    '<th style="width:40px;text-align:center;">#</th>' +
-    '<th>Descripción</th>' +
-    '<th style="width:60px;text-align:center;">Qty</th>' +
-    '<th style="width:120px;text-align:right;">Precio unit.</th>' +
-    '<th style="width:130px;text-align:right;">Subtotal</th>' +
-    '</tr></thead><tbody>' +
-    filasHTML +
-    '</tbody><tfoot>' +
-    '<tr><td colspan="4" style="text-align:right;padding:10px 12px;font-weight:600;color:#555;border-top:2px solid #ccc;">Subtotal</td>' +
-    '<td style="text-align:right;padding:10px 12px;font-weight:600;border-top:2px solid #ccc;">' + formatPeso(subtotal) + '</td></tr>' +
-    descFila +
-    ivaFila +
-    '<tr style="background:#111;"><td colspan="4" style="text-align:right;padding:12px;font-weight:700;font-size:15px;color:#e8c97e;border:none;">TOTAL</td>' +
-    '<td style="text-align:right;padding:12px;font-weight:700;font-size:15px;color:#e8c97e;border:none;">' + formatPeso(total) + '</td></tr>' +
-    '</tfoot></table>' +
+    /* ── TABLA DE ÍTEMS ── */
+    '<table style="margin-bottom:0;">' +
+    '<thead><tr style="background:#f2f2f2;">' +
+    '<th style="padding:10px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#444;font-weight:700;border-bottom:2px solid #CC0000;">Descripción</th>' +
+    '<th style="padding:10px 12px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#444;font-weight:700;border-bottom:2px solid #CC0000;width:70px;">Cantidad</th>' +
+    '<th style="padding:10px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#444;font-weight:700;border-bottom:2px solid #CC0000;width:130px;">Valor Unitario</th>' +
+    '<th style="padding:10px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#444;font-weight:700;border-bottom:2px solid #CC0000;width:130px;">Total</th>' +
+    '</tr></thead>' +
+    '<tbody>' + filasHTML + '</tbody>' +
+    '</table>' +
 
-    // Validez
-    '<div style="margin-top:14px;font-size:11px;color:#888;text-align:right;">Validez de la cotización: ' + validez + ' días corridos desde la fecha de emisión.</div>' +
+    /* ── TOTALES ── */
+    '<table style="margin-top:0;">' +
+    '<tbody>' +
+    (descPct > 0 ?
+      '<tr><td style="border:none;"></td>' +
+      '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;color:#555;">Descuento (' + descPct + '%)</td>' +
+      '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;color:#e05555;width:130px;">−' + formatPeso(descMonto) + '</td></tr>'
+      : '') +
+    '<tr><td style="border:none;"></td>' +
+    '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;color:#555;border-top:1px solid #eee;">Subtotal</td>' +
+    '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;border-top:1px solid #eee;width:130px;">' + formatPeso(base) + '</td></tr>' +
+    (conIva ?
+      '<tr><td style="border:none;"></td>' +
+      '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;color:#555;">IVA (19%)</td>' +
+      '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;width:130px;">' + formatPeso(iva) + '</td></tr>'
+      : '') +
+    '<tr><td style="border:none;"></td>' +
+    '<td style="border:none;text-align:right;padding:10px 12px;font-size:14px;font-weight:700;color:#CC0000;border-top:2px solid #CC0000;">TOTAL</td>' +
+    '<td style="border:none;text-align:right;padding:10px 12px;font-size:14px;font-weight:700;color:#CC0000;border-top:2px solid #CC0000;width:130px;">' + formatPeso(total) + '</td></tr>' +
+    '</tbody></table>' +
 
-    // Notas
-    (notas ? '<div style="margin-top:20px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Condiciones y observaciones</div>' + notasHTML + '</div>' : '') +
+    /* ── NOTAS (si existen) ── */
+    (notas ?
+      '<div style="margin-top:20px;">' +
+      '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:8px;">Notas</div>' +
+      '<div style="font-size:12px;color:#555;white-space:pre-line;line-height:1.6;">' + notas + '</div>' +
+      '</div>'
+      : '') +
 
-    // Pie de página
-    '<div style="margin-top:30px;border-top:1px solid #eee;padding-top:16px;text-align:center;font-size:11px;color:#aaa;">' +
-    'Birth Studio Publicidad · Talca, Chile · +56 9 7724 7545 · bstudio.designe@gmail.com' +
+    /* ── PLAZO ── */
+    '<div style="margin-top:22px;">' +
+    '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:6px;">Plazo de Fabricación e Instalación</div>' +
+    '<div style="font-size:12px;color:#444;line-height:1.6;">El plazo estimado de fabricación e instalación es de <strong>12 días hábiles</strong> a partir de la aprobación formal de la cotización y el pago del abono correspondiente.</div>' +
+    '</div>' +
+
+    /* ── TÉRMINOS Y CONDICIONES ── */
+    '<div style="margin-top:20px;">' +
+    '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:8px;">Términos y Condiciones (Conforme a Ley 21.398)</div>' +
+    '<ol style="font-size:11px;color:#555;line-height:1.8;padding-left:18px;">' +
+    '<li>Esta cotización tiene una validez de <strong>' + validez + ' días hábiles</strong> desde su fecha de emisión.</li>' +
+    '<li>Para confirmar el servicio se requiere el <strong>50% de abono</strong> al momento de aprobar la cotización; el saldo se cancela contra entrega.</li>' +
+    '<li>Los precios indicados incluyen IVA solo si se especifica en el documento. En caso contrario, los valores son netos.</li>' +
+    '<li>Birth Studio Publicidad SpA se reserva el derecho de modificar precios ante variaciones de materiales o insumos no previstas al momento de la cotización.</li>' +
+    '<li>Cualquier modificación al diseño o especificaciones acordadas, posterior a la aprobación, podrá implicar costos adicionales.</li>' +
+    '<li>El cliente debe proporcionar acceso al lugar de instalación en la fecha acordada. Demoras imputables al cliente pueden generar costos extra.</li>' +
+    '<li>Birth Studio Publicidad SpA no se hace responsable por daños en estructuras preexistentes no informadas al momento de la instalación.</li>' +
+    '<li>Conforme a la Ley N° 21.398, el cliente tiene derecho a recibir información clara y oportuna sobre los servicios contratados, plazos y garantías aplicables.</li>' +
+    '</ol>' +
+    '</div>' +
+
+    /* ── PIE DE PÁGINA ── */
+    '<hr style="border:none;border-top:1px solid #ddd;margin:24px 0 14px;" />' +
+    '<div style="text-align:center;font-size:10px;color:#999;line-height:1.8;">' +
+    'Birth Studio Publicidad SpA · RUT 77.990.344-3 · Talca, Chile<br>' +
+    'contacto@birthstudio.cl · www.bspublicidad.cl' +
     '</div>' +
 
     '</div></body></html>';
