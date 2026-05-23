@@ -278,6 +278,19 @@ ul { list-style: none; }
     background: var(--color-red-dark);
 }
 
+.nav__link--tool {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius);
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.03em;
+}
+.nav__link--tool:hover {
+    border-color: rgba(255,255,255,0.4);
+    color: var(--color-white) !important;
+}
+
 /* Hamburger */
 .nav__toggle {
     display: none;
