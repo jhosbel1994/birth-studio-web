@@ -1479,7 +1479,7 @@ ul { list-style: none; }
 }
 
 .footer__brand-item img {
-    height: 70px;             /* altura del logo — cámbialo aquí */
+    height: 150px;
     width: auto;
     object-fit: contain;
     opacity: 0.7;
@@ -1498,8 +1498,8 @@ ul { list-style: none; }
 }
 
 @media (max-width: 768px) {
-    .footer__brand-item { margin: 0 1.5rem; }
-    .footer__brand-item img { height: 54px; }
+    .footer__brand-item { margin: 0 2rem; }
+    .footer__brand-item img { height: 95px; }
 }
 
 /* ── 14d. SECCIÓN MAPA ───────────────────────────────── */

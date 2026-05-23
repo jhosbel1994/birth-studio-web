@@ -2116,10 +2116,10 @@ function construirYAbrirPDF(p) {
 
   var filasHTML = items.map(function(item) {
     return '<tr>' +
-      '<td style="padding:9px 12px;border-bottom:1px solid #ebebeb;font-size:12px;">' + item.nombre + '</td>' +
-      '<td style="padding:9px 12px;border-bottom:1px solid #ebebeb;font-size:12px;text-align:center;">' + item.qty + '</td>' +
-      '<td style="padding:9px 12px;border-bottom:1px solid #ebebeb;font-size:12px;text-align:right;">' + formatPeso(item.precio) + '</td>' +
-      '<td style="padding:9px 12px;border-bottom:1px solid #ebebeb;font-size:12px;text-align:right;font-weight:600;">' + formatPeso(item.precio * item.qty) + '</td>' +
+      '<td style="padding:12px 14px;border-bottom:1px solid #ebebeb;font-size:15px;font-weight:600;">' + item.nombre + '</td>' +
+      '<td style="padding:12px 14px;border-bottom:1px solid #ebebeb;font-size:15px;text-align:center;">' + item.qty + '</td>' +
+      '<td style="padding:12px 14px;border-bottom:1px solid #ebebeb;font-size:15px;text-align:right;">' + formatPeso(item.precio) + '</td>' +
+      '<td style="padding:12px 14px;border-bottom:1px solid #ebebeb;font-size:15px;text-align:right;font-weight:700;color:#CC0000;">' + formatPeso(item.precio * item.qty) + '</td>' +
       '</tr>';
   }).join('');
 
@@ -2186,54 +2186,54 @@ function construirYAbrirPDF(p) {
     '<tbody>' +
     (descPct > 0 ?
       '<tr><td style="border:none;"></td>' +
-      '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;color:#555;">Descuento (' + descPct + '%)</td>' +
-      '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;color:#e05555;width:130px;">−' + formatPeso(descMonto) + '</td></tr>'
+      '<td style="border:none;text-align:right;padding:7px 14px;font-size:14px;color:#555;border-top:1px solid #eee;">Descuento (' + descPct + '%)</td>' +
+      '<td style="border:none;text-align:right;padding:7px 14px;font-size:14px;color:#e05555;width:140px;">−' + formatPeso(descMonto) + '</td></tr>'
       : '') +
     '<tr><td style="border:none;"></td>' +
-    '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;color:#555;border-top:1px solid #eee;">Subtotal</td>' +
-    '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;border-top:1px solid #eee;width:130px;">' + formatPeso(base) + '</td></tr>' +
+    '<td style="border:none;text-align:right;padding:7px 14px;font-size:14px;color:#555;border-top:1px solid #eee;">Subtotal</td>' +
+    '<td style="border:none;text-align:right;padding:7px 14px;font-size:14px;border-top:1px solid #eee;width:140px;">' + formatPeso(base) + '</td></tr>' +
     (conIva ?
       '<tr><td style="border:none;"></td>' +
-      '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;color:#555;">IVA (19%)</td>' +
-      '<td style="border:none;text-align:right;padding:6px 12px;font-size:12px;width:130px;">' + formatPeso(iva) + '</td></tr>'
+      '<td style="border:none;text-align:right;padding:7px 14px;font-size:14px;color:#555;">IVA (19%)</td>' +
+      '<td style="border:none;text-align:right;padding:7px 14px;font-size:14px;width:140px;">' + formatPeso(iva) + '</td></tr>'
       : '') +
     '<tr><td style="border:none;"></td>' +
-    '<td style="border:none;text-align:right;padding:10px 12px;font-size:14px;font-weight:700;color:#CC0000;border-top:2px solid #CC0000;">TOTAL</td>' +
-    '<td style="border:none;text-align:right;padding:10px 12px;font-size:14px;font-weight:700;color:#CC0000;border-top:2px solid #CC0000;width:130px;">' + formatPeso(total) + '</td></tr>' +
+    '<td style="border:none;text-align:right;padding:12px 14px;font-size:18px;font-weight:700;color:#CC0000;border-top:2px solid #CC0000;">TOTAL</td>' +
+    '<td style="border:none;text-align:right;padding:12px 14px;font-size:18px;font-weight:700;color:#CC0000;border-top:2px solid #CC0000;width:140px;">' + formatPeso(total) + '</td></tr>' +
     '</tbody></table>' +
 
     /* ── NOTAS (si existen) ── */
     (notas ?
-      '<div style="margin-top:20px;">' +
-      '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:8px;">Notas</div>' +
-      '<div style="font-size:12px;color:#555;white-space:pre-line;line-height:1.6;">' + notas + '</div>' +
+      '<div style="margin-top:14px;">' +
+      '<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:4px;">Notas</div>' +
+      '<div style="font-size:10px;color:#666;white-space:pre-line;line-height:1.5;">' + notas + '</div>' +
       '</div>'
       : '') +
 
     /* ── PLAZO ── */
-    '<div style="margin-top:22px;">' +
-    '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:6px;">Plazo de Fabricación e Instalación</div>' +
-    '<div style="font-size:12px;color:#444;line-height:1.6;">El plazo estimado de fabricación e instalación es de <strong>12 días hábiles</strong> a partir de la aprobación formal de la cotización y el pago del abono correspondiente.</div>' +
+    '<div style="margin-top:14px;">' +
+    '<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:3px;">Plazo de Fabricación e Instalación</div>' +
+    '<div style="font-size:10px;color:#555;line-height:1.5;">Plazo estimado: <strong>12 días hábiles</strong> desde la aprobación y pago del abono.</div>' +
     '</div>' +
 
     /* ── TÉRMINOS Y CONDICIONES ── */
-    '<div style="margin-top:20px;">' +
-    '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:8px;">Términos y Condiciones (Conforme a Ley 21.398)</div>' +
-    '<ol style="font-size:11px;color:#555;line-height:1.8;padding-left:18px;">' +
-    '<li>Esta cotización tiene una validez de <strong>' + validez + ' días hábiles</strong> desde su fecha de emisión.</li>' +
-    '<li>Para confirmar el servicio se requiere el <strong>50% de abono</strong> al momento de aprobar la cotización; el saldo se cancela contra entrega.</li>' +
-    '<li>Los precios indicados incluyen IVA solo si se especifica en el documento. En caso contrario, los valores son netos.</li>' +
-    '<li>Birth Studio Publicidad SpA se reserva el derecho de modificar precios ante variaciones de materiales o insumos no previstas al momento de la cotización.</li>' +
-    '<li>Cualquier modificación al diseño o especificaciones acordadas, posterior a la aprobación, podrá implicar costos adicionales.</li>' +
-    '<li>El cliente debe proporcionar acceso al lugar de instalación en la fecha acordada. Demoras imputables al cliente pueden generar costos extra.</li>' +
-    '<li>Birth Studio Publicidad SpA no se hace responsable por daños en estructuras preexistentes no informadas al momento de la instalación.</li>' +
-    '<li>Conforme a la Ley N° 21.398, el cliente tiene derecho a recibir información clara y oportuna sobre los servicios contratados, plazos y garantías aplicables.</li>' +
+    '<div style="margin-top:12px;">' +
+    '<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#CC0000;margin-bottom:4px;">Términos y Condiciones (Ley 21.398)</div>' +
+    '<ol style="font-size:9px;color:#777;line-height:1.6;padding-left:16px;">' +
+    '<li>Validez: <strong>' + validez + ' días hábiles</strong> desde la fecha de emisión.</li>' +
+    '<li>Se requiere <strong>50% de abono</strong> para confirmar; saldo contra entrega.</li>' +
+    '<li>Precios incluyen IVA solo si se indica en el documento; de lo contrario son netos.</li>' +
+    '<li>Nos reservamos el derecho de ajustar precios ante variaciones de materiales no previstas.</li>' +
+    '<li>Modificaciones posteriores a la aprobación pueden generar costos adicionales.</li>' +
+    '<li>El cliente debe proveer acceso en la fecha acordada; demoras imputables al cliente generan cargos extra.</li>' +
+    '<li>No nos hacemos responsables por daños en estructuras preexistentes no informadas.</li>' +
+    '<li>El cliente tiene derecho a información clara sobre servicios, plazos y garantías (Ley 21.398).</li>' +
     '</ol>' +
     '</div>' +
 
     /* ── PIE DE PÁGINA ── */
-    '<hr style="border:none;border-top:1px solid #ddd;margin:24px 0 14px;" />' +
-    '<div style="text-align:center;font-size:10px;color:#999;line-height:1.8;">' +
+    '<hr style="border:none;border-top:1px solid #ddd;margin:16px 0 10px;" />' +
+    '<div style="text-align:center;font-size:9px;color:#aaa;line-height:1.7;">' +
     'Birth Studio Publicidad SpA · RUT 77.990.344-3 · Talca, Chile<br>' +
     'contacto@birthstudio.cl · www.bspublicidad.cl' +
     '</div>' +
