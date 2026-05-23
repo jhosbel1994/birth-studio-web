@@ -110,6 +110,31 @@
     }
     #pin-btn:hover { background: var(--accent2); }
 
+    /* Botón eliminar cotización en la lista */
+    .btn-del-cot {
+      background: transparent;
+      color: var(--muted);
+      padding: 6px 8px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      min-width: 32px;
+      min-height: 32px;
+      transition: color .2s, background .2s;
+    }
+    .btn-del-cot:hover, .btn-del-cot:active {
+      color: var(--danger);
+      background: rgba(224,85,85,0.1);
+    }
+
+    /* Mobile: panel Firebase aparece antes del detalle de cotización */
+    @media (max-width: 760px) {
+      .quote-panel { display: flex; flex-direction: column; }
+      #panel-firebase { order: -1; }
+    }
+
     /* Botón volver al inicio (esquina superior izquierda del PIN) */
     #pin-back {
       position: absolute;
@@ -1289,7 +1314,9 @@ function renderizarListaCotizaciones(arr) {
       '<span class="badge badge-' + estado + '" style="margin-right:4px;">' + estado + '</span>' +
       '<span class="hi-total" style="margin-right:4px;">' + formatPeso(d.total || 0) + '</span>' +
       '<button class="hi-load" style="margin-right:4px;" onclick="cargarCotizacionExistente(' + JSON.stringify(d).replace(/"/g, '&quot;') + ')">Cargar</button>' +
-      '<button onclick="eliminarCotizacion(\'' + d._id + '\')" title="Eliminar" style="background:transparent;color:var(--muted);font-size:1rem;padding:0 4px;transition:color .2s;" onmouseover="this.style.color=\'#e05555\'" onmouseout="this.style.color=\'var(--muted)\'">✕</button>';
+      '<button onclick="eliminarCotizacion(\'' + d._id + '\')" title="Eliminar" class="btn-del-cot">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+      '</button>';
     lista.appendChild(div);
   });
 }
@@ -1559,7 +1586,8 @@ function cargarDashboard() {
 ════════════════════════════════════════════ */
 var CATALOGO = [
   {
-    cat: '🖼 Letreros y señalética',
+    cat: 'Letreros y señalética',
+    icon: 'layout',
     items: [
       { id: 'l1',  nombre: 'Letrero PVC impreso (1m²)',            precio: 18000 },
       { id: 'l2',  nombre: 'Letrero acrílico con iluminación LED', precio: 85000 },
@@ -1569,7 +1597,8 @@ var CATALOGO = [
     ]
   },
   {
-    cat: '✂️ Letras corpóreas',
+    cat: 'Letras corpóreas',
+    icon: 'type',
     items: [
       { id: 'c1', nombre: 'Letra corpórea PVC 3mm (por letra)',     precio: 6900  },
       { id: 'c2', nombre: 'Letra corpórea acrílico 3mm (por letra)',precio: 8500  },
@@ -1578,7 +1607,8 @@ var CATALOGO = [
     ]
   },
   {
-    cat: '🖨 Impresión digital',
+    cat: 'Impresión digital',
+    icon: 'printer',
     items: [
       { id: 'i1', nombre: 'Paloma PVC (por m²)',                    precio: 9800  },
       { id: 'i2', nombre: 'Lona PVC (por m²)',                      precio: 12000 },
@@ -1588,7 +1618,8 @@ var CATALOGO = [
     ]
   },
   {
-    cat: '🚗 Rotulación vehículos',
+    cat: 'Rotulación vehículos',
+    icon: 'car',
     items: [
       { id: 'v1', nombre: 'Rotulación auto completa',               precio: 150000 },
       { id: 'v2', nombre: 'Rotulación camioneta/furgón completa',   precio: 200000 },
@@ -1597,7 +1628,8 @@ var CATALOGO = [
     ]
   },
   {
-    cat: '🏪 Diseño',
+    cat: 'Diseño gráfico',
+    icon: 'pen-tool',
     items: [
       { id: 'd1', nombre: 'Diseño logotipo completo',               precio: 80000  },
       { id: 'd2', nombre: 'Diseño de letrero / arte final',         precio: 25000  },
@@ -1606,7 +1638,8 @@ var CATALOGO = [
     ]
   },
   {
-    cat: '🔧 Instalación',
+    cat: 'Instalación',
+    icon: 'wrench',
     items: [
       { id: 'in1', nombre: 'Instalación en Talca (incluida)',       precio: 0      },
       { id: 'in2', nombre: 'Instalación fuera de Talca (km)',       precio: 500    },
@@ -1614,7 +1647,8 @@ var CATALOGO = [
     ]
   },
   {
-    cat: '🌐 Páginas web',
+    cat: 'Páginas web',
+    icon: 'globe',
     items: [
       { id: 'w1', nombre: 'Página web institucional (hasta 5 pág)', precio: 250000 },
       { id: 'w2', nombre: 'Página web catálogo / e-commerce',       precio: 450000 },
@@ -1702,10 +1736,15 @@ function construirCatalogo() {
   cont.innerHTML = '';
 
   CATALOGO.forEach(function(cat) {
-    // Header acordeón
+    // Header acordeón con icono Lucide
     var header = document.createElement('div');
     header.className = 'cat-header';
-    header.innerHTML = '<span>' + cat.cat + '</span><span class="arrow">▶</span>';
+    header.innerHTML =
+      '<span style="display:flex;align-items:center;gap:0.45rem;">' +
+        '<i data-lucide="' + (cat.icon || 'tag') + '" style="width:14px;height:14px;flex-shrink:0;"></i>' +
+        cat.cat +
+      '</span>' +
+      '<i data-lucide="chevron-right" class="arrow" style="width:14px;height:14px;flex-shrink:0;"></i>';
 
     var items = document.createElement('div');
     items.className = 'cat-items';
@@ -1729,6 +1768,7 @@ function construirCatalogo() {
     cont.appendChild(header);
     cont.appendChild(items);
   });
+  lucide.createIcons(); // Renderiza los iconos del catálogo
 }
 
 function updateItemPrice(id, val) {
