@@ -8,6 +8,9 @@
   <!-- EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
+  <!-- Lucide Icons (SVG profesionales) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
   <!-- Firebase (Firestore) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -396,6 +399,21 @@
     .modal-actions .btn { flex: 1; }
 
     /* ───────────────────────────────────────────
+       ÍCONOS SVG (Lucide)
+    ─────────────────────────────────────────── */
+    .btn svg       { width: 17px; height: 17px; flex-shrink: 0; stroke-width: 2; }
+    .tab-btn       { display: flex; align-items: center; justify-content: center; gap: 5px; }
+    .tab-btn svg   { width: 14px; height: 14px; stroke-width: 2; }
+    .btn-add svg   { width: 14px; height: 14px; stroke-width: 2.5; vertical-align: middle; }
+    .card__title svg { width: 14px; height: 14px; stroke-width: 2; vertical-align: middle; margin-right: 4px; }
+    .hi-load svg   { width: 12px; height: 12px; stroke-width: 2.5; vertical-align: middle; }
+    #pin-box svg   { width: 28px; height: 28px; stroke-width: 1.8; color: var(--accent); margin-bottom: 4px; }
+    .modal h3 svg  { width: 18px; height: 18px; stroke-width: 2; vertical-align: middle; margin-right: 6px; }
+
+    /* Botón primario: texto e ícono en blanco */
+    .btn-primary { color: #fff !important; }
+
+    /* ───────────────────────────────────────────
        TOAST / NOTIFICACIÓN
     ─────────────────────────────────────────── */
     #toast {
@@ -581,7 +599,8 @@
   <img src="assets/logo-birth.png" alt="Birth Studio" />
   <h2>Sistema de Cotizaciones</h2>
   <div id="pin-box">
-    <h3>🔒 Acceso privado</h3>
+    <i data-lucide="lock"></i>
+    <h3>Acceso privado</h3>
     <input id="pin-input" type="password" maxlength="20"
            placeholder="••••••••" autocomplete="off"
            inputmode="text" />
@@ -812,13 +831,13 @@
       <!-- Botones de acción -->
       <div class="card actions">
         <div class="card__title">Exportar / Compartir</div>
-        <button class="btn btn-primary" onclick="generarPDF()">📄 Ver / Imprimir PDF</button>
-        <button class="btn btn-wa"    onclick="enviarWhatsApp()">💬 Enviar por WhatsApp</button>
-        <button class="btn btn-tg"    onclick="enviarTelegram()">✈️ Enviar por Telegram</button>
-        <button class="btn btn-email" onclick="abrirModalEmail()">📧 Enviar por correo</button>
+        <button class="btn btn-primary" onclick="generarPDF()"><i data-lucide="file-text"></i> Ver / Imprimir PDF</button>
+        <button class="btn btn-wa"    onclick="enviarWhatsApp()"><i data-lucide="message-circle"></i> WhatsApp</button>
+        <button class="btn btn-tg"    onclick="enviarTelegram()"><i data-lucide="send"></i> Telegram</button>
+        <button class="btn btn-email" onclick="abrirModalEmail()"><i data-lucide="mail"></i> Enviar por correo</button>
         <button class="btn btn-save"  onclick="guardarCotizacion()" id="btn-guardar"
-                style="background:#5e5ce6;color:#fff;">☁️ Guardar en la nube</button>
-        <button class="btn btn-clear" onclick="limpiarCotizacion()">🗑 Limpiar cotización</button>
+                style="background:#5e5ce6;color:#fff;"><i data-lucide="cloud-upload"></i> <span id="btn-guardar-txt">Guardar en la nube</span></button>
+        <button class="btn btn-clear" onclick="limpiarCotizacion()"><i data-lucide="trash-2"></i> Limpiar</button>
       </div>
 
       <!-- Historial y Clientes (Firebase) -->
@@ -830,9 +849,9 @@
 
         <div id="fb-content" style="display:none;">
           <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('cotizaciones')">📋 Cotizaciones</button>
-            <button class="tab-btn"        onclick="switchTab('clientes')">👥 Clientes</button>
-            <button class="tab-btn"        onclick="switchTab('dashboard')">📊 Dashboard</button>
+            <button class="tab-btn active" onclick="switchTab('cotizaciones')"><i data-lucide="file-text"></i> Cotizaciones</button>
+            <button class="tab-btn"        onclick="switchTab('clientes')"><i data-lucide="users"></i> Clientes</button>
+            <button class="tab-btn"        onclick="switchTab('dashboard')"><i data-lucide="bar-chart-2"></i> Dashboard</button>
           </div>
 
           <!-- TAB: Cotizaciones guardadas -->
@@ -895,7 +914,7 @@
 <!-- Modal de email -->
 <div class="modal-overlay" id="modal-email">
   <div class="modal">
-    <h3>📧 Enviar cotización por correo</h3>
+    <h3><i data-lucide="mail"></i> Enviar cotización por correo</h3>
     <div>
       <label>Correo del cliente *</label>
       <input id="m-email" type="email" placeholder="cliente@correo.cl" />
@@ -987,7 +1006,7 @@ function guardarCotizacion() {
 
   var btn = document.getElementById('btn-guardar');
   btn.disabled    = true;
-  btn.textContent = '☁️ Guardando…';
+  document.getElementById('btn-guardar-txt').textContent = 'Guardando…';
 
   var rut     = document.getElementById('c-rut').value.trim();
   var tel     = document.getElementById('c-tel').value.trim();
@@ -1037,14 +1056,14 @@ function guardarCotizacion() {
   batch.commit()
     .then(function() {
       btn.disabled    = false;
-      btn.textContent = '☁️ Guardar en la nube';
+      document.getElementById('btn-guardar-txt').textContent = 'Guardar en la nube';
       mostrarToast('✓ Cotización guardada en la nube', 'success');
       cargarCotizaciones();
       cargarClientes();
     })
     .catch(function(err) {
       btn.disabled    = false;
-      btn.textContent = '☁️ Guardar en la nube';
+      document.getElementById('btn-guardar-txt').textContent = 'Guardar en la nube';
       mostrarToast('Error al guardar. Revisa tu conexión.', 'error');
       console.error('Firebase save error:', err);
     });
@@ -1404,6 +1423,7 @@ var itemsCotizacion = []; // [{ id, nombre, precio, qty }]
    PIN
 ════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function() {
+  lucide.createIcons();
   emailjs.init({ publicKey: EMAILJS_KEY });
 
   // Fecha de hoy por defecto
