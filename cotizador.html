@@ -8,6 +8,10 @@
   <!-- EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
+  <!-- Firebase (Firestore) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
   <style>
     /* ───────────────────────────────────────────
        VARIABLES Y RESET
@@ -414,6 +418,93 @@
     #toast.error   { border-color: var(--danger);  color: var(--danger);  }
 
     /* ───────────────────────────────────────────
+       HISTORIAL / CLIENTES (Firebase)
+    ─────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.9rem;
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.5rem 0.4rem;
+      border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s;
+    }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Barra de búsqueda de clientes */
+    .search-bar {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.7rem;
+    }
+    .search-bar input { flex: 1; }
+
+    /* Lista de clientes / cotizaciones */
+    .hist-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .hist-list::-webkit-scrollbar { width: 4px; }
+    .hist-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .hist-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.7rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    .hist-item:hover { border-color: var(--accent); }
+    .hist-item .hi-main { flex: 1; }
+    .hist-item .hi-name { font-weight: 600; color: var(--text); }
+    .hist-item .hi-sub  { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .hist-item .hi-total { font-weight: 700; color: var(--accent); white-space: nowrap; font-size: 0.82rem; }
+    .hist-item .hi-load {
+      background: var(--accent);
+      color: #111;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border-radius: 5px;
+      padding: 0.25rem 0.5rem;
+      white-space: nowrap;
+    }
+
+    .hist-empty { text-align: center; font-size: 0.82rem; color: var(--muted); padding: 1rem 0; }
+    .hist-loading { text-align: center; font-size: 0.82rem; color: var(--muted); padding: 0.6rem 0; }
+
+    /* Estado Firebase (banner de alerta si no está configurado) */
+    .fb-alert {
+      background: rgba(232,201,126,0.1);
+      border: 1px solid rgba(232,201,126,0.4);
+      color: var(--accent);
+      font-size: 0.78rem;
+      border-radius: 8px;
+      padding: 0.7rem 0.9rem;
+      line-height: 1.5;
+    }
+    .fb-alert a { color: var(--accent); }
+
+    /* ───────────────────────────────────────────
        RESPONSIVE AJUSTES
     ─────────────────────────────────────────── */
     @media (max-width: 440px) {
@@ -676,7 +767,42 @@
         <button class="btn btn-wa"    onclick="enviarWhatsApp()">💬 Enviar por WhatsApp</button>
         <button class="btn btn-tg"    onclick="enviarTelegram()">✈️ Enviar por Telegram</button>
         <button class="btn btn-email" onclick="abrirModalEmail()">📧 Enviar por correo</button>
+        <button class="btn btn-save"  onclick="guardarCotizacion()" id="btn-guardar"
+                style="background:#5e5ce6;color:#fff;">☁️ Guardar en la nube</button>
         <button class="btn btn-clear" onclick="limpiarCotizacion()">🗑 Limpiar cotización</button>
+      </div>
+
+      <!-- Historial y Clientes (Firebase) -->
+      <div class="card" id="panel-firebase">
+        <div id="fb-config-alert" class="fb-alert" style="display:none;">
+          ⚠️ <strong>Firebase no configurado.</strong> Sigue los pasos de configuración para activar el almacenamiento en la nube.
+          <br>Consulta las instrucciones que te envié más abajo.
+        </div>
+
+        <div id="fb-content" style="display:none;">
+          <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('cotizaciones')">📋 Cotizaciones</button>
+            <button class="tab-btn"        onclick="switchTab('clientes')">👥 Clientes</button>
+          </div>
+
+          <!-- TAB: Cotizaciones guardadas -->
+          <div class="tab-panel active" id="tab-cotizaciones">
+            <div class="hist-list" id="lista-cotizaciones">
+              <div class="hist-loading">Cargando…</div>
+            </div>
+          </div>
+
+          <!-- TAB: Clientes guardados -->
+          <div class="tab-panel" id="tab-clientes">
+            <div class="search-bar">
+              <input type="text" id="buscar-cliente" placeholder="Buscar cliente…"
+                     oninput="filtrarClientes(this.value)" />
+            </div>
+            <div class="hist-list" id="lista-clientes">
+              <div class="hist-loading">Cargando…</div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div><!-- fin columna derecha -->
@@ -715,6 +841,285 @@ var WA_NUMBER      = '56977247545';    // WhatsApp
 var EMAILJS_KEY    = 'x6DqzGj_3ceKhk2NQ';
 var EMAILJS_SVC    = 'service_qtcrtcr';
 var EMAILJS_TPL    = 'template_3zwrb8h';
+
+/* ════════════════════════════════════════════
+   FIREBASE — reemplaza con tu configuración
+   Crea tu proyecto en: firebase.google.com
+════════════════════════════════════════════ */
+var FIREBASE_CONFIG = {
+  apiKey:            "REEMPLAZA-CON-TU-API-KEY",
+  authDomain:        "REEMPLAZA.firebaseapp.com",
+  projectId:         "REEMPLAZA-CON-TU-PROJECT-ID",
+  storageBucket:     "REEMPLAZA.appspot.com",
+  messagingSenderId: "REEMPLAZA",
+  appId:             "REEMPLAZA"
+};
+
+// Variables globales Firebase
+var db = null;
+var todosLosClientes = [];  // caché local para búsqueda
+
+function initFirebase() {
+  try {
+    // Si no está configurado, mostrar alerta
+    if (FIREBASE_CONFIG.apiKey === 'REEMPLAZA-CON-TU-API-KEY') {
+      document.getElementById('fb-config-alert').style.display = 'block';
+      document.getElementById('fb-content').style.display = 'none';
+      return;
+    }
+
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+
+    document.getElementById('fb-config-alert').style.display = 'none';
+    document.getElementById('fb-content').style.display = 'block';
+
+    cargarCotizaciones();
+    cargarClientes();
+  } catch (err) {
+    console.error('Firebase init error:', err);
+    document.getElementById('fb-config-alert').style.display = 'block';
+  }
+}
+
+/* ────────────────────────────────────────────
+   GUARDAR COTIZACIÓN + CLIENTE
+──────────────────────────────────────────── */
+function guardarCotizacion() {
+  if (!db) {
+    mostrarToast('Configura Firebase primero', 'error');
+    return;
+  }
+  if (!itemsCotizacion.length) {
+    mostrarToast('Agrega al menos un ítem antes de guardar', 'error');
+    return;
+  }
+
+  var nombre  = document.getElementById('c-nombre').value.trim();
+  if (!nombre) {
+    mostrarToast('Ingresa el nombre del cliente antes de guardar', 'error');
+    document.getElementById('c-nombre').focus();
+    return;
+  }
+
+  var btn = document.getElementById('btn-guardar');
+  btn.disabled    = true;
+  btn.textContent = '☁️ Guardando…';
+
+  var rut     = document.getElementById('c-rut').value.trim();
+  var tel     = document.getElementById('c-tel').value.trim();
+  var email   = document.getElementById('c-email').value.trim();
+  var ciudad  = document.getElementById('c-ciudad').value.trim();
+  var numCot  = document.getElementById('c-num').value.trim()    || '001';
+  var fecha   = document.getElementById('c-fecha').value         || '';
+  var validez = document.getElementById('c-validez').value       || '7';
+  var notas   = document.getElementById('notas').value           || '';
+  var descPct = parseFloat(document.getElementById('descuento').value) || 0;
+  var conIva  = document.getElementById('incluir-iva').checked;
+
+  var subtotal  = itemsCotizacion.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var descMonto = subtotal * descPct / 100;
+  var base      = subtotal - descMonto;
+  var iva       = conIva ? base * 0.19 : 0;
+  var total     = base + iva;
+
+  var clienteData = { nombre: nombre, rut: rut, telefono: tel, email: email, ciudad: ciudad };
+
+  // Guardar o actualizar cliente (busca por nombre + rut)
+  var claveCliente = (nombre + '_' + rut).toLowerCase().replace(/\s+/g, '_');
+
+  var batch = db.batch();
+
+  // Referencia cliente
+  var clienteRef = db.collection('clientes').doc(claveCliente);
+  batch.set(clienteRef, Object.assign({}, clienteData, { actualizadoEl: firebase.firestore.FieldValue.serverTimestamp() }), { merge: true });
+
+  // Referencia cotización (nueva)
+  var cotRef = db.collection('cotizaciones').doc();
+  batch.set(cotRef, {
+    numero:    numCot,
+    cliente:   clienteData,
+    items:     itemsCotizacion,
+    subtotal:  subtotal,
+    descuento: descPct,
+    iva:       conIva ? iva : 0,
+    total:     total,
+    fecha:     fecha,
+    validez:   validez,
+    notas:     notas,
+    creadoEl:  firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  batch.commit()
+    .then(function() {
+      btn.disabled    = false;
+      btn.textContent = '☁️ Guardar en la nube';
+      mostrarToast('✓ Cotización guardada en la nube', 'success');
+      cargarCotizaciones();
+      cargarClientes();
+    })
+    .catch(function(err) {
+      btn.disabled    = false;
+      btn.textContent = '☁️ Guardar en la nube';
+      mostrarToast('Error al guardar. Revisa tu conexión.', 'error');
+      console.error('Firebase save error:', err);
+    });
+}
+
+/* ────────────────────────────────────────────
+   CARGAR HISTORIAL DE COTIZACIONES
+──────────────────────────────────────────── */
+function cargarCotizaciones() {
+  if (!db) return;
+  var lista = document.getElementById('lista-cotizaciones');
+  lista.innerHTML = '<div class="hist-loading">Cargando…</div>';
+
+  db.collection('cotizaciones')
+    .orderBy('creadoEl', 'desc')
+    .limit(30)
+    .get()
+    .then(function(snap) {
+      if (snap.empty) {
+        lista.innerHTML = '<div class="hist-empty">No hay cotizaciones guardadas aún.</div>';
+        return;
+      }
+      lista.innerHTML = '';
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        var div = document.createElement('div');
+        div.className = 'hist-item';
+        var fechaStr = d.fecha
+          ? new Date(d.fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '—';
+        div.innerHTML =
+          '<div class="hi-main">' +
+            '<div class="hi-name">N° ' + (d.numero || '—') + ' · ' + (d.cliente && d.cliente.nombre ? d.cliente.nombre : '—') + '</div>' +
+            '<div class="hi-sub">' + fechaStr + ' · ' + (d.items ? d.items.length : 0) + ' ítem(s)</div>' +
+          '</div>' +
+          '<span class="hi-total">' + formatPeso(d.total || 0) + '</span>' +
+          '<button class="hi-load" onclick="cargarCotizacionExistente(' + JSON.stringify(d).replace(/"/g, '&quot;') + ')">Cargar</button>';
+        lista.appendChild(div);
+      });
+    })
+    .catch(function(err) {
+      lista.innerHTML = '<div class="hist-empty">Error al cargar. Revisa tu conexión.</div>';
+      console.error(err);
+    });
+}
+
+/* ────────────────────────────────────────────
+   CARGAR LISTA DE CLIENTES
+──────────────────────────────────────────── */
+function cargarClientes() {
+  if (!db) return;
+  var lista = document.getElementById('lista-clientes');
+  lista.innerHTML = '<div class="hist-loading">Cargando…</div>';
+
+  db.collection('clientes')
+    .orderBy('nombre')
+    .limit(100)
+    .get()
+    .then(function(snap) {
+      todosLosClientes = [];
+      if (snap.empty) {
+        lista.innerHTML = '<div class="hist-empty">No hay clientes guardados aún.</div>';
+        return;
+      }
+      snap.forEach(function(doc) {
+        todosLosClientes.push(doc.data());
+      });
+      renderizarClientes(todosLosClientes);
+    })
+    .catch(function(err) {
+      lista.innerHTML = '<div class="hist-empty">Error al cargar clientes.</div>';
+      console.error(err);
+    });
+}
+
+function renderizarClientes(lista) {
+  var cont = document.getElementById('lista-clientes');
+  if (!lista.length) {
+    cont.innerHTML = '<div class="hist-empty">No se encontraron clientes.</div>';
+    return;
+  }
+  cont.innerHTML = '';
+  lista.forEach(function(c) {
+    var div = document.createElement('div');
+    div.className = 'hist-item';
+    div.innerHTML =
+      '<div class="hi-main">' +
+        '<div class="hi-name">' + (c.nombre || '—') + '</div>' +
+        '<div class="hi-sub">' +
+          (c.rut ? 'RUT: ' + c.rut + '  ' : '') +
+          (c.telefono ? '📞 ' + c.telefono : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="hi-load" onclick="cargarDatosCliente(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">Usar</button>';
+    cont.appendChild(div);
+  });
+}
+
+function filtrarClientes(query) {
+  var q = query.toLowerCase().trim();
+  if (!q) { renderizarClientes(todosLosClientes); return; }
+  var filtrados = todosLosClientes.filter(function(c) {
+    return (c.nombre || '').toLowerCase().includes(q) ||
+           (c.rut    || '').toLowerCase().includes(q) ||
+           (c.email  || '').toLowerCase().includes(q);
+  });
+  renderizarClientes(filtrados);
+}
+
+/* ────────────────────────────────────────────
+   CARGAR DATOS EN EL FORMULARIO
+──────────────────────────────────────────── */
+function cargarDatosCliente(c) {
+  document.getElementById('c-nombre').value  = c.nombre  || '';
+  document.getElementById('c-rut').value     = c.rut     || '';
+  document.getElementById('c-tel').value     = c.telefono || '';
+  document.getElementById('c-email').value   = c.email   || '';
+  document.getElementById('c-ciudad').value  = c.ciudad  || '';
+  mostrarToast('Cliente "' + c.nombre + '" cargado', 'success');
+  // Scroll arriba para ver los datos
+  document.getElementById('c-nombre').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function cargarCotizacionExistente(d) {
+  // Carga datos del cliente
+  if (d.cliente) cargarDatosCliente(d.cliente);
+
+  // Carga número, fecha y notas
+  if (d.numero)  document.getElementById('c-num').value     = d.numero;
+  if (d.fecha)   document.getElementById('c-fecha').value   = d.fecha;
+  if (d.validez) document.getElementById('c-validez').value = d.validez;
+  if (d.notas)   document.getElementById('notas').value     = d.notas;
+  if (d.descuento) document.getElementById('descuento').value = d.descuento;
+  if (d.iva && d.iva > 0) document.getElementById('incluir-iva').checked = true;
+
+  // Carga ítems
+  if (d.items && d.items.length) {
+    itemsCotizacion = d.items.map(function(item, idx) {
+      return { id: item.id || ('load_' + idx), nombre: item.nombre, precio: item.precio, qty: item.qty };
+    });
+    renderizarCotizacion();
+  }
+
+  mostrarToast('Cotización N° ' + (d.numero || '—') + ' cargada', 'success');
+  document.getElementById('c-nombre').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ────────────────────────────────────────────
+   TABS
+──────────────────────────────────────────── */
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(function(b, i) {
+    b.classList.toggle('active', (i === 0 && tabId === 'cotizaciones') || (i === 1 && tabId === 'clientes'));
+  });
+  document.querySelectorAll('.tab-panel').forEach(function(p) {
+    p.classList.remove('active');
+  });
+  document.getElementById('tab-' + tabId).classList.add('active');
+}
 
 /* ════════════════════════════════════════════
    CATÁLOGO DE PRECIOS
@@ -817,6 +1222,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Verificar sesión activa
   if (localStorage.getItem('bs_pin_ok') === '1') {
     mostrarApp();
+    initFirebase();
   }
 
   // Enter en PIN
@@ -837,6 +1243,7 @@ function verificarPin() {
     localStorage.setItem('bs_pin_ok', '1');
     err.textContent = '';
     mostrarApp();
+    initFirebase();
   } else {
     err.textContent = '⚠ PIN incorrecto. Intenta de nuevo.';
     document.getElementById('pin-input').value = '';
