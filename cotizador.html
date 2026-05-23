@@ -570,6 +570,91 @@
     .fb-alert a { color: var(--accent); }
 
     /* ───────────────────────────────────────────
+       CARRITO FLOTANTE (FAB) — solo móvil
+    ─────────────────────────────────────────── */
+    .fab-cart {
+      display: none;
+      position: fixed;
+      bottom: 1.4rem;
+      right: 1.4rem;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 24px rgba(204,0,0,0.45);
+      z-index: 200;
+      cursor: pointer;
+      border: none;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .fab-cart:active { transform: scale(0.94); }
+    .fab-cart svg { width: 26px; height: 26px; stroke-width: 2; }
+    .fab-badge {
+      position: absolute;
+      top: 0; right: 0;
+      background: #fff;
+      color: var(--accent);
+      font-size: 0.7rem;
+      font-weight: 800;
+      border-radius: 10px;
+      min-width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    @media (max-width: 759px) {
+      .fab-cart.has-items { display: flex; }
+    }
+
+    /* Panel carrito deslizable desde abajo */
+    .carrito-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 400;
+      align-items: flex-end;
+    }
+    .carrito-overlay.open { display: flex; }
+    .carrito-panel {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      animation: slideUp .22s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .carrito-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .carrito-header strong { font-size: 1rem; }
+    .carrito-header .btn-cerrar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .carrito-header .btn-cerrar svg { width: 16px; height: 16px; color: var(--muted); }
+
+    /* ───────────────────────────────────────────
        RESPONSIVE AJUSTES
     ─────────────────────────────────────────── */
     @media (max-width: 440px) {
@@ -835,8 +920,6 @@
         <button class="btn btn-wa"    onclick="enviarWhatsApp()"><i data-lucide="message-circle"></i> WhatsApp</button>
         <button class="btn btn-tg"    onclick="enviarTelegram()"><i data-lucide="send"></i> Telegram</button>
         <button class="btn btn-email" onclick="abrirModalEmail()"><i data-lucide="mail"></i> Enviar por correo</button>
-        <button class="btn btn-save"  onclick="guardarCotizacion()" id="btn-guardar"
-                style="background:#5e5ce6;color:#fff;"><i data-lucide="cloud-upload"></i> <span id="btn-guardar-txt">Guardar en la nube</span></button>
         <button class="btn btn-clear" onclick="limpiarCotizacion()"><i data-lucide="trash-2"></i> Limpiar</button>
       </div>
 
@@ -849,20 +932,13 @@
 
         <div id="fb-content" style="display:none;">
           <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('cotizaciones')"><i data-lucide="file-text"></i> Cotizaciones</button>
-            <button class="tab-btn"        onclick="switchTab('clientes')"><i data-lucide="users"></i> Clientes</button>
+            <button class="tab-btn active" onclick="switchTab('clientes')"><i data-lucide="users"></i> Clientes</button>
+            <button class="tab-btn"        onclick="switchTab('cotizaciones')"><i data-lucide="file-text"></i> Cotizaciones</button>
             <button class="tab-btn"        onclick="switchTab('dashboard')"><i data-lucide="bar-chart-2"></i> Dashboard</button>
           </div>
 
-          <!-- TAB: Cotizaciones guardadas -->
-          <div class="tab-panel active" id="tab-cotizaciones">
-            <div class="hist-list" id="lista-cotizaciones">
-              <div class="hist-loading">Cargando…</div>
-            </div>
-          </div>
-
-          <!-- TAB: Clientes guardados -->
-          <div class="tab-panel" id="tab-clientes">
+          <!-- TAB: Clientes guardados (ahora primero) -->
+          <div class="tab-panel active" id="tab-clientes">
             <!-- Formulario nuevo cliente -->
             <button class="btn-add" style="margin-bottom:0.6rem;width:100%;padding:0.5rem;"
                     onclick="toggleFormCliente()">+ Registrar nuevo cliente</button>
@@ -885,6 +961,17 @@
                      oninput="filtrarClientes(this.value)" />
             </div>
             <div class="hist-list" id="lista-clientes">
+              <div class="hist-loading">Cargando…</div>
+            </div>
+          </div>
+
+          <!-- TAB: Cotizaciones guardadas -->
+          <div class="tab-panel" id="tab-cotizaciones">
+            <div class="search-bar" style="margin-bottom:0.6rem;">
+              <input type="text" id="buscar-cotizacion" placeholder="Buscar por cliente, N° o fecha…"
+                     oninput="filtrarCotizaciones(this.value)" />
+            </div>
+            <div class="hist-list" id="lista-cotizaciones">
               <div class="hist-loading">Cargando…</div>
             </div>
           </div>
@@ -934,6 +1021,60 @@
 <!-- Toast global -->
 <div id="toast"></div>
 
+<!-- FAB carrito flotante (solo móvil) -->
+<button class="fab-cart" id="fab-cart" onclick="abrirCarrito()">
+  <i data-lucide="shopping-cart"></i>
+  <span class="fab-badge" id="fab-badge">0</span>
+</button>
+
+<!-- Panel carrito deslizable -->
+<div class="carrito-overlay" id="carrito-overlay" onclick="cerrarCarritoFuera(event)">
+  <div class="carrito-panel" id="carrito-panel">
+    <div class="carrito-header">
+      <strong>Cotización actual</strong>
+      <button class="btn-cerrar" onclick="cerrarCarrito()"><i data-lucide="x"></i></button>
+    </div>
+
+    <!-- Ítems -->
+    <div id="carrito-items-panel"></div>
+
+    <!-- Descuento + IVA -->
+    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+      <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.83rem;">
+        <span>Descuento:</span>
+        <input id="cp-descuento" type="number" min="0" max="100" value="0"
+               style="width:60px;padding:0.3rem 0.5rem;"
+               oninput="sincronizarDescuento(this.value)" />
+        <span>%</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.83rem;cursor:pointer;">
+        <input type="checkbox" id="cp-iva" onchange="sincronizarIva(this.checked)"
+               style="width:auto;accent-color:var(--accent);" />
+        Incluir IVA (19%)
+      </label>
+    </div>
+
+    <!-- Totales -->
+    <div class="totals" id="carrito-totales-panel"></div>
+
+    <!-- Botones acción -->
+    <div style="display:flex;flex-direction:column;gap:0.6rem;">
+      <button class="btn btn-primary" onclick="generarPDF();cerrarCarrito()">
+        <i data-lucide="file-text"></i> Ver / Imprimir PDF
+      </button>
+      <button class="btn btn-wa" onclick="enviarWhatsApp();cerrarCarrito()">
+        <i data-lucide="message-circle"></i> WhatsApp
+      </button>
+      <button class="btn btn-tg" onclick="enviarTelegram();cerrarCarrito()">
+        <i data-lucide="send"></i> Telegram
+      </button>
+      <button class="btn btn-email" onclick="abrirModalEmail();cerrarCarrito()">
+        <i data-lucide="mail"></i> Enviar por correo
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ════════════════════════════════════════════
    CONFIGURACIÓN
@@ -959,7 +1100,8 @@ var FIREBASE_CONFIG = {
 
 // Variables globales Firebase
 var db = null;
-var todosLosClientes = [];  // caché local para búsqueda
+var todosLosClientes    = [];  // caché local búsqueda clientes
+var todasLasCotizaciones = []; // caché local búsqueda cotizaciones
 
 function initFirebase() {
   try {
@@ -1079,36 +1221,79 @@ function cargarCotizaciones() {
 
   db.collection('cotizaciones')
     .orderBy('creadoEl', 'desc')
-    .limit(30)
+    .limit(100)
     .get()
     .then(function(snap) {
+      todasLasCotizaciones = [];
       if (snap.empty) {
         lista.innerHTML = '<div class="hist-empty">No hay cotizaciones guardadas aún.</div>';
         return;
       }
-      lista.innerHTML = '';
       snap.forEach(function(doc) {
         var d = doc.data();
-        var estado = d.estado || 'pendiente';
-        var div = document.createElement('div');
-        div.className = 'hist-item';
-        div.style.flexWrap = 'wrap';
-        var fechaStr = d.fecha
-          ? new Date(d.fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '—';
-        div.innerHTML =
-          '<div class="hi-main">' +
-            '<div class="hi-name">N° ' + (d.numero || '—') + ' · ' + (d.cliente && d.cliente.nombre ? d.cliente.nombre : '—') + '</div>' +
-            '<div class="hi-sub">' + fechaStr + ' · ' + (d.items ? d.items.length : 0) + ' ítem(s)</div>' +
-          '</div>' +
-          '<span class="badge badge-' + estado + '" style="margin-right:4px;">' + estado + '</span>' +
-          '<span class="hi-total">' + formatPeso(d.total || 0) + '</span>' +
-          '<button class="hi-load" onclick="cargarCotizacionExistente(' + JSON.stringify(d).replace(/"/g, '&quot;') + ')">Cargar</button>';
-        lista.appendChild(div);
+        d._id = doc.id;
+        todasLasCotizaciones.push(d);
       });
+      renderizarListaCotizaciones(todasLasCotizaciones);
     })
     .catch(function(err) {
       lista.innerHTML = '<div class="hist-empty">Error al cargar. Revisa tu conexión.</div>';
+      console.error(err);
+    });
+}
+
+function renderizarListaCotizaciones(arr) {
+  var lista = document.getElementById('lista-cotizaciones');
+  if (!arr.length) {
+    lista.innerHTML = '<div class="hist-empty">No se encontraron cotizaciones.</div>';
+    return;
+  }
+  lista.innerHTML = '';
+  arr.forEach(function(d) {
+    var estado = d.estado || 'pendiente';
+    var div = document.createElement('div');
+    div.className = 'hist-item';
+    div.style.flexWrap = 'wrap';
+    var fechaStr = d.fecha
+      ? new Date(d.fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '—';
+    div.innerHTML =
+      '<div class="hi-main" style="flex:1;">' +
+        '<div class="hi-name">N° ' + (d.numero || '—') + ' · ' + (d.cliente && d.cliente.nombre ? d.cliente.nombre : '—') + '</div>' +
+        '<div class="hi-sub">' + fechaStr + ' · ' + (d.items ? d.items.length : 0) + ' ítem(s)</div>' +
+      '</div>' +
+      '<span class="badge badge-' + estado + '" style="margin-right:4px;">' + estado + '</span>' +
+      '<span class="hi-total" style="margin-right:4px;">' + formatPeso(d.total || 0) + '</span>' +
+      '<button class="hi-load" style="margin-right:4px;" onclick="cargarCotizacionExistente(' + JSON.stringify(d).replace(/"/g, '&quot;') + ')">Cargar</button>' +
+      '<button onclick="eliminarCotizacion(\'' + d._id + '\')" title="Eliminar" style="background:transparent;color:var(--muted);font-size:1rem;padding:0 4px;transition:color .2s;" onmouseover="this.style.color=\'#e05555\'" onmouseout="this.style.color=\'var(--muted)\'">✕</button>';
+    lista.appendChild(div);
+  });
+}
+
+function filtrarCotizaciones(query) {
+  var q = query.toLowerCase().trim();
+  if (!q) { renderizarListaCotizaciones(todasLasCotizaciones); return; }
+  var filtradas = todasLasCotizaciones.filter(function(d) {
+    var nombre = (d.cliente && d.cliente.nombre ? d.cliente.nombre : '').toLowerCase();
+    var numero = (d.numero || '').toLowerCase();
+    var fecha  = (d.fecha  || '').toLowerCase();
+    return nombre.includes(q) || numero.includes(q) || fecha.includes(q);
+  });
+  renderizarListaCotizaciones(filtradas);
+}
+
+function eliminarCotizacion(docId) {
+  if (!confirm('¿Eliminar esta cotización? No se puede deshacer.')) return;
+  if (!db) return;
+  db.collection('cotizaciones').doc(docId).delete()
+    .then(function() {
+      mostrarToast('Cotización eliminada', 'success');
+      todasLasCotizaciones = todasLasCotizaciones.filter(function(d) { return d._id !== docId; });
+      renderizarListaCotizaciones(todasLasCotizaciones);
+      cargarDashboard();
+    })
+    .catch(function(err) {
+      mostrarToast('Error al eliminar', 'error');
       console.error(err);
     });
 }
@@ -1218,7 +1403,7 @@ function cargarCotizacionExistente(d) {
    TABS
 ──────────────────────────────────────────── */
 function switchTab(tabId) {
-  var tabs = ['cotizaciones', 'clientes', 'dashboard'];
+  var tabs = ['clientes', 'cotizaciones', 'dashboard'];
   document.querySelectorAll('.tab-btn').forEach(function(b, i) {
     b.classList.toggle('active', tabs[i] === tabId);
   });
@@ -1226,7 +1411,8 @@ function switchTab(tabId) {
     p.classList.remove('active');
   });
   document.getElementById('tab-' + tabId).classList.add('active');
-  if (tabId === 'dashboard') cargarDashboard();
+  if (tabId === 'dashboard')   cargarDashboard();
+  if (tabId === 'cotizaciones') cargarCotizaciones();
 }
 
 /* ────────────────────────────────────────────
@@ -1630,6 +1816,8 @@ function agregarCalcAcrilico() {
 function renderizarCotizacion() {
   var cont  = document.getElementById('quote-items');
   var empty = document.getElementById('empty-hint');
+
+  actualizarFAB();
 
   if (itemsCotizacion.length === 0) {
     cont.innerHTML = '<div class="empty-hint" id="empty-hint">Aún no hay ítems. Selecciona del catálogo.</div>';
@@ -2061,6 +2249,93 @@ document.addEventListener('click', function(e) {
   var overlay = document.getElementById('modal-email');
   if (e.target === overlay) cerrarModalEmail();
 });
+
+/* ════════════════════════════════════════════
+   CARRITO FLOTANTE (FAB)
+════════════════════════════════════════════ */
+function actualizarFAB() {
+  var fab   = document.getElementById('fab-cart');
+  var badge = document.getElementById('fab-badge');
+  if (!fab) return;
+  var n = itemsCotizacion.reduce(function(a, i) { return a + i.qty; }, 0);
+  badge.textContent = n;
+  if (n > 0) {
+    fab.classList.add('has-items');
+  } else {
+    fab.classList.remove('has-items');
+  }
+}
+
+function abrirCarrito() {
+  // Sincroniza controles con la pantalla principal
+  document.getElementById('cp-descuento').value   = document.getElementById('descuento').value;
+  document.getElementById('cp-iva').checked        = document.getElementById('incluir-iva').checked;
+  renderCarritoPanel();
+  document.getElementById('carrito-overlay').classList.add('open');
+  lucide.createIcons({ nodes: [document.getElementById('carrito-panel')] });
+}
+
+function cerrarCarrito() {
+  document.getElementById('carrito-overlay').classList.remove('open');
+}
+
+function cerrarCarritoFuera(e) {
+  if (e.target === document.getElementById('carrito-overlay')) cerrarCarrito();
+}
+
+function sincronizarDescuento(val) {
+  document.getElementById('descuento').value = val;
+  actualizarTotales();
+  renderCarritoPanel();
+}
+
+function sincronizarIva(checked) {
+  document.getElementById('incluir-iva').checked = checked;
+  actualizarTotales();
+  renderCarritoPanel();
+}
+
+function renderCarritoPanel() {
+  var itemsCont = document.getElementById('carrito-items-panel');
+  var totalesCont = document.getElementById('carrito-totales-panel');
+  if (!itemsCont) return;
+
+  // Ítems
+  if (!itemsCotizacion.length) {
+    itemsCont.innerHTML = '<div class="empty-hint">Sin ítems todavía.</div>';
+  } else {
+    itemsCont.innerHTML = '';
+    itemsCotizacion.forEach(function(item) {
+      var div = document.createElement('div');
+      div.className = 'q-item';
+      div.innerHTML =
+        '<div><div class="q-name">' + item.nombre + '</div>' +
+        '<div class="q-sub">Qty: ' + item.qty + ' × ' + formatPeso(item.precio) + '</div></div>' +
+        '<span class="q-price">' + formatPeso(item.precio * item.qty) + '</span>' +
+        '<button class="btn-del" onclick="eliminarItemCarrito(\'' + item.id + '\')" title="Eliminar">✕</button>';
+      itemsCont.appendChild(div);
+    });
+  }
+
+  // Totales
+  var subtotal = itemsCotizacion.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var descPct  = parseFloat(document.getElementById('descuento').value) || 0;
+  var conIva   = document.getElementById('incluir-iva').checked;
+  var base     = subtotal - subtotal * descPct / 100;
+  var iva      = conIva ? base * 0.19 : 0;
+  var total    = base + iva;
+
+  totalesCont.innerHTML =
+    '<div class="total-row"><span>Subtotal</span><span>' + formatPeso(subtotal) + '</span></div>' +
+    (descPct > 0 ? '<div class="total-row"><span>Descuento (' + descPct + '%)</span><span>−' + formatPeso(subtotal * descPct / 100) + '</span></div>' : '') +
+    (conIva ? '<div class="total-row"><span>IVA (19%)</span><span>' + formatPeso(iva) + '</span></div>' : '') +
+    '<div class="total-row grand"><span>TOTAL</span><span>' + formatPeso(total) + '</span></div>';
+}
+
+function eliminarItemCarrito(id) {
+  eliminarItem(id);         // función existente que actualiza itemsCotizacion
+  renderCarritoPanel();     // re-renderiza el panel
+}
 </script>
 </body>
 </html>
