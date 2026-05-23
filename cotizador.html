@@ -21,8 +21,8 @@
       --surface:  #141414;
       --card:     #1a1a1a;
       --border:   #2a2a2a;
-      --accent:   #e8c97e;
-      --accent2:  #c8a45a;
+      --accent:   #CC0000;
+      --accent2:  #990000;
       --text:     #f0f0f0;
       --muted:    #888;
       --danger:   #e05555;
@@ -70,7 +70,7 @@
       z-index: 9999;
       padding: 2rem;
     }
-    #pin-screen img { width: 130px; opacity: .9; }
+    #pin-screen img { width: 130px; opacity: .9; filter: brightness(0) invert(1); }
     #pin-screen h2 { font-size: 1.1rem; color: var(--muted); font-weight: 400; }
     #pin-box {
       display: flex;
@@ -126,7 +126,7 @@
       top: 0;
       z-index: 100;
     }
-    header img { height: 36px; }
+    header img { height: 36px; filter: brightness(0) invert(1); }
     header span { font-size: 0.8rem; color: var(--muted); }
 
     /* ───────────────────────────────────────────
@@ -492,6 +492,53 @@
     .hist-empty { text-align: center; font-size: 0.82rem; color: var(--muted); padding: 1rem 0; }
     .hist-loading { text-align: center; font-size: 0.82rem; color: var(--muted); padding: 0.6rem 0; }
 
+    /* Badges de estado de cotización */
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .badge-pendiente  { background: rgba(255,180,0,0.15);  color: #ffb400; }
+    .badge-aprobada   { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .badge-rechazada  { background: rgba(220,50,50,0.15);  color: #e05555; }
+
+    /* Dashboard cards */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      margin-bottom: 0.9rem;
+    }
+    .dash-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 0.9rem;
+      text-align: center;
+    }
+    .dash-card .dc-val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+    .dash-card .dc-lbl { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+    .dash-card.green .dc-val { color: #4ade80; }
+    .dash-card.yellow .dc-val { color: #ffb400; }
+    .dash-card.red .dc-val { color: #e05555; }
+
+    /* Formulario de nuevo cliente (inline) */
+    .nuevo-cliente-form {
+      display: none;
+      flex-direction: column;
+      gap: 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.8rem;
+      margin-bottom: 0.7rem;
+    }
+    .nuevo-cliente-form.open { display: flex; }
+    .nuevo-cliente-form .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+
     /* Estado Firebase (banner de alerta si no está configurado) */
     .fb-alert {
       background: rgba(232,201,126,0.1);
@@ -785,6 +832,7 @@
           <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('cotizaciones')">📋 Cotizaciones</button>
             <button class="tab-btn"        onclick="switchTab('clientes')">👥 Clientes</button>
+            <button class="tab-btn"        onclick="switchTab('dashboard')">📊 Dashboard</button>
           </div>
 
           <!-- TAB: Cotizaciones guardadas -->
@@ -796,11 +844,44 @@
 
           <!-- TAB: Clientes guardados -->
           <div class="tab-panel" id="tab-clientes">
+            <!-- Formulario nuevo cliente -->
+            <button class="btn-add" style="margin-bottom:0.6rem;width:100%;padding:0.5rem;"
+                    onclick="toggleFormCliente()">+ Registrar nuevo cliente</button>
+            <div class="nuevo-cliente-form" id="form-nuevo-cliente">
+              <div style="font-size:0.78rem;font-weight:700;color:var(--accent);">Nuevo cliente</div>
+              <div class="grid2">
+                <div><label>Nombre *</label><input id="nc-nombre" type="text" placeholder="Nombre / Empresa" /></div>
+                <div><label>RUT</label><input id="nc-rut" type="text" placeholder="76.123.456-7" /></div>
+                <div><label>Teléfono</label><input id="nc-tel" type="tel" placeholder="+56 9 XXXX XXXX" /></div>
+                <div><label>Email</label><input id="nc-email" type="email" placeholder="cliente@correo.cl" /></div>
+              </div>
+              <div><label>Ciudad</label><input id="nc-ciudad" type="text" placeholder="Talca" /></div>
+              <div style="display:flex;gap:0.5rem;">
+                <button class="btn-add" style="flex:1;padding:0.5rem;" onclick="guardarNuevoCliente()">Guardar cliente</button>
+                <button class="btn btn-clear" style="flex:1;padding:0.5rem;font-size:0.82rem;" onclick="toggleFormCliente()">Cancelar</button>
+              </div>
+            </div>
             <div class="search-bar">
               <input type="text" id="buscar-cliente" placeholder="Buscar cliente…"
                      oninput="filtrarClientes(this.value)" />
             </div>
             <div class="hist-list" id="lista-clientes">
+              <div class="hist-loading">Cargando…</div>
+            </div>
+          </div>
+
+          <!-- TAB: Dashboard financiero -->
+          <div class="tab-panel" id="tab-dashboard">
+            <div class="dash-grid" id="dash-cards">
+              <div class="dash-card"><div class="dc-val" id="d-total">—</div><div class="dc-lbl">Total cotizaciones</div></div>
+              <div class="dash-card green"><div class="dc-val" id="d-aprobadas">—</div><div class="dc-lbl">Aprobadas</div></div>
+              <div class="dash-card yellow"><div class="dc-val" id="d-pendientes">—</div><div class="dc-lbl">Pendientes</div></div>
+              <div class="dash-card red"><div class="dc-val" id="d-rechazadas">—</div><div class="dc-lbl">Rechazadas</div></div>
+            </div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--accent);margin-bottom:0.5rem;">Ingresos estimados (aprobadas)</div>
+            <div style="font-size:1.4rem;font-weight:700;color:#4ade80;margin-bottom:0.9rem;" id="d-ingresos">$0</div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--accent);margin-bottom:0.5rem;">Últimas cotizaciones</div>
+            <div class="hist-list" id="lista-dashboard">
               <div class="hist-loading">Cargando…</div>
             </div>
           </div>
@@ -949,6 +1030,7 @@ function guardarCotizacion() {
     fecha:     fecha,
     validez:   validez,
     notas:     notas,
+    estado:    'pendiente',
     creadoEl:  firebase.firestore.FieldValue.serverTimestamp()
   });
 
@@ -988,8 +1070,10 @@ function cargarCotizaciones() {
       lista.innerHTML = '';
       snap.forEach(function(doc) {
         var d = doc.data();
+        var estado = d.estado || 'pendiente';
         var div = document.createElement('div');
         div.className = 'hist-item';
+        div.style.flexWrap = 'wrap';
         var fechaStr = d.fecha
           ? new Date(d.fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
           : '—';
@@ -998,6 +1082,7 @@ function cargarCotizaciones() {
             '<div class="hi-name">N° ' + (d.numero || '—') + ' · ' + (d.cliente && d.cliente.nombre ? d.cliente.nombre : '—') + '</div>' +
             '<div class="hi-sub">' + fechaStr + ' · ' + (d.items ? d.items.length : 0) + ' ítem(s)</div>' +
           '</div>' +
+          '<span class="badge badge-' + estado + '" style="margin-right:4px;">' + estado + '</span>' +
           '<span class="hi-total">' + formatPeso(d.total || 0) + '</span>' +
           '<button class="hi-load" onclick="cargarCotizacionExistente(' + JSON.stringify(d).replace(/"/g, '&quot;') + ')">Cargar</button>';
         lista.appendChild(div);
@@ -1114,13 +1199,129 @@ function cargarCotizacionExistente(d) {
    TABS
 ──────────────────────────────────────────── */
 function switchTab(tabId) {
+  var tabs = ['cotizaciones', 'clientes', 'dashboard'];
   document.querySelectorAll('.tab-btn').forEach(function(b, i) {
-    b.classList.toggle('active', (i === 0 && tabId === 'cotizaciones') || (i === 1 && tabId === 'clientes'));
+    b.classList.toggle('active', tabs[i] === tabId);
   });
   document.querySelectorAll('.tab-panel').forEach(function(p) {
     p.classList.remove('active');
   });
   document.getElementById('tab-' + tabId).classList.add('active');
+  if (tabId === 'dashboard') cargarDashboard();
+}
+
+/* ────────────────────────────────────────────
+   REGISTRO DE NUEVO CLIENTE (independiente)
+──────────────────────────────────────────── */
+function toggleFormCliente() {
+  var form = document.getElementById('form-nuevo-cliente');
+  form.classList.toggle('open');
+}
+
+function guardarNuevoCliente() {
+  if (!db) { mostrarToast('Firebase no configurado', 'error'); return; }
+  var nombre = document.getElementById('nc-nombre').value.trim();
+  if (!nombre) { mostrarToast('Ingresa el nombre del cliente', 'error'); return; }
+
+  var datos = {
+    nombre:    nombre,
+    rut:       document.getElementById('nc-rut').value.trim(),
+    telefono:  document.getElementById('nc-tel').value.trim(),
+    email:     document.getElementById('nc-email').value.trim(),
+    ciudad:    document.getElementById('nc-ciudad').value.trim(),
+    actualizadoEl: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  var clave = (nombre + '_' + datos.rut).toLowerCase().replace(/\s+/g, '_');
+  db.collection('clientes').doc(clave).set(datos, { merge: true })
+    .then(function() {
+      mostrarToast('✓ Cliente "' + nombre + '" registrado', 'success');
+      // Limpiar form
+      ['nc-nombre','nc-rut','nc-tel','nc-email','nc-ciudad'].forEach(function(id) {
+        document.getElementById(id).value = '';
+      });
+      toggleFormCliente();
+      cargarClientes();
+    })
+    .catch(function(err) {
+      mostrarToast('Error al guardar cliente', 'error');
+      console.error(err);
+    });
+}
+
+/* ────────────────────────────────────────────
+   ACTUALIZAR ESTADO DE COTIZACIÓN
+──────────────────────────────────────────── */
+function actualizarEstado(docId, nuevoEstado) {
+  if (!db) return;
+  db.collection('cotizaciones').doc(docId).update({ estado: nuevoEstado })
+    .then(function() {
+      mostrarToast('Estado actualizado: ' + nuevoEstado, 'success');
+      cargarCotizaciones();
+      cargarDashboard();
+    })
+    .catch(function(err) {
+      mostrarToast('Error al actualizar estado', 'error');
+      console.error(err);
+    });
+}
+
+/* ────────────────────────────────────────────
+   DASHBOARD FINANCIERO
+──────────────────────────────────────────── */
+function cargarDashboard() {
+  if (!db) return;
+  var lista = document.getElementById('lista-dashboard');
+  lista.innerHTML = '<div class="hist-loading">Cargando…</div>';
+
+  db.collection('cotizaciones').orderBy('creadoEl', 'desc').limit(50).get()
+    .then(function(snap) {
+      var total = 0, aprobadas = 0, pendientes = 0, rechazadas = 0, ingresos = 0;
+
+      lista.innerHTML = '';
+      snap.forEach(function(doc) {
+        total++;
+        var d = doc.data();
+        var estado = d.estado || 'pendiente';
+        if (estado === 'aprobada')  { aprobadas++;  ingresos += (d.total || 0); }
+        if (estado === 'pendiente') { pendientes++; }
+        if (estado === 'rechazada') { rechazadas++; }
+
+        var fechaStr = d.fecha
+          ? new Date(d.fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })
+          : '—';
+
+        var div = document.createElement('div');
+        div.className = 'hist-item';
+        div.style.flexWrap = 'wrap';
+        div.innerHTML =
+          '<div class="hi-main">' +
+            '<div class="hi-name">N° ' + (d.numero || '—') + ' · ' + (d.cliente && d.cliente.nombre ? d.cliente.nombre : '—') + '</div>' +
+            '<div class="hi-sub">' + fechaStr + ' · ' + formatPeso(d.total || 0) + '</div>' +
+          '</div>' +
+          '<span class="badge badge-' + estado + '">' + estado + '</span>' +
+          '<div style="display:flex;gap:4px;margin-top:4px;width:100%;">' +
+            (estado !== 'aprobada'  ? '<button style="flex:1;background:#4ade80;color:#111;font-size:0.7rem;font-weight:700;border-radius:5px;padding:3px 0;" onclick="actualizarEstado(\'' + doc.id + '\',\'aprobada\')">✓ Aprobar</button>' : '') +
+            (estado !== 'pendiente' ? '<button style="flex:1;background:#ffb400;color:#111;font-size:0.7rem;font-weight:700;border-radius:5px;padding:3px 0;" onclick="actualizarEstado(\'' + doc.id + '\',\'pendiente\')">⏳ Pendiente</button>' : '') +
+            (estado !== 'rechazada' ? '<button style="flex:1;background:#e05555;color:#fff;font-size:0.7rem;font-weight:700;border-radius:5px;padding:3px 0;" onclick="actualizarEstado(\'' + doc.id + '\',\'rechazada\')">✕ Rechazar</button>' : '') +
+          '</div>';
+        lista.appendChild(div);
+      });
+
+      if (!total) {
+        lista.innerHTML = '<div class="hist-empty">No hay cotizaciones aún.</div>';
+      }
+
+      document.getElementById('d-total').textContent      = total;
+      document.getElementById('d-aprobadas').textContent  = aprobadas;
+      document.getElementById('d-pendientes').textContent = pendientes;
+      document.getElementById('d-rechazadas').textContent = rechazadas;
+      document.getElementById('d-ingresos').textContent   = formatPeso(ingresos);
+    })
+    .catch(function(err) {
+      lista.innerHTML = '<div class="hist-empty">Error al cargar dashboard.</div>';
+      console.error(err);
+    });
 }
 
 /* ════════════════════════════════════════════
