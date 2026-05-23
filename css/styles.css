@@ -1508,10 +1508,27 @@ ul { list-style: none; }
 /* ── 14e. SECCIÓN MARCAS ─────────────────────────────── */
 .brands-section .footer__brands { margin: 0; }
 
-/* Cotización compacta en móvil */
+/* Cotización y Agenda compactas en móvil */
 @media (max-width: 768px) {
     .quote-form { gap: 0.8rem; }
     .quote__form-wrap { padding: var(--sp-sm); }
+    .schedule__form { padding: var(--sp-sm); }
+    .schedule__form form { gap: 0.8rem; }
+}
+
+/* Indicador de deslizar en precios (solo móvil) */
+.prices-swipe-hint {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--color-gray);
+    margin-top: 0.5rem;
+    letter-spacing: 0.03em;
+}
+@media (max-width: 768px) {
+    .prices-swipe-hint { display: flex; }
 }
 
 /* ── 15. BOTÓN FLOTANTE WHATSAPP ──────────────────────── */
