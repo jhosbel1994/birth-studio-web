@@ -552,6 +552,15 @@
       white-space: nowrap;
     }
 
+    .hist-item .hi-pdf {
+      background: #222;
+      color: #e8c97e;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border-radius: 5px;
+      padding: 0.25rem 0.5rem;
+      white-space: nowrap;
+    }
     .hist-empty { text-align: center; font-size: 0.82rem; color: var(--muted); padding: 1rem 0; }
     .hist-loading { text-align: center; font-size: 0.82rem; color: var(--muted); padding: 0.6rem 0; }
 
@@ -1315,6 +1324,7 @@ function renderizarListaCotizaciones(arr) {
       '<span class="badge badge-' + estado + '" style="margin-right:4px;">' + estado + '</span>' +
       '<span class="hi-total" style="margin-right:4px;">' + formatPeso(d.total || 0) + '</span>' +
       '<button class="hi-load" style="margin-right:4px;" onclick="cargarCotizacionExistente(' + JSON.stringify(d).replace(/"/g, '&quot;') + ')">Cargar</button>' +
+      '<button class="hi-pdf" style="margin-right:4px;" onclick="verPDFDesdeData(' + JSON.stringify(d).replace(/"/g, '&quot;') + ')" title="Ver PDF">PDF</button>' +
       '<button onclick="eliminarCotizacion(\'' + d._id + '\')" title="Eliminar" class="btn-del-cot">' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
       '</button>';
@@ -2074,39 +2084,33 @@ function autoGuardar() {
 }
 
 /* ════════════════════════════════════════════
-   GENERAR PDF
+   GENERAR PDF — función base compartida
 ════════════════════════════════════════════ */
-function generarPDF() {
-  if (!itemsCotizacion.length) {
-    mostrarToast('Agrega al menos un ítem antes de generar el PDF', 'error');
-    return;
-  }
-  autoGuardar();
-
-  var cliente  = document.getElementById('c-nombre').value  || 'Sin nombre';
-  var rut      = document.getElementById('c-rut').value     || '—';
-  var tel      = document.getElementById('c-tel').value     || '—';
-  var email    = document.getElementById('c-email').value   || '—';
-  var ciudad   = document.getElementById('c-ciudad').value  || '—';
-  var numCot   = document.getElementById('c-num').value     || '001';
-  var fecha    = document.getElementById('c-fecha').value;
-  var validez  = document.getElementById('c-validez').value || '7';
-  var notas    = document.getElementById('notas').value     || '';
-  var descPct  = parseFloat(document.getElementById('descuento').value) || 0;
-  var conIva   = document.getElementById('incluir-iva').checked;
+function construirYAbrirPDF(p) {
+  var cliente  = p.cliente  || 'Sin nombre';
+  var rut      = p.rut      || '—';
+  var tel      = p.tel      || '—';
+  var email    = p.email    || '—';
+  var ciudad   = p.ciudad   || '—';
+  var numCot   = p.numCot   || '001';
+  var fecha    = p.fecha    || '';
+  var validez  = p.validez  || '7';
+  var notas    = p.notas    || '';
+  var descPct  = parseFloat(p.descPct) || 0;
+  var conIva   = !!p.conIva;
+  var items    = p.items    || [];
 
   var fechaFmt = fecha
     ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' })
     : new Date().toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  var subtotal   = itemsCotizacion.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var subtotal   = items.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
   var descMonto  = subtotal * descPct / 100;
   var base       = subtotal - descMonto;
   var iva        = conIva ? base * 0.19 : 0;
   var total      = base + iva;
 
-  // Filas de ítems
-  var filasHTML = itemsCotizacion.map(function(item, idx) {
+  var filasHTML = items.map(function(item, idx) {
     return '<tr>' +
       '<td style="padding:8px 12px;text-align:center;color:#888;">' + (idx + 1) + '</td>' +
       '<td style="padding:8px 12px;">' + item.nombre + '</td>' +
@@ -2213,6 +2217,47 @@ function generarPDF() {
   ventana.document.write(html);
   ventana.document.close();
   ventana.onload = function() { ventana.print(); };
+}
+
+/* Genera PDF desde el formulario activo */
+function generarPDF() {
+  if (!itemsCotizacion.length) {
+    mostrarToast('Agrega al menos un ítem antes de generar el PDF', 'error');
+    return;
+  }
+  autoGuardar();
+  construirYAbrirPDF({
+    cliente: document.getElementById('c-nombre').value  || 'Sin nombre',
+    rut:     document.getElementById('c-rut').value     || '—',
+    tel:     document.getElementById('c-tel').value     || '—',
+    email:   document.getElementById('c-email').value   || '—',
+    ciudad:  document.getElementById('c-ciudad').value  || '—',
+    numCot:  document.getElementById('c-num').value     || '001',
+    fecha:   document.getElementById('c-fecha').value   || '',
+    validez: document.getElementById('c-validez').value || '7',
+    notas:   document.getElementById('notas').value     || '',
+    descPct: parseFloat(document.getElementById('descuento').value) || 0,
+    conIva:  document.getElementById('incluir-iva').checked,
+    items:   itemsCotizacion
+  });
+}
+
+/* Genera PDF desde una cotización guardada en Firestore */
+function verPDFDesdeData(d) {
+  construirYAbrirPDF({
+    cliente: (d.cliente && d.cliente.nombre)   || 'Sin nombre',
+    rut:     (d.cliente && d.cliente.rut)      || '—',
+    tel:     (d.cliente && d.cliente.telefono) || '—',
+    email:   (d.cliente && d.cliente.email)    || '—',
+    ciudad:  (d.cliente && d.cliente.ciudad)   || '—',
+    numCot:  d.numero   || '001',
+    fecha:   d.fecha    || '',
+    validez: d.validez  || '7',
+    notas:   d.notas    || '',
+    descPct: parseFloat(d.descuento) || 0,
+    conIva:  !!(d.iva && d.iva > 0),
+    items:   d.items    || []
+  });
 }
 
 /* ════════════════════════════════════════════
