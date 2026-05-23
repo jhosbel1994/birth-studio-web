@@ -837,6 +837,65 @@ ul { list-style: none; }
 .ig-card svg:not([width]) { width: 1.25rem; height: 1.25rem; }
 .ig-card__foot { margin-top: var(--sp-md); text-align: center; }
 
+/* Cuadrícula de posts de Instagram */
+.ig-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    margin-bottom: var(--sp-md);
+}
+
+.ig-card {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--color-surface);
+    cursor: pointer;
+    display: block;
+    text-decoration: none;
+}
+
+.ig-card__preview {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.4s var(--ease);
+}
+.ig-card:hover .ig-card__preview { transform: scale(1.06); }
+
+.ig-card__preview--1 { background: linear-gradient(135deg, #3a0000 0%, #1a1a1a 100%); }
+.ig-card__preview--2 { background: linear-gradient(225deg, #111111 0%, #2a0a0a 100%); }
+.ig-card__preview--3 { background: linear-gradient(135deg, #cc0000 0%, #0d0d0d 65%); }
+.ig-card__preview--4 { background: linear-gradient(315deg, #1a1a1a 0%, #3a0000 100%); }
+.ig-card__preview--5 { background: linear-gradient(135deg, #0d0d0d 0%, #1f0000 100%); }
+.ig-card__preview--6 { background: linear-gradient(225deg, #2a0a0a 0%, #111111 100%); }
+
+.ig-card__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+.ig-card:hover .ig-card__overlay { background: rgba(0, 0, 0, 0.5); }
+
+.ig-card__overlay svg {
+    opacity: 0;
+    color: #fff;
+    transition: opacity 0.3s ease;
+}
+.ig-card:hover .ig-card__overlay svg { opacity: 1; }
+
+.ig-cta { text-align: center; margin-top: var(--sp-sm); }
+
+@media (max-width: 768px) {
+    .ig-grid { gap: 0.25rem; }
+}
+
 /* ── 10. PRECIOS ──────────────────────────────────────── */
 .prices-grid {
     display: grid;
@@ -1420,7 +1479,7 @@ ul { list-style: none; }
 }
 
 .footer__brand-item img {
-    height: 300px;            /* tamaño del logo — súbelo/bájalo aquí */
+    height: 40px;             /* altura del logo — cámbialo aquí */
     width: auto;
     object-fit: contain;
     /* Logos en blanco para que combinen con el footer oscuro.
@@ -1439,8 +1498,20 @@ ul { list-style: none; }
 }
 
 @media (max-width: 768px) {
-    .footer__brand-item { margin: 0 1.5rem; }
-    .footer__brand-item img { height: 56px; }
+    .footer__brand-item { margin: 0 1.2rem; }
+    .footer__brand-item img { height: 30px; }
+}
+
+/* ── 14d. SECCIÓN MAPA ───────────────────────────────── */
+.map-section .footer__map { margin-bottom: 0; }
+
+/* ── 14e. SECCIÓN MARCAS ─────────────────────────────── */
+.brands-section .footer__brands { margin: 0; }
+
+/* Cotización compacta en móvil */
+@media (max-width: 768px) {
+    .quote-form { gap: 0.8rem; }
+    .quote__form-wrap { padding: var(--sp-sm); }
 }
 
 /* ── 15. BOTÓN FLOTANTE WHATSAPP ──────────────────────── */
@@ -1580,7 +1651,7 @@ ul { list-style: none; }
         scrollbar-width: none;
         gap: 0.25rem;
         padding: 0;
-        justify-content: flex-end;
+        justify-content: flex-start;
         align-items: center;
         flex-wrap: nowrap;
     }
@@ -1606,7 +1677,25 @@ ul { list-style: none; }
     .quote__grid    { grid-template-columns: 1fr; }
     .schedule__grid { grid-template-columns: 1fr; }
     .form-row       { grid-template-columns: 1fr; }
-    .prices-grid    { grid-template-columns: 1fr 1fr; }
+    /* Precios: carrusel horizontal con snap en móvil */
+    .prices-grid {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 0.75rem;
+        padding: 1rem 0.25rem 1.25rem;
+        align-items: stretch;
+    }
+    .prices-grid::-webkit-scrollbar { display: none; }
+    .price-card {
+        scroll-snap-align: center;
+        flex: 0 0 82vw;
+        max-width: 300px;
+        min-width: 0;
+    }
     .services-grid  { grid-template-columns: 1fr; }
 
     .quote__info,
@@ -1628,15 +1717,28 @@ ul { list-style: none; }
     .service-card__price { font-size: 0.8rem; }
     .service-card__cta { font-size: 0.78rem; padding: 7px 0; width: 60%; }
 
-    .footer__grid { grid-template-columns: 1fr; }
-    .footer__brand { grid-column: auto; }
+    .footer__grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem 1rem;
+    }
+    .footer__brand {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .footer__brand p { margin: 0; font-size: 0.78rem; }
+    .footer__brand .footer__rut { margin: 0; }
+    .footer__col h5 { font-size: 0.68rem; margin-bottom: 0.4rem; }
+    .footer__col ul li { margin-bottom: 0.2rem; }
+    .footer__col ul li a, .footer__col ul li { font-size: 0.75rem; }
 
     /* Intro: tamaño más pequeño */
     .intro__word span { font-size: clamp(2.5rem, 14vw, 6rem); letter-spacing: 0.04em; }
 }
 
 @media (max-width: 480px) {
-    .prices-grid { grid-template-columns: 1fr; }
     .wa-float    { bottom: 1.25rem; right: 1.25rem; }
     .wa-float__sphere { width: 52px; height: 52px; }
 }
@@ -1691,5 +1793,6 @@ input, textarea, select {
     background: var(--color-surface-2);
     border-color: var(--color-red);
 }
-/* Filtro del mapa: el tema lo controla. En claro pon: --map-filter: none; */
---map-filter: invert(0.9) hue-rotate(180deg) brightness(1.05) contrast(0.9);
+/* Filtro del mapa: invierte colores en tema oscuro para que se vea bien */
+:root { --map-filter: invert(0.9) hue-rotate(180deg) brightness(1.05) contrast(0.9); }
+[data-theme="light"] { --map-filter: none; }
