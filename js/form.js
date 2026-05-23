@@ -9,7 +9,7 @@
  */
 
 // ── EmailJS Credentials ──
-var EMAILJS_SERVICE_ID = 'service_qcrrtcr';
+var EMAILJS_SERVICE_ID = 'service_qtcrtcr';
 var EMAILJS_TEMPLATE_ID = 'template_3zwrb8h';
 var EMAILJS_PUBLIC_KEY = 'x6DqzGJ_3ceKhk2NQ';
 
