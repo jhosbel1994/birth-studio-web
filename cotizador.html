@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cotizador — Birth Studio Publicidad</title>
+
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <style>
+    /* ───────────────────────────────────────────
+       VARIABLES Y RESET
+    ─────────────────────────────────────────── */
+    :root {
+      --bg:       #0a0a0a;
+      --surface:  #141414;
+      --card:     #1a1a1a;
+      --border:   #2a2a2a;
+      --accent:   #e8c97e;
+      --accent2:  #c8a45a;
+      --text:     #f0f0f0;
+      --muted:    #888;
+      --danger:   #e05555;
+      --success:  #4ade80;
+      --radius:   10px;
+      --shadow:   0 4px 20px rgba(0,0,0,0.5);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    button { cursor: pointer; border: none; outline: none; }
+    input, select, textarea {
+      font-family: inherit;
+      font-size: 0.95rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 0.6rem 0.8rem;
+      width: 100%;
+      transition: border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    label { font-size: 0.82rem; color: var(--muted); margin-bottom: 4px; display: block; }
+
+    /* ───────────────────────────────────────────
+       PANTALLA PIN
+    ─────────────────────────────────────────── */
+    #pin-screen {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      z-index: 9999;
+      padding: 2rem;
+    }
+    #pin-screen img { width: 130px; opacity: .9; }
+    #pin-screen h2 { font-size: 1.1rem; color: var(--muted); font-weight: 400; }
+    #pin-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem 2.5rem;
+      width: 100%;
+      max-width: 340px;
+    }
+    #pin-box h3 { font-size: 1rem; font-weight: 600; color: var(--accent); }
+    #pin-input {
+      text-align: center;
+      font-size: 1.4rem;
+      letter-spacing: 0.4rem;
+      max-width: 200px;
+    }
+    #pin-error {
+      font-size: 0.82rem;
+      color: var(--danger);
+      min-height: 1.1rem;
+    }
+    #pin-btn {
+      background: var(--accent);
+      color: #111;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 0.65rem 2rem;
+      font-size: 0.95rem;
+      transition: background .2s;
+    }
+    #pin-btn:hover { background: var(--accent2); }
+
+    /* ───────────────────────────────────────────
+       APP PRINCIPAL (oculta hasta pasar PIN)
+    ─────────────────────────────────────────── */
+    #app { display: none; }
+
+    /* ───────────────────────────────────────────
+       HEADER
+    ─────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.8rem 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header img { height: 36px; }
+    header span { font-size: 0.8rem; color: var(--muted); }
+
+    /* ───────────────────────────────────────────
+       LAYOUT PRINCIPAL
+    ─────────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    @media (min-width: 760px) {
+      .layout { grid-template-columns: 1fr 400px; }
+    }
+
+    /* ───────────────────────────────────────────
+       TARJETAS
+    ─────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem;
+    }
+    .card__title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--accent);
+      margin-bottom: 0.9rem;
+    }
+
+    /* ───────────────────────────────────────────
+       DATOS DEL CLIENTE
+    ─────────────────────────────────────────── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+    .grid2 .full { grid-column: 1 / -1; }
+
+    /* ───────────────────────────────────────────
+       CATÁLOGO DE PRODUCTOS
+    ─────────────────────────────────────────── */
+    .catalog { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    /* Acordeón de categorías */
+    .cat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 0.9rem;
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .cat-header .arrow { transition: transform .2s; }
+    .cat-header.open .arrow { transform: rotate(90deg); }
+
+    .cat-items {
+      display: none;
+      flex-direction: column;
+      gap: 0.4rem;
+      padding: 0.4rem 0;
+    }
+    .cat-items.open { display: flex; }
+
+    /* Ítem del catálogo */
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.8rem;
+      font-size: 0.85rem;
+    }
+    .item-row .item-name { font-weight: 500; }
+    .item-row .item-price {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .item-price input {
+      width: 90px;
+      font-size: 0.78rem;
+      padding: 0.3rem 0.5rem;
+      text-align: right;
+    }
+    .item-qty {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .item-qty input {
+      width: 48px;
+      text-align: center;
+      padding: 0.3rem;
+      font-size: 0.85rem;
+    }
+    .btn-add {
+      background: var(--accent);
+      color: #111;
+      font-weight: 700;
+      font-size: 0.78rem;
+      border-radius: 6px;
+      padding: 0.35rem 0.7rem;
+      white-space: nowrap;
+      transition: background .2s;
+    }
+    .btn-add:hover { background: var(--accent2); }
+
+    /* Ítem personalizado */
+    .custom-row {
+      display: grid;
+      grid-template-columns: 1fr 90px 48px auto;
+      gap: 0.5rem;
+      align-items: end;
+      margin-top: 0.5rem;
+    }
+    .custom-row input { font-size: 0.85rem; }
+
+    /* ───────────────────────────────────────────
+       PANEL DERECHO: COTIZACIÓN
+    ─────────────────────────────────────────── */
+    .quote-panel { display: flex; flex-direction: column; gap: 0.9rem; }
+
+    /* Lista de ítems seleccionados */
+    #quote-items { display: flex; flex-direction: column; gap: 0.4rem; min-height: 80px; }
+    .q-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 0.5rem;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.83rem;
+    }
+    .q-item .q-name { font-weight: 500; color: var(--text); }
+    .q-item .q-sub  { font-size: 0.72rem; color: var(--muted); }
+    .q-item .q-price { font-weight: 600; color: var(--accent); white-space: nowrap; }
+    .q-item .btn-del {
+      background: transparent;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0 4px;
+      transition: color .2s;
+    }
+    .q-item .btn-del:hover { color: var(--danger); }
+    .empty-hint { color: var(--muted); font-size: 0.82rem; padding: 0.5rem 0; text-align: center; }
+
+    /* Totales */
+    .totals { border-top: 1px solid var(--border); padding-top: 0.8rem; }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.87rem;
+      padding: 0.2rem 0;
+      color: var(--muted);
+    }
+    .total-row.grand {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent);
+      border-top: 1px solid var(--border);
+      margin-top: 0.4rem;
+      padding-top: 0.5rem;
+    }
+
+    /* Descuento e IVA */
+    .discount-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      font-size: 0.83rem;
+    }
+    .discount-row input {
+      width: 70px;
+      padding: 0.3rem 0.5rem;
+    }
+    .toggle-iva {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.83rem;
+      cursor: pointer;
+    }
+    .toggle-iva input[type="checkbox"] { width: auto; cursor: pointer; accent-color: var(--accent); }
+
+    /* Notas */
+    textarea#notas {
+      resize: vertical;
+      min-height: 70px;
+      font-size: 0.83rem;
+    }
+
+    /* ───────────────────────────────────────────
+       BOTONES DE ACCIÓN
+    ─────────────────────────────────────────── */
+    .actions { display: flex; flex-direction: column; gap: 0.6rem; }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 0.7rem 1rem;
+      transition: opacity .2s, background .2s;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn-primary { background: var(--accent); color: #111; }
+    .btn-wa      { background: #25d366; color: #fff; }
+    .btn-tg      { background: #229ed9; color: #fff; }
+    .btn-email   { background: #4a4aff; color: #fff; }
+    .btn-clear   { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+    /* ───────────────────────────────────────────
+       CALCULADORAS ESPECIALES
+    ─────────────────────────────────────────── */
+    .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .calc-grid .full { grid-column: 1 / -1; }
+    .calc-result {
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 600;
+      padding: 0.4rem 0;
+    }
+
+    /* ───────────────────────────────────────────
+       MODAL ENVÍO POR EMAIL
+    ─────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+    .modal h3 { font-size: 1rem; color: var(--accent); }
+    .modal-actions { display: flex; gap: 0.6rem; }
+    .modal-actions .btn { flex: 1; }
+
+    /* ───────────────────────────────────────────
+       TOAST / NOTIFICACIÓN
+    ─────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 1.4rem;
+      font-size: 0.88rem;
+      color: var(--text);
+      z-index: 999;
+      transition: transform .3s ease;
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: var(--success); color: var(--success); }
+    #toast.error   { border-color: var(--danger);  color: var(--danger);  }
+
+    /* ───────────────────────────────────────────
+       RESPONSIVE AJUSTES
+    ─────────────────────────────────────────── */
+    @media (max-width: 440px) {
+      .item-row { grid-template-columns: 1fr; gap: 0.4rem; }
+      .custom-row { grid-template-columns: 1fr 80px; }
+      .custom-row .full { grid-column: 1 / -1; }
+      .grid2 { grid-template-columns: 1fr; }
+    }
+
+    /* ───────────────────────────────────────────
+       NÚMERO DE COTIZACIÓN + FECHA
+    ─────────────────────────────────────────── */
+    .meta-row {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+    }
+    .meta-row > div { flex: 1; min-width: 130px; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     PANTALLA DE PIN
+════════════════════════════════════════════ -->
+<div id="pin-screen">
+  <img src="assets/logo-birth.png" alt="Birth Studio" />
+  <h2>Sistema de Cotizaciones</h2>
+  <div id="pin-box">
+    <h3>🔒 Acceso privado</h3>
+    <input id="pin-input" type="password" maxlength="12"
+           placeholder="••••••••" autocomplete="off"
+           inputmode="numeric" />
+    <div id="pin-error"></div>
+    <button id="pin-btn" onclick="verificarPin()">Ingresar</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     APLICACIÓN PRINCIPAL
+════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Header -->
+  <header>
+    <img src="assets/logo-birth.png" alt="Birth Studio" />
+    <span>Cotizador interno &nbsp;·&nbsp; <a href="#" style="color:var(--muted);font-size:0.8rem;" onclick="cerrarSesion()">Cerrar sesión</a></span>
+  </header>
+
+  <!-- Layout principal -->
+  <div class="layout">
+
+    <!-- ══ COLUMNA IZQUIERDA: catálogo ══ -->
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+
+      <!-- Datos del cliente -->
+      <div class="card">
+        <div class="card__title">Datos del cliente</div>
+        <div class="grid2">
+          <div>
+            <label>Nombre / Empresa *</label>
+            <input id="c-nombre" type="text" placeholder="Ej: Farmacia Central" />
+          </div>
+          <div>
+            <label>RUT (opcional)</label>
+            <input id="c-rut" type="text" placeholder="Ej: 76.123.456-7" />
+          </div>
+          <div>
+            <label>Teléfono</label>
+            <input id="c-tel" type="tel" placeholder="+56 9 XXXX XXXX" />
+          </div>
+          <div>
+            <label>Correo electrónico</label>
+            <input id="c-email" type="email" placeholder="cliente@correo.cl" />
+          </div>
+          <div class="full">
+            <label>Ciudad / Dirección</label>
+            <input id="c-ciudad" type="text" placeholder="Talca, Maule" />
+          </div>
+        </div>
+        <!-- N° cotización y fecha -->
+        <div class="meta-row" style="margin-top:0.8rem;">
+          <div>
+            <label>N° Cotización</label>
+            <input id="c-num" type="text" placeholder="001" />
+          </div>
+          <div>
+            <label>Fecha</label>
+            <input id="c-fecha" type="date" />
+          </div>
+          <div>
+            <label>Validez (días)</label>
+            <input id="c-validez" type="number" value="7" min="1" style="width:80px;" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Catálogo de productos -->
+      <div class="card">
+        <div class="card__title">Catálogo de servicios y productos</div>
+
+        <div class="catalog" id="catalogo"></div>
+
+        <!-- Ítem personalizado -->
+        <div style="margin-top:1rem;">
+          <div class="card__title" style="margin-bottom:0.5rem;">Agregar ítem personalizado</div>
+          <div class="custom-row">
+            <div>
+              <label>Descripción</label>
+              <input id="custom-desc" type="text" placeholder="Ej: Instalación especial" />
+            </div>
+            <div>
+              <label>Precio $</label>
+              <input id="custom-price" type="number" min="0" step="100" placeholder="0" />
+            </div>
+            <div>
+              <label>Qty</label>
+              <input id="custom-qty" type="number" min="1" value="1" style="width:60px;" />
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+              <button class="btn-add" onclick="agregarPersonalizado()">+ Agregar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculadoras especiales -->
+      <div class="card">
+        <div class="card__title">Calculadoras especiales</div>
+
+        <!-- Letras corpóreas -->
+        <details style="margin-bottom:0.7rem;">
+          <summary style="cursor:pointer;font-size:0.87rem;font-weight:600;color:var(--accent);padding:0.4rem 0;">Letras Corpóreas (por letra)</summary>
+          <div class="calc-grid" style="margin-top:0.6rem;">
+            <div>
+              <label>N° de letras</label>
+              <input id="lc-cant" type="number" min="1" value="1" oninput="calcLetras()" />
+            </div>
+            <div>
+              <label>Material</label>
+              <select id="lc-material" onchange="calcLetras()">
+                <option value="6900">PVC 3mm — $6.900</option>
+                <option value="8500">Acrílico 3mm — $8.500</option>
+                <option value="10500">Acrílico 6mm — $10.500</option>
+                <option value="14000">Acero inox — $14.000</option>
+                <option value="18000">Aluminio dorado — $18.000</option>
+              </select>
+            </div>
+            <div>
+              <label>Alto de letra (cm)</label>
+              <input id="lc-alto" type="number" min="1" value="20" oninput="calcLetras()" />
+            </div>
+            <div class="full calc-result" id="lc-result">Total: $0</div>
+            <div class="full" style="display:flex;justify-content:flex-end;">
+              <button class="btn-add" onclick="agregarCalcLetras()">+ Agregar a cotización</button>
+            </div>
+          </div>
+        </details>
+
+        <!-- Palomas / impresión digital -->
+        <details style="margin-bottom:0.7rem;">
+          <summary style="cursor:pointer;font-size:0.87rem;font-weight:600;color:var(--accent);padding:0.4rem 0;">Impresión Digital / Palomas</summary>
+          <div class="calc-grid" style="margin-top:0.6rem;">
+            <div>
+              <label>Ancho (m)</label>
+              <input id="pd-ancho" type="number" min="0.1" step="0.1" value="1" oninput="calcPaloma()" />
+            </div>
+            <div>
+              <label>Alto (m)</label>
+              <input id="pd-alto" type="number" min="0.1" step="0.1" value="1" oninput="calcPaloma()" />
+            </div>
+            <div>
+              <label>Material</label>
+              <select id="pd-material" onchange="calcPaloma()">
+                <option value="9800">Paloma PVC — $9.800/m²</option>
+                <option value="12000">Lona PVC — $12.000/m²</option>
+                <option value="15000">Vinilo adhesivo — $15.000/m²</option>
+                <option value="18500">Backlight — $18.500/m²</option>
+              </select>
+            </div>
+            <div class="full calc-result" id="pd-result">Total: $0 (0 m²)</div>
+            <div class="full" style="display:flex;justify-content:flex-end;">
+              <button class="btn-add" onclick="agregarCalcPaloma()">+ Agregar a cotización</button>
+            </div>
+          </div>
+        </details>
+
+        <!-- Acrílico luminoso -->
+        <details>
+          <summary style="cursor:pointer;font-size:0.87rem;font-weight:600;color:var(--accent);padding:0.4rem 0;">Letrero Acrílico Luminoso</summary>
+          <div class="calc-grid" style="margin-top:0.6rem;">
+            <div>
+              <label>Ancho (m)</label>
+              <input id="al-ancho" type="number" min="0.1" step="0.1" value="1" oninput="calcAcrilico()" />
+            </div>
+            <div>
+              <label>Alto (m)</label>
+              <input id="al-alto" type="number" min="0.1" step="0.1" value="0.5" oninput="calcAcrilico()" />
+            </div>
+            <div>
+              <label>Tipo</label>
+              <select id="al-tipo" onchange="calcAcrilico()">
+                <option value="55000">Acrílico simple — $55.000/m²</option>
+                <option value="72000">Acrílico doble cara — $72.000/m²</option>
+                <option value="90000">Cajetín luminoso — $90.000/m²</option>
+              </select>
+            </div>
+            <div class="full calc-result" id="al-result">Total: $0 (0 m²)</div>
+            <div class="full" style="display:flex;justify-content:flex-end;">
+              <button class="btn-add" onclick="agregarCalcAcrilico()">+ Agregar a cotización</button>
+            </div>
+          </div>
+        </details>
+      </div>
+
+    </div><!-- fin columna izquierda -->
+
+    <!-- ══ COLUMNA DERECHA: cotización ══ -->
+    <div class="quote-panel">
+
+      <!-- Ítems seleccionados -->
+      <div class="card">
+        <div class="card__title">Cotización actual</div>
+        <div id="quote-items">
+          <div class="empty-hint" id="empty-hint">Aún no hay ítems. Selecciona del catálogo.</div>
+        </div>
+
+        <!-- Descuento + IVA -->
+        <div style="margin-top:0.8rem;display:flex;flex-direction:column;gap:0.6rem;">
+          <div class="discount-row">
+            <span>Descuento:</span>
+            <input id="descuento" type="number" min="0" max="100" value="0" oninput="actualizarTotales()" />
+            <span>%</span>
+          </div>
+          <label class="toggle-iva">
+            <input type="checkbox" id="incluir-iva" onchange="actualizarTotales()" />
+            Incluir IVA (19%)
+          </label>
+        </div>
+
+        <!-- Totales -->
+        <div class="totals">
+          <div class="total-row"><span>Subtotal</span><span id="t-sub">$0</span></div>
+          <div class="total-row" id="t-desc-row" style="display:none"><span>Descuento</span><span id="t-desc">-$0</span></div>
+          <div class="total-row" id="t-iva-row" style="display:none"><span>IVA (19%)</span><span id="t-iva">$0</span></div>
+          <div class="total-row grand"><span>TOTAL</span><span id="t-total">$0</span></div>
+        </div>
+      </div>
+
+      <!-- Notas -->
+      <div class="card">
+        <div class="card__title">Notas / condiciones</div>
+        <textarea id="notas" placeholder="Ej: Precio incluye instalación en Talca. Plazo de entrega: 5 días hábiles.">Precio incluye instalación en Talca y alrededores. Plazo de entrega estimado: 5 a 7 días hábiles. Validez de cotización según fecha indicada.</textarea>
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="card actions">
+        <div class="card__title">Exportar / Compartir</div>
+        <button class="btn btn-primary" onclick="generarPDF()">📄 Ver / Imprimir PDF</button>
+        <button class="btn btn-wa"    onclick="enviarWhatsApp()">💬 Enviar por WhatsApp</button>
+        <button class="btn btn-tg"    onclick="enviarTelegram()">✈️ Enviar por Telegram</button>
+        <button class="btn btn-email" onclick="abrirModalEmail()">📧 Enviar por correo</button>
+        <button class="btn btn-clear" onclick="limpiarCotizacion()">🗑 Limpiar cotización</button>
+      </div>
+
+    </div><!-- fin columna derecha -->
+  </div><!-- fin layout -->
+</div><!-- fin #app -->
+
+<!-- Modal de email -->
+<div class="modal-overlay" id="modal-email">
+  <div class="modal">
+    <h3>📧 Enviar cotización por correo</h3>
+    <div>
+      <label>Correo del cliente *</label>
+      <input id="m-email" type="email" placeholder="cliente@correo.cl" />
+    </div>
+    <div>
+      <label>Nombre del cliente</label>
+      <input id="m-nombre" type="text" placeholder="Nombre empresa o persona" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-clear" onclick="cerrarModalEmail()">Cancelar</button>
+      <button class="btn btn-email" onclick="enviarEmail()">Enviar</button>
+    </div>
+    <div id="m-status" style="font-size:0.82rem;text-align:center;min-height:1.1rem;"></div>
+  </div>
+</div>
+
+<!-- Toast global -->
+<div id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════
+   CONFIGURACIÓN
+════════════════════════════════════════════ */
+var PIN_CORRECTO   = 'birth2025';      // PIN de acceso
+var WA_NUMBER      = '56977247545';    // WhatsApp
+var EMAILJS_KEY    = 'x6DqzGj_3ceKhk2NQ';
+var EMAILJS_SVC    = 'service_qtcrtcr';
+var EMAILJS_TPL    = 'template_3zwrb8h';
+
+/* ════════════════════════════════════════════
+   CATÁLOGO DE PRECIOS
+   (modifica aquí los precios base)
+════════════════════════════════════════════ */
+var CATALOGO = [
+  {
+    cat: '🖼 Letreros y señalética',
+    items: [
+      { id: 'l1',  nombre: 'Letrero PVC impreso (1m²)',            precio: 18000 },
+      { id: 'l2',  nombre: 'Letrero acrílico con iluminación LED', precio: 85000 },
+      { id: 'l3',  nombre: 'Cajetín luminoso (1m²)',               precio: 90000 },
+      { id: 'l4',  nombre: 'Tótem publicitario',                    precio: 220000 },
+      { id: 'l5',  nombre: 'Letrero de madera grabado',             precio: 45000 },
+    ]
+  },
+  {
+    cat: '✂️ Letras corpóreas',
+    items: [
+      { id: 'c1', nombre: 'Letra corpórea PVC 3mm (por letra)',     precio: 6900  },
+      { id: 'c2', nombre: 'Letra corpórea acrílico 3mm (por letra)',precio: 8500  },
+      { id: 'c3', nombre: 'Letra corpórea acrílico 6mm (por letra)',precio: 10500 },
+      { id: 'c4', nombre: 'Letra corpórea acero inox (por letra)',  precio: 14000 },
+    ]
+  },
+  {
+    cat: '🖨 Impresión digital',
+    items: [
+      { id: 'i1', nombre: 'Paloma PVC (por m²)',                    precio: 9800  },
+      { id: 'i2', nombre: 'Lona PVC (por m²)',                      precio: 12000 },
+      { id: 'i3', nombre: 'Vinilo adhesivo (por m²)',               precio: 15000 },
+      { id: 'i4', nombre: 'Backlight / Retroiluminado (por m²)',    precio: 18500 },
+      { id: 'i5', nombre: 'Gigantografía (mínimo 4m²)',             precio: 38000 },
+    ]
+  },
+  {
+    cat: '🚗 Rotulación vehículos',
+    items: [
+      { id: 'v1', nombre: 'Rotulación auto completa',               precio: 150000 },
+      { id: 'v2', nombre: 'Rotulación camioneta/furgón completa',   precio: 200000 },
+      { id: 'v3', nombre: 'Rotulación parcial (puertas)',           precio: 65000  },
+      { id: 'v4', nombre: 'Vinilo cortado / logo',                  precio: 18000  },
+    ]
+  },
+  {
+    cat: '🏪 Diseño',
+    items: [
+      { id: 'd1', nombre: 'Diseño logotipo completo',               precio: 80000  },
+      { id: 'd2', nombre: 'Diseño de letrero / arte final',         precio: 25000  },
+      { id: 'd3', nombre: 'Diseño tarjetas de presentación',        precio: 15000  },
+      { id: 'd4', nombre: 'Diseño afiche / flyer A3',               precio: 18000  },
+    ]
+  },
+  {
+    cat: '🔧 Instalación',
+    items: [
+      { id: 'in1', nombre: 'Instalación en Talca (incluida)',       precio: 0      },
+      { id: 'in2', nombre: 'Instalación fuera de Talca (km)',       precio: 500    },
+      { id: 'in3', nombre: 'Arriendo andamio / grúa',               precio: 45000  },
+    ]
+  },
+  {
+    cat: '🌐 Páginas web',
+    items: [
+      { id: 'w1', nombre: 'Página web institucional (hasta 5 pág)', precio: 250000 },
+      { id: 'w2', nombre: 'Página web catálogo / e-commerce',       precio: 450000 },
+      { id: 'w3', nombre: 'Landing page',                           precio: 120000 },
+      { id: 'w4', nombre: 'Mantenimiento mensual web',              precio: 35000  },
+    ]
+  }
+];
+
+/* ════════════════════════════════════════════
+   ESTADO
+════════════════════════════════════════════ */
+var itemsCotizacion = []; // [{ id, nombre, precio, qty }]
+
+/* ════════════════════════════════════════════
+   PIN
+════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  emailjs.init({ publicKey: EMAILJS_KEY });
+
+  // Fecha de hoy por defecto
+  var hoy = new Date();
+  var yyyy = hoy.getFullYear();
+  var mm   = String(hoy.getMonth() + 1).padStart(2, '0');
+  var dd   = String(hoy.getDate()).padStart(2, '0');
+  var fechaInput = document.getElementById('c-fecha');
+  if (fechaInput) fechaInput.value = yyyy + '-' + mm + '-' + dd;
+
+  // N° cotización automático (timestamp simple)
+  var numInput = document.getElementById('c-num');
+  if (numInput) {
+    var n = parseInt(localStorage.getItem('bs_cot_num') || '0') + 1;
+    numInput.value = String(n).padStart(3, '0');
+    localStorage.setItem('bs_cot_num', n);
+  }
+
+  // Verificar sesión activa
+  if (localStorage.getItem('bs_pin_ok') === '1') {
+    mostrarApp();
+  }
+
+  // Enter en PIN
+  document.getElementById('pin-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') verificarPin();
+  });
+
+  construirCatalogo();
+  calcLetras();
+  calcPaloma();
+  calcAcrilico();
+});
+
+function verificarPin() {
+  var val = document.getElementById('pin-input').value.trim();
+  var err = document.getElementById('pin-error');
+  if (val === PIN_CORRECTO) {
+    localStorage.setItem('bs_pin_ok', '1');
+    err.textContent = '';
+    mostrarApp();
+  } else {
+    err.textContent = '⚠ PIN incorrecto. Intenta de nuevo.';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+function mostrarApp() {
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+function cerrarSesion() {
+  localStorage.removeItem('bs_pin_ok');
+  location.reload();
+}
+
+/* ════════════════════════════════════════════
+   CONSTRUCCIÓN DEL CATÁLOGO
+════════════════════════════════════════════ */
+function construirCatalogo() {
+  var cont = document.getElementById('catalogo');
+  cont.innerHTML = '';
+
+  CATALOGO.forEach(function(cat) {
+    // Header acordeón
+    var header = document.createElement('div');
+    header.className = 'cat-header';
+    header.innerHTML = '<span>' + cat.cat + '</span><span class="arrow">▶</span>';
+
+    var items = document.createElement('div');
+    items.className = 'cat-items';
+
+    header.addEventListener('click', function() {
+      header.classList.toggle('open');
+      items.classList.toggle('open');
+    });
+
+    cat.items.forEach(function(item) {
+      var row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML =
+        '<span class="item-name">' + item.nombre + '</span>' +
+        '<span class="item-price">$ <input type="number" id="price_' + item.id + '" value="' + item.precio + '" min="0" step="100" onchange="updateItemPrice(\'' + item.id + '\', this.value)" /></span>' +
+        '<span class="item-qty"><input type="number" id="qty_' + item.id + '" value="1" min="1" style="width:50px;" /></span>' +
+        '<button class="btn-add" onclick="agregarItem(\'' + item.id + '\', \'' + item.nombre.replace(/'/g, "\\'") + '\')">+ Agregar</button>';
+      items.appendChild(row);
+    });
+
+    cont.appendChild(header);
+    cont.appendChild(items);
+  });
+}
+
+function updateItemPrice(id, val) {
+  // Actualiza precio en el catálogo en memoria
+  CATALOGO.forEach(function(cat) {
+    cat.items.forEach(function(item) {
+      if (item.id === id) item.precio = parseFloat(val) || 0;
+    });
+  });
+}
+
+/* ════════════════════════════════════════════
+   AGREGAR ÍTEMS A LA COTIZACIÓN
+════════════════════════════════════════════ */
+function agregarItem(id, nombre) {
+  var precioInput = document.getElementById('price_' + id);
+  var qtyInput    = document.getElementById('qty_'   + id);
+  var precio = precioInput ? parseFloat(precioInput.value) || 0 : 0;
+  var qty    = qtyInput    ? parseInt(qtyInput.value)    || 1 : 1;
+
+  agregarALista({ id: id + '_' + Date.now(), nombre: nombre, precio: precio, qty: qty });
+  mostrarToast('✓ ' + nombre + ' agregado', 'success');
+}
+
+function agregarPersonalizado() {
+  var desc  = document.getElementById('custom-desc').value.trim();
+  var precio = parseFloat(document.getElementById('custom-price').value) || 0;
+  var qty    = parseInt(document.getElementById('custom-qty').value) || 1;
+
+  if (!desc) { mostrarToast('Escribe una descripción para el ítem', 'error'); return; }
+
+  agregarALista({ id: 'custom_' + Date.now(), nombre: desc, precio: precio, qty: qty });
+  document.getElementById('custom-desc').value  = '';
+  document.getElementById('custom-price').value = '';
+  document.getElementById('custom-qty').value   = '1';
+  mostrarToast('✓ Ítem personalizado agregado', 'success');
+}
+
+function agregarALista(item) {
+  itemsCotizacion.push(item);
+  renderizarCotizacion();
+}
+
+/* ════════════════════════════════════════════
+   CALCULADORAS
+════════════════════════════════════════════ */
+function calcLetras() {
+  var cant     = parseInt(document.getElementById('lc-cant').value)    || 0;
+  var precio   = parseInt(document.getElementById('lc-material').value) || 0;
+  var total    = cant * precio;
+  document.getElementById('lc-result').textContent = 'Total: ' + formatPeso(total) + '  (' + cant + ' letras × ' + formatPeso(precio) + ')';
+}
+
+function agregarCalcLetras() {
+  var cant     = parseInt(document.getElementById('lc-cant').value)    || 0;
+  var precio   = parseInt(document.getElementById('lc-material').value) || 0;
+  var matText  = document.getElementById('lc-material').selectedOptions[0].text;
+  if (!cant) { mostrarToast('Ingresa número de letras', 'error'); return; }
+  var nombre = 'Letras corpóreas — ' + cant + ' letras (' + matText.split('—')[0].trim() + ')';
+  agregarALista({ id: 'lc_' + Date.now(), nombre: nombre, precio: cant * precio, qty: 1 });
+  mostrarToast('✓ Letras corpóreas agregadas', 'success');
+}
+
+function calcPaloma() {
+  var ancho  = parseFloat(document.getElementById('pd-ancho').value) || 0;
+  var alto   = parseFloat(document.getElementById('pd-alto').value)  || 0;
+  var precio = parseInt(document.getElementById('pd-material').value) || 0;
+  var m2     = ancho * alto;
+  var total  = Math.ceil(m2 * 100) / 100 * precio;
+  document.getElementById('pd-result').textContent = 'Total: ' + formatPeso(total) + '  (' + m2.toFixed(2) + ' m²)';
+}
+
+function agregarCalcPaloma() {
+  var ancho  = parseFloat(document.getElementById('pd-ancho').value) || 0;
+  var alto   = parseFloat(document.getElementById('pd-alto').value)  || 0;
+  var precio = parseInt(document.getElementById('pd-material').value) || 0;
+  var matText = document.getElementById('pd-material').selectedOptions[0].text;
+  var m2    = ancho * alto;
+  if (!m2) { mostrarToast('Ingresa dimensiones válidas', 'error'); return; }
+  var nombre = matText.split('—')[0].trim() + ' ' + ancho + 'm × ' + alto + 'm (' + m2.toFixed(2) + ' m²)';
+  agregarALista({ id: 'pd_' + Date.now(), nombre: nombre, precio: m2 * precio, qty: 1 });
+  mostrarToast('✓ Impresión agregada', 'success');
+}
+
+function calcAcrilico() {
+  var ancho  = parseFloat(document.getElementById('al-ancho').value) || 0;
+  var alto   = parseFloat(document.getElementById('al-alto').value)  || 0;
+  var precio = parseInt(document.getElementById('al-tipo').value)    || 0;
+  var m2    = ancho * alto;
+  var total  = m2 * precio;
+  document.getElementById('al-result').textContent = 'Total: ' + formatPeso(total) + '  (' + m2.toFixed(2) + ' m²)';
+}
+
+function agregarCalcAcrilico() {
+  var ancho  = parseFloat(document.getElementById('al-ancho').value) || 0;
+  var alto   = parseFloat(document.getElementById('al-alto').value)  || 0;
+  var precio = parseInt(document.getElementById('al-tipo').value)    || 0;
+  var tipoText = document.getElementById('al-tipo').selectedOptions[0].text;
+  var m2    = ancho * alto;
+  if (!m2) { mostrarToast('Ingresa dimensiones válidas', 'error'); return; }
+  var nombre = tipoText.split('—')[0].trim() + ' ' + ancho + 'm × ' + alto + 'm (' + m2.toFixed(2) + ' m²)';
+  agregarALista({ id: 'al_' + Date.now(), nombre: nombre, precio: m2 * precio, qty: 1 });
+  mostrarToast('✓ Acrílico luminoso agregado', 'success');
+}
+
+/* ════════════════════════════════════════════
+   RENDERIZAR COTIZACIÓN
+════════════════════════════════════════════ */
+function renderizarCotizacion() {
+  var cont  = document.getElementById('quote-items');
+  var empty = document.getElementById('empty-hint');
+
+  if (itemsCotizacion.length === 0) {
+    cont.innerHTML = '<div class="empty-hint" id="empty-hint">Aún no hay ítems. Selecciona del catálogo.</div>';
+    actualizarTotales();
+    return;
+  }
+
+  cont.innerHTML = '';
+  itemsCotizacion.forEach(function(item) {
+    var subtotal = item.precio * item.qty;
+    var div = document.createElement('div');
+    div.className = 'q-item';
+    div.innerHTML =
+      '<div><div class="q-name">' + item.nombre + '</div>' +
+      '<div class="q-sub">Qty: ' + item.qty + ' × ' + formatPeso(item.precio) + '</div></div>' +
+      '<span class="q-price">' + formatPeso(subtotal) + '</span>' +
+      '<button class="btn-del" onclick="eliminarItem(\'' + item.id + '\')" title="Eliminar">✕</button>';
+    cont.appendChild(div);
+  });
+
+  actualizarTotales();
+}
+
+function eliminarItem(id) {
+  itemsCotizacion = itemsCotizacion.filter(function(i) { return i.id !== id; });
+  renderizarCotizacion();
+}
+
+function limpiarCotizacion() {
+  if (!itemsCotizacion.length && !confirm) return;
+  itemsCotizacion = [];
+  renderizarCotizacion();
+  mostrarToast('Cotización limpiada', 'success');
+}
+
+/* ════════════════════════════════════════════
+   TOTALES
+════════════════════════════════════════════ */
+function actualizarTotales() {
+  var subtotal = itemsCotizacion.reduce(function(acc, i) { return acc + i.precio * i.qty; }, 0);
+  var descPct  = parseFloat(document.getElementById('descuento').value) || 0;
+  var conIva   = document.getElementById('incluir-iva').checked;
+
+  var descMonto = subtotal * descPct / 100;
+  var base      = subtotal - descMonto;
+  var iva       = conIva ? base * 0.19 : 0;
+  var total     = base + iva;
+
+  document.getElementById('t-sub').textContent   = formatPeso(subtotal);
+  document.getElementById('t-total').textContent = formatPeso(total);
+
+  var descRow = document.getElementById('t-desc-row');
+  var ivaRow  = document.getElementById('t-iva-row');
+
+  if (descPct > 0) {
+    descRow.style.display = 'flex';
+    document.getElementById('t-desc').textContent = '−' + formatPeso(descMonto);
+  } else {
+    descRow.style.display = 'none';
+  }
+
+  if (conIva) {
+    ivaRow.style.display = 'flex';
+    document.getElementById('t-iva').textContent = formatPeso(iva);
+  } else {
+    ivaRow.style.display = 'none';
+  }
+}
+
+/* ════════════════════════════════════════════
+   GENERAR PDF
+════════════════════════════════════════════ */
+function generarPDF() {
+  if (!itemsCotizacion.length) {
+    mostrarToast('Agrega al menos un ítem antes de generar el PDF', 'error');
+    return;
+  }
+
+  var cliente  = document.getElementById('c-nombre').value  || 'Sin nombre';
+  var rut      = document.getElementById('c-rut').value     || '—';
+  var tel      = document.getElementById('c-tel').value     || '—';
+  var email    = document.getElementById('c-email').value   || '—';
+  var ciudad   = document.getElementById('c-ciudad').value  || '—';
+  var numCot   = document.getElementById('c-num').value     || '001';
+  var fecha    = document.getElementById('c-fecha').value;
+  var validez  = document.getElementById('c-validez').value || '7';
+  var notas    = document.getElementById('notas').value     || '';
+  var descPct  = parseFloat(document.getElementById('descuento').value) || 0;
+  var conIva   = document.getElementById('incluir-iva').checked;
+
+  var fechaFmt = fecha
+    ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' })
+    : new Date().toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  var subtotal   = itemsCotizacion.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var descMonto  = subtotal * descPct / 100;
+  var base       = subtotal - descMonto;
+  var iva        = conIva ? base * 0.19 : 0;
+  var total      = base + iva;
+
+  // Filas de ítems
+  var filasHTML = itemsCotizacion.map(function(item, idx) {
+    return '<tr>' +
+      '<td style="padding:8px 12px;text-align:center;color:#888;">' + (idx + 1) + '</td>' +
+      '<td style="padding:8px 12px;">' + item.nombre + '</td>' +
+      '<td style="padding:8px 12px;text-align:center;">' + item.qty + '</td>' +
+      '<td style="padding:8px 12px;text-align:right;">' + formatPeso(item.precio) + '</td>' +
+      '<td style="padding:8px 12px;text-align:right;font-weight:600;">' + formatPeso(item.precio * item.qty) + '</td>' +
+      '</tr>';
+  }).join('');
+
+  var descFila = descPct > 0
+    ? '<tr><td colspan="4" style="text-align:right;padding:6px 12px;color:#888;">Descuento (' + descPct + '%)</td>' +
+      '<td style="text-align:right;padding:6px 12px;color:#e05555;">−' + formatPeso(descMonto) + '</td></tr>'
+    : '';
+
+  var ivaFila = conIva
+    ? '<tr><td colspan="4" style="text-align:right;padding:6px 12px;color:#888;">IVA (19%)</td>' +
+      '<td style="text-align:right;padding:6px 12px;">' + formatPeso(iva) + '</td></tr>'
+    : '';
+
+  var notasHTML = notas
+    ? '<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:14px 18px;font-size:12px;color:#555;white-space:pre-line;">' + notas + '</div>'
+    : '';
+
+  // Logo en base64 o URL relativa — usamos URL relativa
+  var logoSrc = 'assets/logo-birth.png';
+
+  var html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
+    '<title>Cotización N° ' + numCot + ' — Birth Studio</title>' +
+    '<style>' +
+    'body{font-family:Arial,sans-serif;background:#fff;color:#222;margin:0;padding:0;}' +
+    '.page{width:794px;margin:0 auto;padding:40px 50px;}' +
+    'table{width:100%;border-collapse:collapse;}' +
+    'th{background:#111;color:#e8c97e;padding:10px 12px;text-align:left;font-size:12px;}' +
+    'td{border-bottom:1px solid #eee;font-size:13px;}' +
+    'tr:nth-child(even) td{background:#fafafa;}' +
+    '@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}' +
+    '</style></head><body>' +
+    '<div class="page">' +
+
+    // Cabecera
+    '<table style="margin-bottom:30px;"><tr>' +
+    '<td style="width:50%;border:none;"><img src="' + logoSrc + '" style="height:70px;" /></td>' +
+    '<td style="border:none;text-align:right;">' +
+    '<div style="font-size:22px;font-weight:700;color:#111;">COTIZACIÓN</div>' +
+    '<div style="font-size:14px;color:#666;margin-top:4px;">N° ' + numCot + '</div>' +
+    '<div style="font-size:12px;color:#888;margin-top:2px;">' + fechaFmt + '</div>' +
+    '</td></tr></table>' +
+
+    // Info empresa + cliente
+    '<table style="margin-bottom:24px;"><tr>' +
+    '<td style="width:50%;vertical-align:top;border:none;background:#f5f5f5;border-radius:8px;padding:14px 18px;">' +
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Emisor</div>' +
+    '<div style="font-weight:700;font-size:14px;">Birth Studio Publicidad</div>' +
+    '<div style="font-size:12px;color:#555;margin-top:4px;">Talca, Región del Maule</div>' +
+    '<div style="font-size:12px;color:#555;">Tel: +56 9 7724 7545</div>' +
+    '<div style="font-size:12px;color:#555;">bstudio.designe@gmail.com</div>' +
+    '</td>' +
+    '<td style="width:4%;border:none;"></td>' +
+    '<td style="vertical-align:top;border:none;background:#f5f5f5;border-radius:8px;padding:14px 18px;">' +
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Cliente</div>' +
+    '<div style="font-weight:700;font-size:14px;">' + cliente + '</div>' +
+    (rut !== '—' ? '<div style="font-size:12px;color:#555;margin-top:4px;">RUT: ' + rut + '</div>' : '') +
+    (tel !== '—' ? '<div style="font-size:12px;color:#555;">Tel: ' + tel + '</div>' : '') +
+    (email !== '—' ? '<div style="font-size:12px;color:#555;">' + email + '</div>' : '') +
+    (ciudad !== '—' ? '<div style="font-size:12px;color:#555;">' + ciudad + '</div>' : '') +
+    '</td></tr></table>' +
+
+    // Tabla ítems
+    '<table>' +
+    '<thead><tr>' +
+    '<th style="width:40px;text-align:center;">#</th>' +
+    '<th>Descripción</th>' +
+    '<th style="width:60px;text-align:center;">Qty</th>' +
+    '<th style="width:120px;text-align:right;">Precio unit.</th>' +
+    '<th style="width:130px;text-align:right;">Subtotal</th>' +
+    '</tr></thead><tbody>' +
+    filasHTML +
+    '</tbody><tfoot>' +
+    '<tr><td colspan="4" style="text-align:right;padding:10px 12px;font-weight:600;color:#555;border-top:2px solid #ccc;">Subtotal</td>' +
+    '<td style="text-align:right;padding:10px 12px;font-weight:600;border-top:2px solid #ccc;">' + formatPeso(subtotal) + '</td></tr>' +
+    descFila +
+    ivaFila +
+    '<tr style="background:#111;"><td colspan="4" style="text-align:right;padding:12px;font-weight:700;font-size:15px;color:#e8c97e;border:none;">TOTAL</td>' +
+    '<td style="text-align:right;padding:12px;font-weight:700;font-size:15px;color:#e8c97e;border:none;">' + formatPeso(total) + '</td></tr>' +
+    '</tfoot></table>' +
+
+    // Validez
+    '<div style="margin-top:14px;font-size:11px;color:#888;text-align:right;">Validez de la cotización: ' + validez + ' días corridos desde la fecha de emisión.</div>' +
+
+    // Notas
+    (notas ? '<div style="margin-top:20px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Condiciones y observaciones</div>' + notasHTML + '</div>' : '') +
+
+    // Pie de página
+    '<div style="margin-top:30px;border-top:1px solid #eee;padding-top:16px;text-align:center;font-size:11px;color:#aaa;">' +
+    'Birth Studio Publicidad · Talca, Chile · +56 9 7724 7545 · bstudio.designe@gmail.com' +
+    '</div>' +
+
+    '</div></body></html>';
+
+  var ventana = window.open('', '_blank', 'width=900,height=700');
+  if (!ventana) { mostrarToast('Permite las ventanas emergentes en tu navegador', 'error'); return; }
+  ventana.document.write(html);
+  ventana.document.close();
+  ventana.onload = function() { ventana.print(); };
+}
+
+/* ════════════════════════════════════════════
+   WHATSAPP
+════════════════════════════════════════════ */
+function enviarWhatsApp() {
+  if (!itemsCotizacion.length) {
+    mostrarToast('Agrega al menos un ítem a la cotización', 'error');
+    return;
+  }
+
+  var cliente = document.getElementById('c-nombre').value || 'Cliente';
+  var numCot  = document.getElementById('c-num').value    || '001';
+  var subtotal = itemsCotizacion.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var descPct  = parseFloat(document.getElementById('descuento').value) || 0;
+  var conIva   = document.getElementById('incluir-iva').checked;
+  var base     = subtotal - subtotal * descPct / 100;
+  var total    = base + (conIva ? base * 0.19 : 0);
+
+  var lineas = itemsCotizacion.map(function(item) {
+    return '• ' + item.nombre + (item.qty > 1 ? ' (x' + item.qty + ')' : '') + ': ' + formatPeso(item.precio * item.qty);
+  });
+
+  var msg = [
+    '📋 *Cotización N° ' + numCot + ' — Birth Studio*',
+    '',
+    '👤 Cliente: ' + cliente,
+    '',
+    '*Detalle:*',
+  ].concat(lineas).concat([
+    '',
+    '💰 *TOTAL: ' + formatPeso(total) + '*' + (conIva ? ' (IVA incluido)' : ''),
+    '',
+    'Saludos, _Birth Studio Publicidad_'
+  ]).join('\n');
+
+  window.open('https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+/* ════════════════════════════════════════════
+   TELEGRAM
+════════════════════════════════════════════ */
+function enviarTelegram() {
+  if (!itemsCotizacion.length) {
+    mostrarToast('Agrega al menos un ítem a la cotización', 'error');
+    return;
+  }
+
+  var cliente = document.getElementById('c-nombre').value || 'Cliente';
+  var numCot  = document.getElementById('c-num').value    || '001';
+  var subtotal = itemsCotizacion.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var descPct  = parseFloat(document.getElementById('descuento').value) || 0;
+  var conIva   = document.getElementById('incluir-iva').checked;
+  var base     = subtotal - subtotal * descPct / 100;
+  var total    = base + (conIva ? base * 0.19 : 0);
+
+  var lineas = itemsCotizacion.map(function(item) {
+    return '• ' + item.nombre + (item.qty > 1 ? ' (x' + item.qty + ')' : '') + ': ' + formatPeso(item.precio * item.qty);
+  });
+
+  var msg = [
+    '📋 Cotización N° ' + numCot + ' — Birth Studio',
+    '',
+    '👤 Cliente: ' + cliente,
+    '',
+    'Detalle:',
+  ].concat(lineas).concat([
+    '',
+    '💰 TOTAL: ' + formatPeso(total) + (conIva ? ' (IVA incluido)' : ''),
+    '',
+    'Birth Studio Publicidad'
+  ]).join('\n');
+
+  window.open('https://t.me/share/url?url=bspublicidad.cl&text=' + encodeURIComponent(msg), '_blank');
+}
+
+/* ════════════════════════════════════════════
+   EMAIL VÍA EMAILJS
+════════════════════════════════════════════ */
+function abrirModalEmail() {
+  if (!itemsCotizacion.length) {
+    mostrarToast('Agrega al menos un ítem a la cotización', 'error');
+    return;
+  }
+  // Pre-llenar con email del cliente si existe
+  var emailCliente = document.getElementById('c-email').value;
+  var nombreCliente = document.getElementById('c-nombre').value;
+  if (emailCliente) document.getElementById('m-email').value = emailCliente;
+  if (nombreCliente) document.getElementById('m-nombre').value = nombreCliente;
+  document.getElementById('m-status').textContent = '';
+  document.getElementById('modal-email').classList.add('open');
+}
+
+function cerrarModalEmail() {
+  document.getElementById('modal-email').classList.remove('open');
+}
+
+function enviarEmail() {
+  var emailDest = document.getElementById('m-email').value.trim();
+  var nombreDest = document.getElementById('m-nombre').value.trim() || 'Cliente';
+  var statusEl  = document.getElementById('m-status');
+
+  if (!emailDest || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDest)) {
+    statusEl.style.color = '#e05555';
+    statusEl.textContent = 'Ingresa un correo válido';
+    return;
+  }
+
+  var numCot   = document.getElementById('c-num').value    || '001';
+  var subtotal = itemsCotizacion.reduce(function(a, i) { return a + i.precio * i.qty; }, 0);
+  var descPct  = parseFloat(document.getElementById('descuento').value) || 0;
+  var conIva   = document.getElementById('incluir-iva').checked;
+  var base     = subtotal - subtotal * descPct / 100;
+  var total    = base + (conIva ? base * 0.19 : 0);
+
+  var detalle = itemsCotizacion.map(function(item) {
+    return item.nombre + (item.qty > 1 ? ' (x' + item.qty + ')' : '') + ': ' + formatPeso(item.precio * item.qty);
+  }).join('\n');
+
+  var params = {
+    nombre:      nombreDest,
+    email:       emailDest,
+    telefono:    document.getElementById('c-tel').value || '—',
+    tipo:        'Cotización N° ' + numCot,
+    medidas:     detalle,
+    descripcion: 'TOTAL: ' + formatPeso(total) + (conIva ? ' (IVA incluido)' : '') +
+                 (document.getElementById('notas').value ? '\n\n' + document.getElementById('notas').value : '')
+  };
+
+  statusEl.style.color = '#888';
+  statusEl.textContent = 'Enviando…';
+
+  emailjs.send(EMAILJS_SVC, EMAILJS_TPL, params)
+    .then(function() {
+      statusEl.style.color = '#4ade80';
+      statusEl.textContent = '✓ Correo enviado con éxito';
+      setTimeout(cerrarModalEmail, 2000);
+      mostrarToast('Correo enviado a ' + emailDest, 'success');
+    })
+    .catch(function(err) {
+      statusEl.style.color = '#e05555';
+      statusEl.textContent = 'Error al enviar. Intenta de nuevo.';
+      console.error('EmailJS:', err);
+    });
+}
+
+/* ════════════════════════════════════════════
+   UTILIDADES
+════════════════════════════════════════════ */
+function formatPeso(n) {
+  return '$' + Math.round(n).toLocaleString('es-CL');
+}
+
+function mostrarToast(msg, tipo) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'show ' + (tipo || '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function() {
+    t.classList.remove('show', 'success', 'error');
+  }, 3000);
+}
+
+// Cerrar modal al hacer clic fuera
+document.addEventListener('click', function(e) {
+  var overlay = document.getElementById('modal-email');
+  if (e.target === overlay) cerrarModalEmail();
+});
+</script>
+</body>
+</html>
