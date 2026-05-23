@@ -248,51 +248,8 @@
             <h2 class="section__title">Síguenos en <em>Instagram</em></h2>
         </header>
 
-        <div class="ig-grid">
-
-            <a href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener" class="ig-card reveal">
-                <div class="ig-card__preview ig-card__preview--1"></div>
-                <div class="ig-card__overlay">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                </div>
-            </a>
-
-            <a href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener" class="ig-card reveal">
-                <div class="ig-card__preview ig-card__preview--2"></div>
-                <div class="ig-card__overlay">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                </div>
-            </a>
-
-            <a href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener" class="ig-card reveal">
-                <div class="ig-card__preview ig-card__preview--3"></div>
-                <div class="ig-card__overlay">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                </div>
-            </a>
-
-            <a href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener" class="ig-card reveal">
-                <div class="ig-card__preview ig-card__preview--4"></div>
-                <div class="ig-card__overlay">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                </div>
-            </a>
-
-            <a href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener" class="ig-card reveal">
-                <div class="ig-card__preview ig-card__preview--5"></div>
-                <div class="ig-card__overlay">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                </div>
-            </a>
-
-            <a href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener" class="ig-card reveal">
-                <div class="ig-card__preview ig-card__preview--6"></div>
-                <div class="ig-card__overlay">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                </div>
-            </a>
-
-        </div>
+        <!-- Widget Behold — muestra los posts reales de @bsp.cl -->
+        <div data-behold-id="JpIlMpgUKdrs4g9jFTso"></div>
 
         <div class="ig-cta reveal">
             <a href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener" class="btn btn--outline">
@@ -826,6 +783,14 @@
 <!-- ════════════════════════════════════════
      SCRIPTS  — orden: animations → main → form
 ════════════════════════════════════════ -->
+
+<!-- Behold — feed real de Instagram -->
+<script>
+  (function() {
+    const d=document,s=d.createElement("script");s.type="module";
+    s.src="https://w.behold.so/widget.js";d.head.append(s);
+  })();
+</script>
 
 <script src="js/animations.js"></script>
 <script src="js/main.js"></script>
