@@ -1,119 +1,122 @@
 /**
  * form.js — Birth Studio Publicidad
  * ──────────────────────────────────────────────
- * 1. Formulario de cotización → mailto:
+ * 1. Formulario de cotización → EmailJS
  * 2. Mostrar/ocultar campos según selección
  * 3. Slots de horario generados dinámicamente
- * 4. Formulario de agenda → abre WhatsApp con
- *    mensaje pre-formateado
+ * 4. Formulario de agenda → abre WhatsApp
  */
 
-var WA_NUMBER = '56977247545';  // Sin + ni espacios
-var MAIL_TO   = 'birth.publicidad@gmail.com'; // ← Cambia por tu correo real
+// ── EmailJS Credentials ──
+var EMAILJS_SERVICE_ID = 'service_qtcrtcr';
+var EMAILJS_TEMPLATE_ID = 'template_3zwrb8h';
+var EMAILJS_PUBLIC_KEY = 'x6DqzGj_3ceKhk2NQ';
+var WA_NUMBER = '56977247545';
 
+// Espera a que EmailJS esté listo
+function waitForEmailJS(callback) {
+    if (typeof emailjs !== 'undefined') {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+        callback();
+    } else {
+        setTimeout(function() { waitForEmailJS(callback); }, 100);
+    }
+}
 
 /* ══════════════════════════════════════════
-   1. FORMULARIO DE COTIZACIÓN
+   1. FORMULARIO DE COTIZACIÓN → EmailJS
 ══════════════════════════════════════════ */
 function initQuoteForm() {
-    var form          = document.getElementById('quote-form');
+    var form = document.getElementById('quote-form');
     if (!form) return;
 
-    var fachadaGroup  = document.getElementById('fachada-group');
+    var fachadaGroup = document.getElementById('fachada-group');
     var medidasInputs = document.getElementById('medidas-inputs');
-    var visitaHint    = document.getElementById('visita-hint');
-    var medidasSi     = document.getElementById('medidas-si');
-    var medidasNo     = document.getElementById('medidas-no');
+    var visitaHint = document.getElementById('visita-hint');
+    var medidasSi = document.getElementById('medidas-si');
+    var medidasNo = document.getElementById('medidas-no');
 
-    /* ── Mostrar campo Fachada solo si aplica ── */
+    // Mostrar campo Fachada solo si aplica
     var tipoRadios = form.querySelectorAll('input[name="tipo"]');
-
     tipoRadios.forEach(function(radio) {
         radio.addEventListener('change', function() {
             var val = this.value;
             var showFachada = (val === 'Letras Corpóreas' || val === 'Bastidor');
-
-            if (fachadaGroup) {
-                fachadaGroup.hidden = !showFachada;
-            }
+            if (fachadaGroup) fachadaGroup.hidden = !showFachada;
         });
     });
 
-    /* ── Mostrar/ocultar campos de medidas ── */
+    // Mostrar/ocultar campos de medidas
     if (medidasSi) {
         medidasSi.addEventListener('change', function() {
             if (medidasInputs) medidasInputs.hidden = false;
-            if (visitaHint)    visitaHint.hidden    = true;
+            if (visitaHint) visitaHint.hidden = true;
         });
     }
-
     if (medidasNo) {
         medidasNo.addEventListener('change', function() {
             if (medidasInputs) medidasInputs.hidden = true;
-            if (visitaHint)    visitaHint.hidden    = false;
+            if (visitaHint) visitaHint.hidden = false;
         });
     }
 
-    /* ── Submit → mailto: ── */
+    // Submit → EmailJS
     form.addEventListener('submit', function(e) {
         e.preventDefault();
 
         if (!validateForm(form)) return;
 
         var data = new FormData(form);
-
-        // Construye el cuerpo del correo
         var ancho = data.get('ancho') || 'No especificado';
-        var alto  = data.get('alto')  || 'No especificado';
-
+        var alto = data.get('alto') || 'No especificado';
         var tieneMedidas = data.get('tiene_medidas');
-        var medidas = (tieneMedidas === 'si')
-            ? ancho + ' m × ' + alto + ' m'
-            : 'Sin medidas (solicitará visita en terreno)';
+        var medidas = (tieneMedidas === 'si') ? ancho + ' m × ' + alto + ' m' : 'Sin medidas';
 
-        var body = [
-            'Nueva cotización — Birth Studio Publicidad',
-            '════════════════════════════════',
-            '',
-            'DATOS DE CONTACTO',
-            '─────────────────',
-            'Nombre:    ' + (data.get('nombre')    || '-'),
-            'Correo:    ' + (data.get('email')     || '-'),
-            'Teléfono:  ' + (data.get('telefono')  || '-'),
-            '',
-            'DETALLE DEL PROYECTO',
-            '─────────────────',
-            'Tipo:      ' + (data.get('tipo')      || '-'),
-            'Fachada:   ' + (data.get('fachada')   || 'N/A'),
-            'Medidas:   ' + medidas,
-            '',
-            'DESCRIPCIÓN',
-            '─────────────────',
-            (data.get('descripcion') || 'Sin descripción adicional.'),
-            '',
-            '════════════════════════════════',
-            'Enviado desde birthstudio.cl'
-        ].join('\n');
+        var templateParams = {
+            nombre: data.get('nombre') || '-',
+            email: data.get('email') || '-',
+            telefono: data.get('telefono') || '-',
+            tipo: data.get('tipo') || '-',
+            fachada: data.get('fachada') || 'N/A',
+            medidas: medidas,
+            descripcion: data.get('descripcion') || 'Sin descripción.'
+        };
 
-        var subject = encodeURIComponent('Cotización: ' + (data.get('tipo') || 'Servicio') + ' — ' + (data.get('nombre') || ''));
-        var bodyEnc = encodeURIComponent(body);
+        var submitBtn = form.querySelector('button[type="submit"]');
+        var originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviando...';
 
-        window.location.href = 'mailto:' + MAIL_TO + '?subject=' + subject + '&body=' + bodyEnc;
+        if (typeof emailjs === 'undefined') {
+            showSuccess(form, '⚠ Error: EmailJS no cargó.', true);
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            return;
+        }
 
-        showSuccess(form, '¡Solicitud lista! Se abrirá tu cliente de correo.');
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
+            .then(function(response) {
+                showSuccess(form, '✓ ¡Cotización enviada! Te contactaremos pronto.');
+                form.reset();
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            })
+            .catch(function(error) {
+                console.error('EmailJS Error:', error);
+                showSuccess(form, '⚠ Error al enviar. Intenta de nuevo.', true);
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
     });
 }
 
-
 /* ══════════════════════════════════════════
    2. SLOTS DE HORARIO
-   Genera botones de hora (8:00 – 18:00)
 ══════════════════════════════════════════ */
 function initTimeSlots() {
     var container = document.getElementById('time-slots');
     if (!container) return;
 
-    // Horarios disponibles: de 9:00 a 17:30, cada 30 min
     var slots = [];
     for (var h = 9; h < 18; h++) {
         slots.push(pad(h) + ':00');
@@ -121,18 +124,15 @@ function initTimeSlots() {
     }
 
     var selected = null;
-
     slots.forEach(function(time) {
         var btn = document.createElement('button');
-        btn.type       = 'button';
-        btn.className  = 'time-slot';
+        btn.type = 'button';
+        btn.className = 'time-slot';
         btn.textContent = time;
         btn.dataset.time = time;
 
         btn.addEventListener('click', function() {
-            // Deselecciona anterior
             if (selected) selected.classList.remove('is-selected');
-
             btn.classList.add('is-selected');
             selected = btn;
         });
@@ -144,7 +144,6 @@ function initTimeSlots() {
 function pad(n) {
     return n < 10 ? '0' + n : '' + n;
 }
-
 
 /* ══════════════════════════════════════════
    3. FORMULARIO DE AGENDA → WhatsApp
@@ -158,13 +157,12 @@ function initScheduleForm() {
 
         if (!validateForm(form)) return;
 
-        var nombre    = document.getElementById('s-name')    ? document.getElementById('s-name').value.trim()    : '';
-        var telefono  = document.getElementById('s-phone')   ? document.getElementById('s-phone').value.trim()   : '';
-        var fecha     = document.getElementById('s-date')    ? document.getElementById('s-date').value           : '';
+        var nombre = document.getElementById('s-name') ? document.getElementById('s-name').value.trim() : '';
+        var telefono = document.getElementById('s-phone') ? document.getElementById('s-phone').value.trim() : '';
+        var fecha = document.getElementById('s-date') ? document.getElementById('s-date').value : '';
         var direccion = document.getElementById('s-address') ? document.getElementById('s-address').value.trim() : '';
-        var notas     = document.getElementById('s-notes')   ? document.getElementById('s-notes').value.trim()   : '';
+        var notas = document.getElementById('s-notes') ? document.getElementById('s-notes').value.trim() : '';
 
-        // Hora seleccionada (botón .is-selected)
         var selectedSlot = form.querySelector('.time-slot.is-selected');
         var hora = selectedSlot ? selectedSlot.dataset.time : '';
 
@@ -173,14 +171,12 @@ function initScheduleForm() {
             return;
         }
 
-        // Formatea la fecha
         var fechaFormateada = fecha
             ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-              })
+            })
             : 'Por coordinar';
 
-        // Mensaje para WhatsApp
         var msg = [
             '¡Hola Birth Studio! 👋',
             '',
@@ -192,30 +188,23 @@ function initScheduleForm() {
             '• Fecha: ' + fechaFormateada,
             '• Hora: ' + hora,
             direccion ? '• Dirección: ' + direccion : null,
-            notas     ? '• Notas: ' + notas         : null,
+            notas ? '• Notas: ' + notas : null,
             '',
             'Quedo atento/a a su confirmación. ¡Gracias!'
         ].filter(function(l) { return l !== null; }).join('\n');
 
         var waUrl = 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(msg);
-
         window.open(waUrl, '_blank');
 
         showSuccess(form, '¡WhatsApp abierto! Solo presiona "Enviar" en la app.');
     });
 }
 
-
 /* ══════════════════════════════════════════
    UTILIDADES
 ══════════════════════════════════════════ */
-
-/**
- * Validación básica: campos required vacíos
- * Retorna true si es válido
- */
 function validateForm(form) {
-    var valid  = true;
+    var valid = true;
     var fields = form.querySelectorAll('[required]');
 
     fields.forEach(function(field) {
@@ -226,7 +215,6 @@ function validateForm(form) {
             valid = false;
         }
 
-        // Validación extra para email
         if (field.type === 'email' && field.value) {
             var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailPattern.test(field.value.trim())) {
@@ -237,7 +225,6 @@ function validateForm(form) {
     });
 
     if (!valid) {
-        // Scroll al primer campo inválido
         var firstInvalid = form.querySelector('.is-invalid');
         if (firstInvalid) {
             firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -248,20 +235,21 @@ function validateForm(form) {
     return valid;
 }
 
-/**
- * Muestra mensaje de éxito temporal dentro del form
- */
-function showSuccess(form, message) {
-    // Evita duplicar el mensaje
+function showSuccess(form, message, isError) {
     var existing = form.querySelector('.form-success');
     if (existing) existing.remove();
 
     var successDiv = document.createElement('div');
     successDiv.className = 'form-success';
+
+    var bgColor = isError ? 'rgba(255,68,68,0.1)' : 'rgba(37,211,102,0.1)';
+    var borderColor = isError ? 'rgba(255,68,68,0.4)' : 'rgba(37,211,102,0.4)';
+    var textColor = isError ? '#ff4444' : '#4ade80';
+
     successDiv.style.cssText = [
-        'background: rgba(37,211,102,0.1)',
-        'border: 1px solid rgba(37,211,102,0.4)',
-        'color: #4ade80',
+        'background: ' + bgColor,
+        'border: 1px solid ' + borderColor,
+        'color: ' + textColor,
         'padding: 1rem',
         'border-radius: 6px',
         'font-size: 0.9rem',
@@ -269,21 +257,22 @@ function showSuccess(form, message) {
         'margin-top: 0.5rem'
     ].join(';');
 
-    successDiv.textContent = '✓ ' + message;
+    successDiv.textContent = message;
     form.appendChild(successDiv);
 
-    // Auto-eliminar tras 6 segundos
     setTimeout(function() {
         if (successDiv.parentNode) successDiv.remove();
     }, 6000);
 }
 
-
 /* ══════════════════════════════════════════
    INIT
 ══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function() {
-    initTimeSlots();
-    initQuoteForm();
-    initScheduleForm();
+    // Espera a que EmailJS cargue antes de iniciar formularios
+    waitForEmailJS(function() {
+        initTimeSlots();
+        initQuoteForm();
+        initScheduleForm();
+    });
 });
