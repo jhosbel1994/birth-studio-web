@@ -15,16 +15,6 @@ var EMAILJS_PUBLIC_KEY = 'x6DqzGj_3ceKhk2NQ';
 var WA_NUMBER = '56977247545';
 var MAIL_TO   = 'birth.publicidad@gmail.com';
  
-// Inicializar EmailJS cuando esté listo
-function initEmailJS() {
-    if (typeof emailjs !== 'undefined') {
-        emailjs.init(EMAILJS_PUBLIC_KEY);
-        console.log('EmailJS inicializado correctamente');
-    } else {
-        console.warn('EmailJS no está disponible');
-    }
-}
- 
  
 /* ══════════════════════════════════════════
    1. FORMULARIO DE COTIZACIÓN
@@ -290,12 +280,7 @@ function showSuccess(form, message) {
    INIT
 ══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function() {
-    // Espera un poco para que EmailJS cargue desde el CDN
-    setTimeout(function() {
-        initEmailJS();
-        initTimeSlots();
-        initQuoteForm();
-        initScheduleForm();
-    }, 500);
+    initTimeSlots();
+    initQuoteForm();
+    initScheduleForm();
 });
- 

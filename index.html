@@ -660,10 +660,22 @@
      SCRIPTS  — orden: animations → main → form
 ════════════════════════════════════════ -->
 <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+<script>
+  // Inicializar EmailJS antes que form.js
+  if (typeof emailjs !== 'undefined') {
+    emailjs.init({
+      publicKey: 'x6DqzGj_3ceKhk2NQ',
+      blockHeadless: false,
+      limitRate: {
+        id: 'positive_limit',
+        throttle: 300
+      }
+    });
+  }
+</script>
 <script src="js/animations.js"></script>
 <script src="js/main.js"></script>
 <script src="js/form.js"></script>
  
 </body>
 </html>
- 
