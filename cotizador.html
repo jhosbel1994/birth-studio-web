@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cotizador — Birth Studio Publicidad</title>
+  <title>Administrador — Birth Studio Publicidad</title>
 
   <!-- EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -109,6 +109,26 @@
       transition: background .2s;
     }
     #pin-btn:hover { background: var(--accent2); }
+
+    /* Botón volver al inicio (esquina superior izquierda del PIN) */
+    #pin-back {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      text-decoration: none;
+      transition: color .2s, border-color .2s;
+    }
+    #pin-back svg { width: 14px; height: 14px; stroke: currentColor; }
+    #pin-back:hover { color: var(--text); border-color: var(--muted); }
 
     /* ───────────────────────────────────────────
        APP PRINCIPAL (oculta hasta pasar PIN)
@@ -681,6 +701,10 @@
      PANTALLA DE PIN
 ════════════════════════════════════════════ -->
 <div id="pin-screen">
+  <a href="index.html" id="pin-back">
+    <i data-lucide="arrow-left"></i>
+    Inicio
+  </a>
   <img src="assets/logo-birth.png" alt="Birth Studio" />
   <h2>Sistema de Cotizaciones</h2>
   <div id="pin-box">
@@ -704,7 +728,7 @@
     <a href="index.html" title="Volver al sitio principal">
       <img src="assets/logo-birth.png" alt="Birth Studio" />
     </a>
-    <span>Cotizador interno &nbsp;·&nbsp; <a href="#" style="color:var(--muted);font-size:0.8rem;" onclick="cerrarSesion()">Cerrar sesión</a></span>
+    <span>Administrador &nbsp;·&nbsp; <a href="#" style="color:var(--muted);font-size:0.8rem;" onclick="cerrarSesion()">Cerrar sesión</a></span>
   </header>
 
   <!-- Layout principal -->

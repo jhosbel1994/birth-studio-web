@@ -54,9 +54,10 @@ function initNav() {
    2. MENÚ MOBILE
 ══════════════════════════════════════════ */
 function initMobileMenu() {
-    var toggle = document.getElementById('nav-toggle');
-    var menu   = document.getElementById('nav-menu');
-    var links  = menu ? menu.querySelectorAll('.nav__link') : [];
+    var toggle   = document.getElementById('nav-toggle');
+    var menu     = document.getElementById('nav-menu');
+    var backdrop = document.getElementById('nav-backdrop');
+    var links    = menu ? menu.querySelectorAll('.nav__link') : [];
 
     if (!toggle || !menu) return;
 
@@ -65,6 +66,7 @@ function initMobileMenu() {
         toggle.classList.add('is-open');
         toggle.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden';
+        if (backdrop) backdrop.classList.add('is-visible');
     }
 
     function closeMenu() {
@@ -72,6 +74,7 @@ function initMobileMenu() {
         toggle.classList.remove('is-open');
         toggle.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = '';
+        if (backdrop) backdrop.classList.remove('is-visible');
     }
 
     toggle.addEventListener('click', function() {
@@ -82,6 +85,11 @@ function initMobileMenu() {
         }
     });
 
+    // Cierra al tocar el backdrop (fuera del menú)
+    if (backdrop) {
+        backdrop.addEventListener('click', closeMenu);
+    }
+
     // Cierra al hacer clic en un link
     links.forEach(function(link) {
         link.addEventListener('click', closeMenu);
@@ -91,6 +99,13 @@ function initMobileMenu() {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeMenu();
     });
+
+    // Cierra al comenzar a hacer scroll (nav compacta toma el control)
+    window.addEventListener('scroll', function() {
+        if (menu.classList.contains('is-open')) {
+            closeMenu();
+        }
+    }, { passive: true });
 }
 
 

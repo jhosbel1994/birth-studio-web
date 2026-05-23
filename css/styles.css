@@ -315,6 +315,21 @@ ul { list-style: none; }
 .nav__toggle.is-open span:nth-child(2) { opacity: 0; }
 .nav__toggle.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
+/* Backdrop oscuro detrás del menú mobile */
+.nav__backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 849;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+.nav__backdrop.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .nav__actions {
     display: flex;
     align-items: center;
@@ -649,14 +664,14 @@ ul { list-style: none; }
 .service-card:hover .service-card__img { transform: scale(1.05); }
 
 .service-card__img--1 { background-image: url('../assets/BARBERIA.jpg'); background-size: cover; background-position: center; }
-.service-card__img--2 { background-image: url('../assets/FARMACIA\ HORIZONTAL.jpeg'); background-size: cover; background-position: center; }
+.service-card__img--2 { background-image: url("../assets/FARMACIA HORIZONTAL.jpeg"); background-size: cover; background-position: center; }
 .service-card__img--3 { background-image: url('../assets/CAJETIN LUMINOSO.jpg'); background-size: cover; background-position: center; }
-.service-card__img--4 { background-image: url('../assets/pagina\ webb.jpg'); background-size: cover; background-position: center; }
+.service-card__img--4 { background-image: url("../assets/pagina webb.jpg"); background-size: cover; background-position: center; }
 .service-card__img--5 { background-image: url('../assets/palomas.jpg'); background-size: cover; background-position: center; }
-.service-card__img--6 { background-image: url('../assets/acrilico\ luminoso.PNG'); background-size: cover; background-position: center; }
+.service-card__img--6 { background-image: url("../assets/acrilico luminoso.PNG"); background-size: cover; background-position: center; }
 .service-card__img--7 { background-image: url('../assets/oxxo.jpeg'); background-size: cover; background-position: center; }
 .service-card__img--8 { background-image: url('../assets/camioneta.jpeg'); background-size: cover; background-position: center; }
-.service-card__img--9 { background-image: url('../assets/LONA\ PVC.jpg'); background-size: cover; background-position: center; }
+.service-card__img--9 { background-image: url("../assets/LONA PVC.jpg"); background-size: cover; background-position: center; }
 
 .service-card__badge {
     position: absolute;
@@ -742,7 +757,7 @@ ul { list-style: none; }
      * IMAGEN: reemplaza el gradiente por tu foto del taller/equipo
      * background-image: url('../assets/about.jpg');
      */
-    background: url('../assets/INSTALACION\ LIVERPOOL.jpg');
+    background: url("../assets/INSTALACION LIVERPOOL.jpg");
     background-size: cover;
     background-position: center;
 }
@@ -1536,6 +1551,36 @@ ul { list-style: none; }
         font-size: 1.1rem;
         font-weight: 400;
     }
+
+    /* Nav compacta horizontal cuando el usuario ha hecho scroll */
+    .nav.is-scrolled .nav__toggle {
+        display: none;
+    }
+    .nav.is-scrolled .nav__menu,
+    .nav.is-scrolled .nav__menu.is-open {
+        position: static;
+        flex-direction: row;
+        transform: none;
+        background: transparent;
+        backdrop-filter: none;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 0.35rem;
+        padding: 0;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: nowrap;
+    }
+    .nav.is-scrolled .nav__menu::-webkit-scrollbar { display: none; }
+    .nav.is-scrolled .nav__link {
+        font-size: 0.75rem;
+        font-weight: 400;
+        white-space: nowrap;
+        padding: 0.25rem 0.5rem;
+    }
+    .nav.is-scrolled .nav__link--cta { padding: 0.3rem 0.8rem; }
+    .nav.is-scrolled .nav__link--tool { font-size: 0.7rem; padding: 0.25rem 0.55rem; }
 
     /* Mosaic: menos columnas en mobile */
     .mosaic {
