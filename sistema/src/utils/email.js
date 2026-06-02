@@ -156,6 +156,9 @@ export async function enviarCotizacionEmailJS(cotizacion, cliente, emailDestino)
     asunto: `Cotización #${cotizacion.numero} — Birth Studio SpA`,
     cuerpo_html: htmlContent,
     cuerpo_texto: textoPlano,
+    // Variables que usa el template de EmailJS
+    name: 'Birth Studio SpA',
+    email: 'bstudio.designe@gmail.com',
   })
 }
 
