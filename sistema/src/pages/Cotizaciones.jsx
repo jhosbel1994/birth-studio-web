@@ -327,9 +327,9 @@ export default function Cotizaciones() {
     cargar()
   }
 
-  const handlePDF = (cot) => {
+  const handlePDF = async (cot) => {
     const cliente = getClienteById(cot.clienteId)
-    generarCotizacionPDF(cot, cliente)
+    await generarCotizacionPDF(cot, cliente)
   }
 
   const handleEstado = (cot, estado) => {

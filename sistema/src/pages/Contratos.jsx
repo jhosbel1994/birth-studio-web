@@ -169,10 +169,10 @@ export default function Contratos() {
     cargar()
   }
 
-  const handlePDF = (contrato) => {
+  const handlePDF = async (contrato) => {
     const cliente = getClienteById(contrato.clienteId)
-    if (contrato.tipo === 'letras_corporeas') generarContratoLetras(contrato, cliente)
-    else generarContratoWeb(contrato, cliente)
+    if (contrato.tipo === 'letras_corporeas') await generarContratoLetras(contrato, cliente)
+    else await generarContratoWeb(contrato, cliente)
   }
 
   const letras = contratos.filter(c => c.tipo === 'letras_corporeas').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))

@@ -31,13 +31,12 @@ export default function Sidebar() {
 
       <aside className="w-56 min-h-screen bg-birth-black flex flex-col fixed left-0 top-0 bottom-0 z-30">
         {/* Logo */}
-        <div className="px-6 py-6 border-b border-white/10">
-          <div className="font-barlow font-extrabold text-white text-3xl tracking-widest leading-none select-none">
-            b<span className="text-birth-red">I</span>RTH
-          </div>
-          <div className="font-dm text-white/30 text-[10px] tracking-[0.3em] uppercase mt-1.5">
-            Studio & Publicidad
-          </div>
+        <div className="px-5 py-5 border-b border-white/10">
+          <img
+            src="/cotizador/logo-birth.png"
+            alt="Birth Studio"
+            className="h-10 w-auto object-contain"
+          />
         </div>
 
         {/* Nav */}

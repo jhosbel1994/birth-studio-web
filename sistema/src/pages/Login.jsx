@@ -114,11 +114,13 @@ export default function Login({ onLogin }) {
     <div className="min-h-screen bg-birth-black flex items-center justify-center p-4">
       <div className="w-full max-w-xs">
         {/* Logo */}
-        <div className="text-center mb-12">
-          <div className="font-barlow font-extrabold text-white text-6xl tracking-[0.15em] leading-none select-none">
-            b<span className="text-birth-red">I</span>RTH
-          </div>
-          <div className="font-dm text-white/25 text-[10px] tracking-[0.4em] uppercase mt-3">
+        <div className="flex flex-col items-center mb-12">
+          <img
+            src="/cotizador/logo-birth.png"
+            alt="Birth Studio"
+            className="h-16 w-auto object-contain mb-3"
+          />
+          <div className="font-dm text-white/25 text-[10px] tracking-[0.4em] uppercase">
             Sistema Interno
           </div>
         </div>
