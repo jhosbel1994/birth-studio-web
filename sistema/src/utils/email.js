@@ -28,18 +28,18 @@ function buildEmailHTML(cotizacion, cliente) {
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:'DM Sans',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;">
     <!-- Header -->
-    <tr><td style="background:#0a0a0a;padding:24px 32px;">
-      <table width="100%">
+    <tr><td style="background:#0a0a0a;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          <td>
-            <div style="color:#fff;font-size:28px;font-weight:800;letter-spacing:4px;font-family:Arial,sans-serif;">
-              b<span style="color:#e8000d;">I</span>RTH
-            </div>
-            <div style="color:rgba(255,255,255,0.4);font-size:9px;letter-spacing:4px;text-transform:uppercase;margin-top:4px;">Studio &amp; Publicidad</div>
+          <td style="vertical-align:middle;">
+            <img src="https://www.bspublicidad.cl/cotizador/logo-birth.png"
+                 alt="Birth Studio"
+                 width="140"
+                 style="display:block;height:auto;max-height:54px;width:auto;" />
           </td>
-          <td style="text-align:right;vertical-align:top;">
-            <div style="color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;letter-spacing:2px;">Cotización</div>
-            <div style="color:#e8000d;font-size:22px;font-weight:700;">#${cotizacion.numero}</div>
+          <td style="text-align:right;vertical-align:middle;">
+            <div style="color:rgba(255,255,255,0.35);font-size:9px;text-transform:uppercase;letter-spacing:3px;font-family:Arial;">Cotización</div>
+            <div style="color:#e8000d;font-size:24px;font-weight:700;font-family:Arial;line-height:1.1;">#${cotizacion.numero}</div>
           </td>
         </tr>
       </table>
