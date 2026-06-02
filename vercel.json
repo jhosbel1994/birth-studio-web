@@ -1,4 +1,11 @@
 {
   "cleanUrls": false,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/cotizador.html",
+      "destination": "/cotizador/",
+      "permanent": true
+    }
+  ]
 }
