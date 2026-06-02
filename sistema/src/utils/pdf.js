@@ -80,7 +80,8 @@ function linea(doc, y) {
   doc.line(14, y, 196, y)
 }
 
-export async function generarCotizacionPDF(cotizacion, cliente) {
+// modo: 'download' | 'preview' | 'blob'
+export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download') {
   const logo = await cargarLogo()
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
@@ -291,7 +292,16 @@ export async function generarCotizacionPDF(cotizacion, cliente) {
     { align: 'center' }
   )
 
-  doc.save(`Cotizacion_${cotizacion.numero}_${(cliente?.nombre || 'cliente').replace(/\s/g, '_')}.pdf`)
+  const filename = `Cotizacion_${cotizacion.numero}_${(cliente?.nombre || 'cliente').replace(/\s+/g, '_')}.pdf`
+  if (modo === 'preview') {
+    const blob = doc.output('blob')
+    return { url: URL.createObjectURL(blob), filename }
+  }
+  if (modo === 'blob') {
+    return { blob: doc.output('blob'), filename }
+  }
+  doc.save(filename)
+  return { filename }
 }
 
 // ─── CONTRATO LETRAS CORPÓREAS ─────────────────────────────────────────────

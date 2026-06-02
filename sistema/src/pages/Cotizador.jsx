@@ -6,10 +6,11 @@ import {
 } from '../data/productos'
 import { getClientes, saveCliente, saveCotizacion, getClienteById } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
+import { enviarCotizacionEmailJS, abrirGmailCompose } from '../utils/email'
 import { clp, hoy, sumarDias } from '../utils/formatters'
 import {
   Plus, Trash2, RotateCcw, ArrowRight,
-  User, UserPlus, X, Download, Save, ChevronRight,
+  User, UserPlus, X, Download, Save, Mail, Eye,
 } from 'lucide-react'
 
 // ─── BARRA DE CLIENTE (top) ────────────────────────────────────────────────
@@ -543,110 +544,220 @@ function CategoriaPanel({ categoria, multiplicador, setMultiplicador }) {
   return <ProductosGenericos categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
 }
 
+// ─── PREVIEW PDF FULL SCREEN ──────────────────────────────────────────────
+function PreviewPDF({ url, filename, onClose, onDownload }) {
+  return (
+    <div className="fixed inset-0 bg-black/95 z-[70] flex flex-col">
+      <div className="bg-birth-black px-5 py-3 flex items-center justify-between shrink-0">
+        <div>
+          <p className="text-white font-barlow text-lg font-bold tracking-wide">VISTA PREVIA</p>
+          <p className="text-white/40 text-xs font-dm">{filename}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={onDownload}
+            className="flex items-center gap-2 bg-birth-red text-white px-4 py-2 rounded text-sm font-dm hover:bg-red-700 transition-colors">
+            <Download size={14} /> Descargar
+          </button>
+          <button onClick={onClose}
+            className="p-2 text-white/50 hover:text-white border border-white/20 rounded hover:border-white/50 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+      </div>
+      <iframe src={url} className="flex-1 w-full bg-white" title="Vista previa PDF" />
+    </div>
+  )
+}
+
 // ─── MODAL CREAR COTIZACIÓN ────────────────────────────────────────────────
 function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuardado }) {
   const [descripcion, setDescripcion] = useState('')
   const [formaPago, setFormaPago] = useState('Transferencia bancaria — 50% anticipo, 50% contra entrega')
   const [plazo, setPlazo] = useState('')
-  const [incluye, setIncluye] = useState('')
-  const [noIncluye, setNoIncluye] = useState('')
   const [conIva, setConIva] = useState(true)
+  const [emailCliente, setEmailCliente] = useState(() => {
+    // Pre-cargar email si el cliente está en BD
+    if (clienteId) {
+      const c = getClienteById(clienteId)
+      return c?.correo || ''
+    }
+    return ''
+  })
   const [loading, setLoading] = useState(false)
+  const [msgEmail, setMsgEmail] = useState(null) // { tipo: 'ok'|'error', texto }
+  const [preview, setPreview] = useState(null) // { url, filename }
 
   const subtotal = items.reduce((s, i) => s + (i.total || 0), 0)
   const iva = conIva ? Math.round(subtotal * 0.19) : 0
   const total = subtotal + iva
   const anticipo = Math.round(total * 0.5)
 
+  const buildCot = () => ({
+    clienteId, clienteNombre,
+    descripcion, formaPago, plazoEntrega: plazo,
+    conIva, fecha: hoy(), validez: 15,
+    fechaVencimiento: sumarDias(hoy(), 15),
+    items, subtotal, iva, total,
+    anticipo, saldo: anticipo,
+    estado: 'por_aceptar',
+  })
+
   const guardar = async (conPdf = false) => {
     setLoading(true)
-    const cot = saveCotizacion({
-      clienteId, clienteNombre,
-      descripcion, formaPago, plazoEntrega: plazo,
-      incluye, noIncluye, conIva,
-      fecha: hoy(),
-      validez: 15,
-      fechaVencimiento: sumarDias(hoy(), 15),
-      items, subtotal, iva, total,
-      anticipo, saldo: anticipo,
-      estado: 'por_aceptar',
-    })
-    if (conPdf) {
-      const cliente = getClienteById(clienteId)
-      await generarCotizacionPDF(cot, cliente || { nombre: clienteNombre })
-    }
+    const cot = saveCotizacion(buildCot())
+    const cliente = getClienteById(clienteId) || { nombre: clienteNombre }
+    if (conPdf) await generarCotizacionPDF(cot, cliente, 'download')
     setLoading(false)
     onGuardado()
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-auto">
-      <div className="bg-white rounded w-full max-w-lg shadow-xl my-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t">
-          <h2 className="font-barlow text-xl font-bold tracking-wide">CREAR COTIZACIÓN</h2>
-          <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
-        </div>
-        <div className="p-6 space-y-4">
-          {/* Resumen items */}
-          <div className="bg-birth-gray rounded p-3 max-h-32 overflow-y-auto space-y-1">
-            {items.map((item, i) => (
-              <div key={i} className="flex justify-between text-sm font-dm">
-                <span className="text-birth-gray-4 truncate mr-3">{item.descripcion}</span>
-                <span className="font-medium shrink-0">{clp(item.total)}</span>
-              </div>
-            ))}
-          </div>
+  const handlePreview = async () => {
+    setLoading(true)
+    const cotTmp = buildCot()
+    cotTmp.numero = cotTmp.numero || '????'
+    // Guardamos temporalmente para tener número
+    const cot = saveCotizacion(cotTmp)
+    const cliente = getClienteById(clienteId) || { nombre: clienteNombre }
+    const result = await generarCotizacionPDF(cot, cliente, 'preview')
+    setPreview(result)
+    setLoading(false)
+    onGuardado() // limpiar items ya que se guardó
+  }
 
-          <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Descripción del proyecto</label>
-            <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
+  const handleEnviarEmail = async () => {
+    if (!emailCliente.trim()) return
+    setLoading(true)
+    setMsgEmail(null)
+    const cot = saveCotizacion(buildCot())
+    const cliente = getClienteById(clienteId) || { nombre: clienteNombre }
+
+    // Intentar EmailJS primero, fallback a Gmail
+    try {
+      await enviarCotizacionEmailJS(cot, cliente, emailCliente)
+      setMsgEmail({ tipo: 'ok', texto: `Email enviado a ${emailCliente}` })
+      onGuardado()
+    } catch {
+      // Fallback: abrir Gmail compose + descargar PDF
+      await generarCotizacionPDF(cot, cliente, 'download')
+      abrirGmailCompose(cot, cliente, emailCliente)
+      setMsgEmail({ tipo: 'info', texto: 'PDF descargado. Gmail abierto — adjunta el PDF al correo.' })
+      onGuardado()
+    }
+    setLoading(false)
+  }
+
+  return (
+    <>
+      {preview && (
+        <PreviewPDF
+          url={preview.url}
+          filename={preview.filename}
+          onClose={() => { URL.revokeObjectURL(preview.url); setPreview(null); onClose() }}
+          onDownload={() => {
+            const a = document.createElement('a')
+            a.href = preview.url
+            a.download = preview.filename
+            a.click()
+          }}
+        />
+      )}
+
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-auto">
+        <div className="bg-white rounded w-full max-w-lg shadow-xl my-4">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t">
+            <h2 className="font-barlow text-xl font-bold tracking-wide">CREAR COTIZACIÓN</h2>
+            <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
           </div>
-          <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Forma de pago</label>
-            <input value={formaPago} onChange={e => setFormaPago(e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="p-6 space-y-4">
+            {/* Resumen items */}
+            <div className="bg-birth-gray rounded p-3 max-h-28 overflow-y-auto space-y-1">
+              {items.map((item, i) => (
+                <div key={i} className="flex justify-between text-sm font-dm">
+                  <span className="text-birth-gray-4 truncate mr-3">{item.descripcion}</span>
+                  <span className="font-medium shrink-0">{clp(item.total)}</span>
+                </div>
+              ))}
+            </div>
+
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Plazo de entrega</label>
-              <input value={plazo} onChange={e => setPlazo(e.target.value)} placeholder="Ej: 5 días hábiles"
+              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Descripción del proyecto</label>
+              <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2}
+                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Forma de pago</label>
+                <input value={formaPago} onChange={e => setFormaPago(e.target.value)}
+                  className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+              </div>
+              <div>
+                <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Plazo de entrega</label>
+                <input value={plazo} onChange={e => setPlazo(e.target.value)} placeholder="5 días hábiles"
+                  className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+              </div>
+            </div>
+
+            {/* Email cliente */}
+            <div>
+              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Email del cliente (para enviar)</label>
+              <input type="email" value={emailCliente} onChange={e => setEmailCliente(e.target.value)}
+                placeholder="cliente@email.com"
                 className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
             </div>
-            <div className="flex items-end pb-2">
-              <label className="flex items-center gap-2 text-sm font-dm cursor-pointer">
+
+            {msgEmail && (
+              <div className={`px-3 py-2 rounded text-sm font-dm ${msgEmail.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200' : msgEmail.tipo === 'error' ? 'bg-red-50 text-birth-red border border-red-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                {msgEmail.texto}
+              </div>
+            )}
+
+            {/* IVA + totales */}
+            <div className="border-t border-birth-gray-2 pt-3 space-y-1.5">
+              <label className="flex items-center gap-2 text-sm font-dm cursor-pointer mb-2">
                 <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} className="accent-birth-black" />
                 <span className="text-birth-gray-4">Incluir IVA 19%</span>
               </label>
+              <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                <span>Subtotal</span><span>{clp(subtotal)}</span>
+              </div>
+              {conIva && <div className="flex justify-between text-sm font-dm text-birth-gray-4"><span>IVA 19%</span><span>{clp(iva)}</span></div>}
+              <div className="flex justify-between font-barlow text-xl font-bold">
+                <span>TOTAL</span><span className="text-birth-red">{clp(total)}</span>
+              </div>
             </div>
-          </div>
 
-          {/* Totales */}
-          <div className="border-t border-birth-gray-2 pt-3 space-y-1">
-            <div className="flex justify-between text-sm font-dm text-birth-gray-4">
-              <span>Subtotal neto</span><span>{clp(subtotal)}</span>
+            {/* Botones — 2 filas */}
+            <div className="space-y-2 pt-1">
+              {/* Fila 1: preview + guardar + pdf */}
+              <div className="flex gap-2">
+                <button onClick={handlePreview} disabled={loading}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-birth-gray-2 rounded text-sm font-dm hover:border-birth-black transition-colors disabled:opacity-50">
+                  <Eye size={14} /> Vista previa
+                </button>
+                <button onClick={() => guardar(false)} disabled={loading}
+                  className="flex-1 flex items-center justify-center gap-2 bg-birth-black text-white py-2.5 rounded text-sm font-dm hover:bg-gray-800 transition-colors disabled:opacity-60">
+                  <Save size={14} /> Guardar
+                </button>
+                <button onClick={() => guardar(true)} disabled={loading}
+                  className="flex-1 flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm hover:bg-red-700 transition-colors disabled:opacity-60">
+                  <Download size={14} /> {loading ? '...' : 'Guardar + PDF'}
+                </button>
+              </div>
+              {/* Fila 2: enviar por email */}
+              <button
+                onClick={handleEnviarEmail}
+                disabled={loading || !emailCliente.trim()}
+                className="w-full flex items-center justify-center gap-2 border border-birth-gray-2 py-2.5 rounded text-sm font-dm hover:border-birth-black hover:bg-birth-gray transition-colors disabled:opacity-40">
+                <Mail size={14} />
+                {loading ? 'Enviando...' : `Enviar cotización por email`}
+              </button>
             </div>
-            {conIva && <div className="flex justify-between text-sm font-dm text-birth-gray-4"><span>IVA 19%</span><span>{clp(iva)}</span></div>}
-            <div className="flex justify-between font-barlow text-xl font-bold">
-              <span>TOTAL</span><span className="text-birth-red">{clp(total)}</span>
-            </div>
-          </div>
-
-          {/* Botones */}
-          <div className="flex gap-2 pt-2">
-            <button onClick={() => guardar(false)} disabled={loading}
-              className="flex-1 flex items-center justify-center gap-2 bg-birth-black text-white py-2.5 rounded text-sm font-dm hover:bg-birth-red transition-colors disabled:opacity-60">
-              <Save size={14} /> Guardar
-            </button>
-            <button onClick={() => guardar(true)} disabled={loading}
-              className="flex-1 flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm hover:bg-red-700 transition-colors disabled:opacity-60">
-              <Download size={14} /> {loading ? 'Generando...' : 'Guardar + PDF'}
-            </button>
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
