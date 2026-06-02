@@ -1,0 +1,88 @@
+import { useState } from 'react'
+import { NavLink } from 'react-router-dom'
+import {
+  LayoutDashboard, Calculator, Users,
+  FileText, ScrollText, Wallet,
+  LogOut, KeyRound,
+} from 'lucide-react'
+import { doLogout, ModalCambiarPin } from '../pages/Login'
+
+const NAV = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/cotizador', icon: Calculator, label: 'Cotizador' },
+  { to: '/clientes', icon: Users, label: 'Clientes' },
+  { to: '/cotizaciones', icon: FileText, label: 'Cotizaciones' },
+  { to: '/contratos', icon: ScrollText, label: 'Contratos' },
+  { to: '/gastos', icon: Wallet, label: 'Gastos & Finanzas' },
+]
+
+export default function Sidebar() {
+  const [modalPin, setModalPin] = useState(false)
+
+  const handleLogout = () => {
+    if (!confirm('¿Cerrar sesión?')) return
+    doLogout()
+    window.location.reload()
+  }
+
+  return (
+    <>
+      {modalPin && <ModalCambiarPin onClose={() => setModalPin(false)} />}
+
+      <aside className="w-56 min-h-screen bg-birth-black flex flex-col fixed left-0 top-0 bottom-0 z-30">
+        {/* Logo */}
+        <div className="px-6 py-6 border-b border-white/10">
+          <div className="font-barlow font-extrabold text-white text-3xl tracking-widest leading-none select-none">
+            b<span className="text-birth-red">I</span>RTH
+          </div>
+          <div className="font-dm text-white/30 text-[10px] tracking-[0.3em] uppercase mt-1.5">
+            Studio & Publicidad
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
+          {NAV.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-dm transition-all duration-150 ${
+                  isActive
+                    ? 'bg-birth-red text-white font-medium'
+                    : 'text-white/45 hover:text-white hover:bg-white/5'
+                }`
+              }
+            >
+              <Icon size={16} strokeWidth={1.75} />
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Footer — acciones */}
+        <div className="px-3 py-4 border-t border-white/10 space-y-0.5">
+          <button
+            onClick={() => setModalPin(true)}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm font-dm text-white/30 hover:text-white/70 hover:bg-white/5 transition-all"
+          >
+            <KeyRound size={15} strokeWidth={1.75} />
+            Cambiar clave
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm font-dm text-white/30 hover:text-white/70 hover:bg-white/5 transition-all"
+          >
+            <LogOut size={15} strokeWidth={1.75} />
+            Cerrar sesión
+          </button>
+          <p className="text-white/15 text-xs font-dm px-3 pt-2 leading-relaxed">
+            Birth Studio SpA
+            <br />
+            Talca, Chile
+          </p>
+        </div>
+      </aside>
+    </>
+  )
+}
