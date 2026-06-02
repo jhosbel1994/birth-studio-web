@@ -25,17 +25,22 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
     setClienteNombre(c ? c.nombre : '')
   }
 
-  const handleConfirmarRapido = () => {
-    if (!nombre.trim()) return
-    if (guardar) {
-      const c = saveCliente({ nombre, rut, empresa: '', ciudad: '', correo: '', telefono: '' })
-      setClienteId(c.id)
-      setClienteNombre(c.nombre)
-      onClienteGuardado()
-    } else {
+  // Actualiza nombre en tiempo real sin necesidad de clic en Confirmar
+  const handleNombreChange = (v) => {
+    setNombre(v)
+    if (!guardar) {
       setClienteId('')
-      setClienteNombre(nombre.trim())
+      setClienteNombre(v)
     }
+  }
+
+  const handleGuardarEnBD = () => {
+    if (!nombre.trim()) return
+    const c = saveCliente({ nombre, rut, empresa: '', ciudad: '', correo: '', telefono: '' })
+    setClienteId(c.id)
+    setClienteNombre(c.nombre)
+    onClienteGuardado()
+    setGuardar(false)
   }
 
   return (
@@ -63,17 +68,19 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
         </select>
       ) : (
         <div className="flex flex-wrap items-center gap-2 flex-1">
-          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre *"
-            className="border border-birth-gray-2 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black w-36" />
+          <input
+            value={nombre}
+            onChange={e => handleNombreChange(e.target.value)}
+            placeholder="Nombre *"
+            className="border border-birth-gray-2 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black w-36"
+          />
           <input value={rut} onChange={e => setRut(e.target.value)} placeholder="RUT"
             className="border border-birth-gray-2 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black w-28" />
-          <label className="flex items-center gap-1.5 text-xs font-dm cursor-pointer">
-            <input type="checkbox" checked={guardar} onChange={e => setGuardar(e.target.checked)} className="accent-birth-black" />
-            <span className="text-birth-gray-4">Guardar en base de datos</span>
-          </label>
-          <button onClick={handleConfirmarRapido} disabled={!nombre.trim()}
-            className="px-3 py-1.5 bg-birth-black text-white rounded text-xs font-dm hover:bg-birth-red transition-colors disabled:opacity-40">
-            Confirmar
+          <button
+            onClick={handleGuardarEnBD}
+            disabled={!nombre.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-birth-black text-white rounded text-xs font-dm hover:bg-birth-red transition-colors disabled:opacity-40">
+            <Save size={11} /> Guardar en BD
           </button>
         </div>
       )}

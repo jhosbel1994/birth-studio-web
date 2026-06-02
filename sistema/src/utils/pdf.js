@@ -17,17 +17,16 @@ const GRIS = [100, 100, 100]
 const GRIS_CLARO = [220, 220, 220]
 const BLANCO = [255, 255, 255]
 
-function addHeader(doc, numero, logoBase64) {
-  // Fondo header
+// logoImg puede ser HTMLImageElement o base64 string
+function addHeader(doc, etiqueta, numero, logoImg) {
   doc.setFillColor(...NEGRO)
   doc.rect(0, 0, 210, 32, 'F')
 
-  // Logo imagen (fondo negro → usar logo blanco)
-  if (logoBase64) {
+  // Logo
+  if (logoImg) {
     try {
-      doc.addImage(logoBase64, 'PNG', 10, 4, 42, 22)
+      doc.addImage(logoImg, 'PNG', 10, 3, 44, 25)
     } catch {
-      // fallback texto si falla la imagen
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(20)
       doc.setTextColor(...BLANCO)
@@ -40,30 +39,28 @@ function addHeader(doc, numero, logoBase64) {
     doc.text('BIRTH', 14, 20)
   }
 
-  // Número arriba derecha
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.setTextColor(...GRIS)
-  doc.text(typeof numero === 'string' && numero.startsWith('CONTRATO') ? 'CONTRATO' : 'COTIZACIÓN', 196, 13, { align: 'right' })
+  // Etiqueta arriba derecha (COTIZACIÓN / CONTRATO DE LETRAS...)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...GRIS_CLARO)
+  doc.text(etiqueta, 196, 13, { align: 'right' })
 
-  doc.setFontSize(16)
-  doc.setTextColor(...ROJO)
-  doc.text(typeof numero === 'string' && numero.startsWith('CONTRATO') ? '' : `#${numero}`, 196, 23, { align: 'right' })
+  // Número (solo para cotizaciones)
+  if (numero) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.setTextColor(...ROJO)
+    doc.text(`#${numero}`, 196, 24, { align: 'right' })
+  }
 }
 
-async function cargarLogo() {
-  try {
-    const resp = await fetch(logoBirthUrl)
-    const blob = await resp.blob()
-    return await new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result)
-      reader.onerror = () => resolve(null)
-      reader.readAsDataURL(blob)
-    })
-  } catch {
-    return null
-  }
+function cargarLogo() {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = logoBirthUrl
+  })
 }
 
 function addEmpresaInfo(doc, y) {
@@ -87,7 +84,7 @@ export async function generarCotizacionPDF(cotizacion, cliente) {
   const logo = await cargarLogo()
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
-  addHeader(doc, cotizacion.numero, logo)
+  addHeader(doc, 'COTIZACIÓN', cotizacion.numero, logo)
 
   let y = 40
   addEmpresaInfo(doc, y)
@@ -303,13 +300,13 @@ export async function generarContratoLetras(contrato, cliente) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const fecha = fechaCorta(contrato.fecha || new Date().toISOString())
 
-  addHeader(doc, 'CONTRATO', logo)
+  addHeader(doc, 'CONTRATO DE INSTALACIÓN', null, logo)
 
-  let y = 36
+  let y = 38
 
   // Título
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
+  doc.setFontSize(13)
   doc.setTextColor(...NEGRO)
   doc.text('CONTRATO DE INSTALACIÓN DE LETRAS CORPÓREAS', 105, y, { align: 'center' })
   y += 6
@@ -391,12 +388,12 @@ export async function generarContratoWeb(contrato, cliente) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const fecha = fechaCorta(contrato.fecha || new Date().toISOString())
 
-  addHeader(doc, 'CONTRATO', logo)
+  addHeader(doc, 'CONTRATO DESARROLLO WEB', null, logo)
 
-  let y = 36
+  let y = 38
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
+  doc.setFontSize(13)
   doc.setTextColor(...NEGRO)
   doc.text('CONTRATO DE DESARROLLO DE SITIO WEB', 105, y, { align: 'center' })
   y += 6
