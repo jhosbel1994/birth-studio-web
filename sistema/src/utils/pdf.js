@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { clp, fechaCorta } from './formatters'
+import logoBirthUrl from '../assets/logo-birth.png'
 
 const EMPRESA = {
   nombre: 'Birth Studio SpA',
@@ -50,22 +51,19 @@ function addHeader(doc, numero, logoBase64) {
   doc.text(typeof numero === 'string' && numero.startsWith('CONTRATO') ? '' : `#${numero}`, 196, 23, { align: 'right' })
 }
 
-function cargarLogo() {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, 0, 0)
-      resolve(canvas.toDataURL('image/png'))
-    }
-    img.onerror = () => resolve(null)
-    // logo-birth.png = versión blanca (texto blanco sobre negro)
-    img.src = '/cotizador/logo-birth.png'
-  })
+async function cargarLogo() {
+  try {
+    const resp = await fetch(logoBirthUrl)
+    const blob = await resp.blob()
+    return await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
 }
 
 function addEmpresaInfo(doc, y) {
