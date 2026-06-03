@@ -242,11 +242,12 @@ function AfichesAcrilicosPanel() {
   const [instalacion, setInstalacion]   = useState('ninguna')
   const [andamioCuerpos, setAndamioCuerpos] = useState(1)
   const [conIva, setConIva]             = useState(false)
-  // Personalizados por m² — usan el mismo grosor y tipo del panel
-  const [cForma, setCForma] = useState('rectangular')
-  const [cAncho, setCAncho] = useState('')
-  const [cAlto, setCAlto]   = useState('')
-  const [cDiam, setCDiam]   = useState('')
+  // Personalizados por m² — tipo del panel, grosor propio
+  const [cGrosor, setCGrosor] = useState('3mm')
+  const [cForma, setCForma]   = useState('rectangular')
+  const [cAncho, setCAncho]   = useState('')
+  const [cAlto, setCAlto]     = useState('')
+  const [cDiam, setCDiam]     = useState('')
 
   // Precio por m² derivado de la tabla (ref: 100×100cm = 1.00 m²)
   const PRECIO_M2_TIPO = {
@@ -256,7 +257,7 @@ function AfichesAcrilicosPanel() {
     retroRelieve: { '3mm': 250000, '5mm': 265000 },
     relieve:      { '3mm': 222000, '5mm': 237000 },
   }
-  const precioM2Custom = PRECIO_M2_TIPO[tipo]?.[grosor] || 0
+  const precioM2Custom = PRECIO_M2_TIPO[tipo]?.[cGrosor] || 0
   const cArea   = cForma === 'rectangular'
     ? (parseFloat(cAncho) || 0) * (parseFloat(cAlto) || 0) / 10000
     : Math.PI * Math.pow((parseFloat(cDiam) || 0) / 2, 2) / 10000
@@ -268,7 +269,7 @@ function AfichesAcrilicosPanel() {
     const forma = cForma === 'rectangular' ? `${cAncho}×${cAlto}cm` : `Ø${cDiam}cm`
     window.dispatchEvent(new CustomEvent('cotizador:agregar', {
       detail: {
-        descripcion: `Acrílico personalizado ${forma} ${grosor} — ${tipoLabel} (${cArea.toFixed(3)} m²)`,
+        descripcion: `Acrílico personalizado ${forma} ${cGrosor} — ${tipoLabel} (${cArea.toFixed(3)} m²)`,
         cantidad: 1, precioUnitario: cPrecio, total: cPrecio,
       }
     }))
@@ -457,18 +458,28 @@ function AfichesAcrilicosPanel() {
       <div className="p-4 space-y-3">
         <p className="text-[11px] font-dm font-bold uppercase tracking-wider text-birth-gray-4">Medida personalizada</p>
 
-        {/* Tarjeta dinámica — precio/m² según tipo y grosor activo */}
+        {/* Grosor propio del calculador */}
+        <div className="flex gap-1.5">
+          {['3mm', '5mm'].map(g => (
+            <button key={g} onClick={() => setCGrosor(g)}
+              className={`flex-1 py-1.5 rounded text-sm font-dm border transition-colors ${cGrosor === g ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+              {g}
+            </button>
+          ))}
+        </div>
+
+        {/* Tarjeta dinámica — precio/m² según tipo (panel) y grosor (propio) */}
         <div className="bg-birth-gray rounded p-3 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Precio/m² activo</p>
+            <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Precio/m²</p>
             <p className="text-xs font-dm text-birth-gray-3 mt-0.5">
-              {AFICHES_TIPOS.find(t => t.id === tipo)?.label} · {grosor}
+              {AFICHES_TIPOS.find(t => t.id === tipo)?.label} · {cGrosor}
             </p>
           </div>
           <span className="font-barlow font-bold text-2xl text-birth-black">{clp(precioM2Custom)}</span>
         </div>
         <p className="text-[11px] text-birth-gray-3 font-dm -mt-1">
-          Cambia el tipo y grosor en los filtros de arriba para ajustar el precio/m²
+          El tipo se toma de los filtros de arriba (Simple, Retro, etc.)
         </p>
 
         {/* Selector forma */}
