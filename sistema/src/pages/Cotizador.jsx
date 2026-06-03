@@ -1257,18 +1257,22 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
   const [formaPago, setFormaPago] = useState('Transferencia bancaria — 50% anticipo, 50% contra entrega')
   const [plazo, setPlazo] = useState('')
   const [conIva, setConIva] = useState(true)
+  const [descuento, setDescuento] = useState('')
   const [emailCliente, setEmailCliente] = useState('')
   useEffect(() => {
     if (clienteId) getClienteById(clienteId).then(c => { if (c?.correo) setEmailCliente(c.correo) })
   }, [clienteId])
   const [loading, setLoading] = useState(false)
-  const [msgEmail, setMsgEmail] = useState(null) // { tipo: 'ok'|'error', texto }
-  const [preview, setPreview] = useState(null) // { url, filename }
+  const [msgEmail, setMsgEmail] = useState(null)
+  const [preview, setPreview] = useState(null)
 
-  const subtotal = items.reduce((s, i) => s + (i.total || 0), 0)
-  const iva = conIva ? Math.round(subtotal * 0.19) : 0
-  const total = subtotal + iva
-  const anticipo = Math.round(total * 0.5)
+  const subtotalBruto   = items.reduce((s, i) => s + (i.total || 0), 0)
+  const pctDesc         = Math.min(Math.max(parseFloat(descuento) || 0, 0), 100)
+  const montoDescuento  = pctDesc > 0 ? Math.round(subtotalBruto * pctDesc / 100) : 0
+  const subtotal        = subtotalBruto - montoDescuento
+  const iva             = conIva ? Math.round(subtotal * 0.19) : 0
+  const total           = subtotal + iva
+  const anticipo        = Math.round(total * 0.5)
 
   const buildCot = () => ({
     clienteId, clienteNombre,
@@ -1277,6 +1281,8 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
     fechaVencimiento: sumarDias(hoy(), 15),
     items, subtotal, iva, total,
     anticipo, saldo: anticipo,
+    descuento: pctDesc,
+    montoDescuento,
     estado: 'por_aceptar',
   })
 
@@ -1384,18 +1390,55 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
               </div>
             )}
 
-            {/* IVA + totales */}
-            <div className="border-t border-birth-gray-2 pt-3 space-y-1.5">
-              <label className="flex items-center gap-2 text-sm font-dm cursor-pointer mb-2">
+            {/* Descuento + IVA + totales */}
+            <div className="border-t border-birth-gray-2 pt-3 space-y-2">
+              {/* Descuento % */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-dm text-birth-gray-4 uppercase tracking-wider shrink-0">Descuento</label>
+                <div className="flex items-center border border-birth-gray-2 rounded overflow-hidden flex-1">
+                  <input
+                    type="number" min="0" max="100" step="0.5"
+                    value={descuento}
+                    onChange={e => setDescuento(e.target.value)}
+                    placeholder="0"
+                    className="flex-1 px-3 py-1.5 text-sm font-dm focus:outline-none text-right"
+                  />
+                  <span className="px-2.5 py-1.5 bg-birth-gray text-sm font-dm text-birth-gray-4 border-l border-birth-gray-2">%</span>
+                </div>
+                {montoDescuento > 0 && (
+                  <span className="text-sm font-dm text-birth-red shrink-0">−{clp(montoDescuento)}</span>
+                )}
+              </div>
+
+              {/* IVA */}
+              <label className="flex items-center gap-2 text-sm font-dm cursor-pointer">
                 <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} className="accent-birth-black" />
                 <span className="text-birth-gray-4">Incluir IVA 19%</span>
               </label>
-              <div className="flex justify-between text-sm font-dm text-birth-gray-4">
-                <span>Subtotal</span><span>{clp(subtotal)}</span>
-              </div>
-              {conIva && <div className="flex justify-between text-sm font-dm text-birth-gray-4"><span>IVA 19%</span><span>{clp(iva)}</span></div>}
-              <div className="flex justify-between font-barlow text-xl font-bold">
-                <span>TOTAL</span><span className="text-birth-red">{clp(total)}</span>
+
+              {/* Desglose */}
+              <div className="space-y-1 pt-1">
+                <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                  <span>Subtotal bruto</span><span>{clp(subtotalBruto)}</span>
+                </div>
+                {montoDescuento > 0 && (
+                  <div className="flex justify-between text-sm font-dm text-birth-red">
+                    <span>Descuento {pctDesc}%</span><span>−{clp(montoDescuento)}</span>
+                  </div>
+                )}
+                {montoDescuento > 0 && (
+                  <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                    <span>Subtotal neto</span><span>{clp(subtotal)}</span>
+                  </div>
+                )}
+                {conIva && (
+                  <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                    <span>IVA 19%</span><span>{clp(iva)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-barlow text-xl font-bold border-t border-birth-gray-2 pt-1.5 mt-1">
+                  <span>TOTAL</span><span className="text-birth-red">{clp(total)}</span>
+                </div>
               </div>
             </div>
 
