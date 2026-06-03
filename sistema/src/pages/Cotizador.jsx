@@ -242,6 +242,32 @@ function AfichesAcrilicosPanel() {
   const [instalacion, setInstalacion]   = useState('ninguna')
   const [andamioCuerpos, setAndamioCuerpos] = useState(1)
   const [conIva, setConIva]             = useState(false)
+  // Personalizados por m²
+  const [cGrosor, setCGrosor]   = useState('3mm')
+  const [cForma, setCForma]     = useState('rectangular')
+  const [cAncho, setCAncho]     = useState('')
+  const [cAlto, setCAlto]       = useState('')
+  const [cDiam, setCDiam]       = useState('')
+
+  const PRECIO_M2 = { '3mm': 30000, '5mm': 40000 }
+  const cArea = cForma === 'rectangular'
+    ? (parseFloat(cAncho) || 0) * (parseFloat(cAlto) || 0) / 10000
+    : Math.PI * Math.pow((parseFloat(cDiam) || 0) / 2, 2) / 10000
+  const cPrecio = cArea > 0 ? Math.round(cArea * PRECIO_M2[cGrosor]) : 0
+
+  const handleAddCustom = () => {
+    if (!cPrecio) return
+    const forma = cForma === 'rectangular'
+      ? `${cAncho}×${cAlto}cm`
+      : `Ø${cDiam}cm`
+    window.dispatchEvent(new CustomEvent('cotizador:agregar', {
+      detail: {
+        descripcion: `Acrílico personalizado ${forma} ${cGrosor} (${cArea.toFixed(3)} m²)`,
+        cantidad: 1, precioUnitario: cPrecio, total: cPrecio,
+      }
+    }))
+    setCAncho(''); setCAlto(''); setCDiam('')
+  }
 
   function precioMedida(m, t) {
     return m[t] + (grosor === '5mm' ? Math.round(m.m2 * 15000) : 0)
@@ -416,6 +442,74 @@ function AfichesAcrilicosPanel() {
         )}
 
         <button onClick={handleAdd} disabled={!medida || !subtotal}
+          className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <Plus size={15} /> Agregar a cotización
+        </button>
+      </div>
+
+      {/* ── Acrílico personalizado por m² ── */}
+      <div className="p-4 space-y-3">
+        <p className="text-[11px] font-dm font-bold uppercase tracking-wider text-birth-gray-4">Acrílico Personalizado — precio por m²</p>
+
+        {/* Tarjeta estática de referencia */}
+        <div className="grid grid-cols-2 gap-2">
+          {[{ g: '3mm', p: 30000 }, { g: '5mm', p: 40000 }].map(({ g, p }) => (
+            <div key={g} className={`rounded border p-3 text-center ${cGrosor === g ? 'bg-birth-black border-birth-black' : 'bg-white border-birth-gray-2'}`}>
+              <p className={`text-xs font-dm font-bold uppercase ${cGrosor === g ? 'text-white/60' : 'text-birth-gray-4'}`}>{g}</p>
+              <p className={`font-barlow font-bold text-xl ${cGrosor === g ? 'text-white' : 'text-birth-black'}`}>{clp(p)}</p>
+              <p className={`text-[10px] font-dm ${cGrosor === g ? 'text-white/50' : 'text-birth-gray-3'}`}>por m²</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Selector grosor */}
+        <div className="flex gap-1.5">
+          {['3mm', '5mm'].map(g => (
+            <button key={g} onClick={() => setCGrosor(g)}
+              className={`flex-1 py-1.5 rounded text-sm font-dm border transition-colors ${cGrosor === g ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+              {g}
+            </button>
+          ))}
+        </div>
+
+        {/* Selector forma */}
+        <div className="flex gap-1.5">
+          {[{ id: 'rectangular', label: 'Rectangular' }, { id: 'circular', label: 'Circular' }].map(f => (
+            <button key={f.id} onClick={() => setCForma(f.id)}
+              className={`flex-1 py-1.5 rounded text-sm font-dm border transition-colors ${cForma === f.id ? 'bg-birth-red text-white border-birth-red' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Inputs dimensiones */}
+        {cForma === 'rectangular' ? (
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" min="0" value={cAncho} onChange={e => setCAncho(e.target.value)}
+              placeholder="Ancho (cm)"
+              className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+            <input type="number" min="0" value={cAlto} onChange={e => setCAlto(e.target.value)}
+              placeholder="Alto (cm)"
+              className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+        ) : (
+          <input type="number" min="0" value={cDiam} onChange={e => setCDiam(e.target.value)}
+            placeholder="Diámetro (cm)"
+            className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+        )}
+
+        {/* Resultado */}
+        {cArea > 0 && (
+          <div className="bg-birth-gray rounded px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-dm text-birth-gray-4">{cArea.toFixed(4)} m² × {clp(PRECIO_M2[cGrosor])}/m²</p>
+              <p className="text-[11px] font-dm text-birth-gray-3">{cForma === 'circular' ? 'π × (d/2)²' : 'ancho × alto'}</p>
+            </div>
+            <span className="font-barlow font-bold text-2xl text-birth-black">{clp(cPrecio)}</span>
+          </div>
+        )}
+
+        <button onClick={handleAddCustom} disabled={!cPrecio}
           className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
           <Plus size={15} /> Agregar a cotización
         </button>
