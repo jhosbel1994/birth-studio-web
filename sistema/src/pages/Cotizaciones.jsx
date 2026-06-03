@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getCotizaciones, saveCotizacion, deleteCotizacion, getClientes, saveCliente, getClienteById } from '../utils/storage'
+import { saveCotizacion, deleteCotizacion, saveCliente, getClienteById, subscribeCotizaciones, subscribeClientes } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl } from '../utils/email'
@@ -569,21 +569,18 @@ export default function Cotizaciones() {
 
   const clienteLocal = (id) => clientes.find(c => c.id === id) || null
 
-  const cargar = async () => {
-    const [cots, clis] = await Promise.all([getCotizaciones(), getClientes()])
-    setCotizaciones(cots); setClientes(clis)
-  }
-
   useEffect(() => {
-    cargar()
+    const u1 = subscribeCotizaciones(setCotizaciones)
+    const u2 = subscribeClientes(setClientes)
     if (location.state?.items) {
       setModal({ items: location.state.items, clienteId: location.state.cliente?.id || '', clienteNombre: location.state.cliente?.nombre || '' })
     }
+    return () => { u1(); u2() }
   }, [])
 
-  const handleSave = async (data) => { await saveCotizacion(data); cargar(); setModal(null) }
+  const handleSave = async (data) => { await saveCotizacion(data); setModal(null) }
   const handleDelete = (cot) => { setMenuAbierto(null); setConfirmDelete(cot) }
-  const handleConfirmDelete = async () => { await deleteCotizacion(confirmDelete.id); cargar(); setConfirmDelete(null) }
+  const handleConfirmDelete = async () => { await deleteCotizacion(confirmDelete.id); setConfirmDelete(null) }
 
   const handlePDF = async (cot, modo = 'download') => {
     const cliente = clienteLocal(cot.clienteId)
@@ -593,7 +590,7 @@ export default function Cotizaciones() {
     }
   }
 
-  const handleEstado = async (cot, estado) => { await saveCotizacion({ ...cot, estado }); cargar() }
+  const handleEstado = async (cot, estado) => { await saveCotizacion({ ...cot, estado }) }
 
   const handleEnviarEmail = async (cot) => {
     const cliente = clienteLocal(cot.clienteId)

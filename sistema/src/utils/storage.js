@@ -1,6 +1,6 @@
 import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc,
-  query, orderBy, runTransaction,
+  query, orderBy, runTransaction, onSnapshot,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -161,6 +161,27 @@ export async function saveMiscelaneo(item) {
 
 export async function deleteMiscelaneo(id) {
   await deleteDoc(doc(db, 'miscelaneos', id))
+}
+
+// ─── SUSCRIPCIONES TIEMPO REAL ────────────────────────────────────────────────
+export function subscribeClientes(cb) {
+  return onSnapshot(query(collection(db, 'clientes'), orderBy('createdAt', 'asc')), snap => cb(snapsToArr(snap)))
+}
+
+export function subscribeCotizaciones(cb) {
+  return onSnapshot(query(collection(db, 'cotizaciones'), orderBy('createdAt', 'desc')), snap => cb(snapsToArr(snap)))
+}
+
+export function subscribeGastos(cb) {
+  return onSnapshot(query(collection(db, 'gastos'), orderBy('createdAt', 'desc')), snap => cb(snapsToArr(snap)))
+}
+
+export function subscribePagos(cb) {
+  return onSnapshot(query(collection(db, 'pagos'), orderBy('createdAt', 'desc')), snap => cb(snapsToArr(snap)))
+}
+
+export function subscribeContratos(cb) {
+  return onSnapshot(query(collection(db, 'contratos'), orderBy('createdAt', 'desc')), snap => cb(snapsToArr(snap)))
 }
 
 // ─── MIGRACIÓN DESDE LOCALSTORAGE (se ejecuta solo una vez) ───────────────────

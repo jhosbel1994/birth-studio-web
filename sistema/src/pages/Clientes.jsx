@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getClientes, saveCliente, deleteCliente, getCotizaciones } from '../utils/storage'
+import { saveCliente, deleteCliente, subscribeClientes, subscribeCotizaciones } from '../utils/storage'
 import { fechaCorta, clp, ESTADOS } from '../utils/formatters'
 import { Plus, Search, Trash2, Edit2, FileText, Phone, Mail, X } from 'lucide-react'
 
@@ -107,52 +107,61 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
   const nombreCompleto = [cliente.nombre, cliente.apellido].filter(Boolean).join(' ')
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-2xl max-h-[92vh] md:max-h-[85vh] overflow-y-auto shadow-xl">
-        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
-          <div>
-            <h2 className="font-barlow text-xl font-bold tracking-wide">{nombreCompleto}</h2>
-            {cliente.empresa && <p className="text-sm text-birth-gray-4 font-dm">{cliente.empresa}</p>}
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4"
+      onClick={onClose}>
+      <div className="bg-white rounded-t-2xl md:rounded w-full md:max-w-lg max-h-[92vh] md:max-h-[85vh] overflow-y-auto shadow-xl"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header: nombre + botones contacto + X */}
+        <div className="px-4 pt-4 pb-3 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="min-w-0">
+              <h2 className="font-barlow text-xl font-bold tracking-wide leading-tight">{nombreCompleto}</h2>
+              {cliente.empresa && <p className="text-xs text-birth-gray-4 font-dm mt-0.5 truncate">{cliente.empresa}</p>}
+            </div>
+            <button onClick={onClose} className="shrink-0 p-1.5 text-birth-gray-3 hover:text-birth-black rounded-full hover:bg-birth-gray -mt-0.5">
+              <X size={18} />
+            </button>
           </div>
-          <div className="flex items-center gap-1">
-            <button onClick={() => onEdit(cliente)} className="p-2 text-birth-gray-3 hover:text-birth-black" title="Editar"><Edit2 size={16} /></button>
-            <button onClick={() => { if (confirm('¿Eliminar este cliente?')) onDelete(cliente.id) }} className="p-2 text-birth-gray-3 hover:text-birth-red" title="Eliminar"><Trash2 size={16} /></button>
-            <button onClick={onClose} className="p-2 text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
+          {/* Botones de contacto en el header */}
+          <div className="flex gap-2 flex-wrap">
+            {cliente.telefono && (
+              <a href={whatsappUrl(cliente.telefono)} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs font-dm font-medium active:bg-[#25D366]/20">
+                <WhatsAppIcon size={13} /> WhatsApp
+              </a>
+            )}
+            {cliente.correo && (
+              <a href={`mailto:${cliente.correo}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-birth-gray border border-birth-gray-2 text-birth-black text-xs font-dm font-medium active:bg-birth-gray-2">
+                <Mail size={13} /> Correo
+              </a>
+            )}
+            {cliente.telefono && (
+              <a href={`tel:${cliente.telefono}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-birth-gray border border-birth-gray-2 text-birth-black text-xs font-dm font-medium active:bg-birth-gray-2">
+                <Phone size={13} /> Llamar
+              </a>
+            )}
+            <button onClick={() => onEdit(cliente)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-birth-gray border border-birth-gray-2 text-birth-black text-xs font-dm font-medium active:bg-birth-gray-2 ml-auto">
+              <Edit2 size={13} /> Editar
+            </button>
+            <button onClick={() => { if (confirm('¿Eliminar?')) onDelete(cliente.id) }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-birth-gray border border-birth-gray-2 text-birth-red text-xs font-dm font-medium active:bg-birth-gray-2">
+              <Trash2 size={13} />
+            </button>
           </div>
         </div>
 
-        <div className="p-5 md:p-6 space-y-5 pb-safe">
-          {/* Botones de contacto */}
-          {(cliente.correo || cliente.telefono) && (
-            <div className="flex gap-2 flex-wrap">
-              {cliente.correo && (
-                <a href={`mailto:${cliente.correo}`}
-                  className="flex items-center gap-2 px-4 py-2 rounded border border-birth-gray-2 text-sm font-dm text-birth-black hover:border-birth-black hover:bg-birth-gray transition-colors">
-                  <Mail size={14} /> Correo
-                </a>
-              )}
-              {cliente.telefono && (
-                <a href={`tel:${cliente.telefono}`}
-                  className="flex items-center gap-2 px-4 py-2 rounded border border-birth-gray-2 text-sm font-dm text-birth-black hover:border-birth-black hover:bg-birth-gray transition-colors">
-                  <Phone size={14} /> Llamar
-                </a>
-              )}
-              {cliente.telefono && (
-                <a href={whatsappUrl(cliente.telefono)} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 rounded border border-[#25D366] text-[#25D366] text-sm font-dm hover:bg-[#25D366]/10 transition-colors">
-                  <WhatsAppIcon size={14} /> WhatsApp
-                </a>
-              )}
-            </div>
-          )}
-
+        <div className="p-4 md:p-5 space-y-4 pb-safe">
           {/* Info */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm font-dm">
-            {cliente.rut && <div><span className="text-birth-gray-4 text-xs uppercase tracking-wider block">RUT empresa</span><p className="mt-0.5">{cliente.rut}</p></div>}
-            {(cliente.direccion || cliente.ciudad) && <div><span className="text-birth-gray-4 text-xs uppercase tracking-wider block">Dirección</span><p className="mt-0.5">{cliente.direccion || cliente.ciudad}</p></div>}
-            {cliente.correo && <div className="col-span-2 sm:col-span-1"><span className="text-birth-gray-4 text-xs uppercase tracking-wider block">Correo</span><p className="mt-0.5 truncate">{cliente.correo}</p></div>}
-            {cliente.telefono && <div><span className="text-birth-gray-4 text-xs uppercase tracking-wider block">Teléfono</span><p className="mt-0.5">{cliente.telefono}</p></div>}
-            {cliente.notas && <div className="col-span-2"><span className="text-birth-gray-4 text-xs uppercase tracking-wider block">Notas</span><p className="mt-0.5 text-birth-gray-4">{cliente.notas}</p></div>}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm font-dm">
+            {cliente.rut && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">RUT empresa</span><p className="mt-0.5 text-sm">{cliente.rut}</p></div>}
+            {(cliente.direccion || cliente.ciudad) && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Dirección</span><p className="mt-0.5 text-sm">{cliente.direccion || cliente.ciudad}</p></div>}
+            {cliente.correo && <div className="col-span-2"><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Correo</span><p className="mt-0.5 text-sm truncate">{cliente.correo}</p></div>}
+            {cliente.telefono && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Teléfono</span><p className="mt-0.5 text-sm">{cliente.telefono}</p></div>}
+            {cliente.notas && <div className="col-span-2"><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Notas</span><p className="mt-0.5 text-sm text-birth-gray-4">{cliente.notas}</p></div>}
           </div>
 
           {/* Historial */}
@@ -204,12 +213,11 @@ export default function Clientes() {
   const [ficha, setFicha] = useState(null)
   const [editando, setEditando] = useState(null)
 
-  const cargar = async () => {
-    const [c, cot] = await Promise.all([getClientes(), getCotizaciones()])
-    setClientes(c); setCotizaciones(cot)
-  }
-
-  useEffect(() => { cargar() }, [])
+  useEffect(() => {
+    const u1 = subscribeClientes(setClientes)
+    const u2 = subscribeCotizaciones(setCotizaciones)
+    return () => { u1(); u2() }
+  }, [])
 
   const filtrados = clientes.filter(c =>
     c.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -219,7 +227,6 @@ export default function Clientes() {
 
   const handleSave = async (form) => {
     await saveCliente(form)
-    cargar()
     setModal(null)
     setEditando(null)
     if (ficha?.id === form.id) setFicha(form)
@@ -227,7 +234,6 @@ export default function Clientes() {
 
   const handleDelete = async (id) => {
     await deleteCliente(id)
-    cargar()
     setFicha(null)
   }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getContratos, saveContrato, deleteContrato, getClientes, getCotizaciones } from '../utils/storage'
+import { saveContrato, deleteContrato, subscribeContratos, subscribeClientes, subscribeCotizaciones } from '../utils/storage'
 import { generarContratoLetras, generarContratoWeb } from '../utils/pdf'
 import { clp, fechaCorta, hoy } from '../utils/formatters'
 import { getClienteById } from '../utils/storage'
@@ -149,23 +149,21 @@ export default function Contratos() {
   const [cotizaciones, setCotizaciones] = useState([])
   const [modal, setModal] = useState(null)
 
-  const cargar = async () => {
-    const [c, cl, cot] = await Promise.all([getContratos(), getClientes(), getCotizaciones()])
-    setContratos(c); setClientes(cl); setCotizaciones(cot)
-  }
-
-  useEffect(() => { cargar() }, [])
+  useEffect(() => {
+    const u1 = subscribeContratos(setContratos)
+    const u2 = subscribeClientes(setClientes)
+    const u3 = subscribeCotizaciones(setCotizaciones)
+    return () => { u1(); u2(); u3() }
+  }, [])
 
   const handleSave = async (data) => {
     await saveContrato(data)
-    cargar()
     setModal(null)
   }
 
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar este contrato?')) return
     await deleteContrato(id)
-    cargar()
   }
 
   const handlePDF = async (contrato) => {

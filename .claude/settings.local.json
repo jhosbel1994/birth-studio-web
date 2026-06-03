@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebSearch",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Jhosbel ecophonecl\\\\Documents\\\\acm-logistica\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Jhosbel ecophonecl\\\\Documents\\\\acm-logistica\\\\conductores\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Jhosbel ecophonecl\\\\Documents\\\\acm-logistica\\\\admin\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Jhosbel ecophonecl\\\\Documents\\\\acm-logistica\\\\css\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Jhosbel ecophonecl\\\\Documents\\\\acm-logistica\\\\js\")",
+      "Read(//c/Users/Jhosbel ecophonecl/Documents/**)",
+      "Bash(findstr /i \"acm\")"
+    ]
+  }
+}

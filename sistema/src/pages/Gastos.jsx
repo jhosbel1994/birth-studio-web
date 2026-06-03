@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getGastos, saveGasto, deleteGasto, getPagos, savePago, deletePago, getCotizaciones } from '../utils/storage'
+import { saveGasto, deleteGasto, savePago, deletePago, subscribeGastos, subscribePagos, subscribeCotizaciones } from '../utils/storage'
 import { clp, fechaCorta, hoy, CATEGORIAS_GASTO } from '../utils/formatters'
 import { Plus, Trash2, X, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 
@@ -140,12 +140,12 @@ export default function Gastos() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
 
-  const cargar = async () => {
-    const [g, p, c] = await Promise.all([getGastos(), getPagos(), getCotizaciones()])
-    setGastos(g); setPagos(p); setCotizaciones(c)
-  }
-
-  useEffect(() => { cargar() }, [])
+  useEffect(() => {
+    const u1 = subscribeGastos(setGastos)
+    const u2 = subscribePagos(setPagos)
+    const u3 = subscribeCotizaciones(setCotizaciones)
+    return () => { u1(); u2(); u3() }
+  }, [])
 
   const gastosMes = gastos.filter(g => g.fecha?.startsWith(mesFiltro))
   const pagosMes = pagos.filter(p => p.fecha?.startsWith(mesFiltro))
@@ -173,14 +173,14 @@ export default function Gastos() {
         <ModalGasto
           gasto={modalGasto?.id ? modalGasto : null}
           onClose={() => setModalGasto(null)}
-          onSave={async (data) => { await saveGasto(data); cargar(); setModalGasto(null) }}
+          onSave={async (data) => { await saveGasto(data); setModalGasto(null) }}
         />
       )}
       {modalPago && (
         <ModalPago
           cotizaciones={cotizaciones}
           onClose={() => setModalPago(false)}
-          onSave={async (data) => { await savePago(data); cargar(); setModalPago(false) }}
+          onSave={async (data) => { await savePago(data); setModalPago(false) }}
         />
       )}
 
@@ -268,7 +268,7 @@ export default function Gastos() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id).then(cargar) } }}
+                        onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id) } }}
                         className="mt-4 h-10 w-full rounded border border-birth-gray-2 text-xs font-dm text-birth-red flex items-center justify-center gap-2 active:border-birth-red"
                       >
                         <Trash2 size={14} /> Eliminar gasto
@@ -296,7 +296,7 @@ export default function Gastos() {
                         <td className="px-3 py-3 text-birth-gray-4">{fechaCorta(g.fecha)}</td>
                         <td className="px-3 py-3 text-right font-medium text-birth-red">{clp(g.monto)}</td>
                         <td className="px-5 py-3">
-                          <button onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id).then(cargar) } }}
+                          <button onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id) } }}
                             className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray">
                             <Trash2 size={14} />
                           </button>
@@ -327,7 +327,7 @@ export default function Gastos() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id).then(cargar) } }}
+                          onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id) } }}
                           className="mt-4 h-10 w-full rounded border border-birth-gray-2 text-xs font-dm text-birth-red flex items-center justify-center gap-2 active:border-birth-red"
                         >
                           <Trash2 size={14} /> Eliminar ingreso
@@ -360,7 +360,7 @@ export default function Gastos() {
                           <td className="px-3 py-3 text-birth-gray-4">{fechaCorta(p.fecha)}</td>
                           <td className="px-3 py-3 text-right font-medium text-green-700">{clp(p.monto)}</td>
                           <td className="px-5 py-3">
-                            <button onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id).then(cargar) } }}
+                            <button onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id) } }}
                               className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray">
                               <Trash2 size={14} />
                             </button>

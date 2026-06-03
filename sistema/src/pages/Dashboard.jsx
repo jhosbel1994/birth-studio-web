@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCotizaciones, getGastos } from '../utils/storage'
+import { subscribeCotizaciones, subscribeGastos } from '../utils/storage'
 import { clp, fechaCorta, ESTADOS } from '../utils/formatters'
 import {
   TrendingUp, FileText, Clock, CheckCircle, XCircle, DollarSign,
@@ -62,8 +62,9 @@ export default function Dashboard() {
   const [gastos, setGastos] = useState([])
 
   useEffect(() => {
-    getCotizaciones().then(setCotizaciones)
-    getGastos().then(setGastos)
+    const u1 = subscribeCotizaciones(setCotizaciones)
+    const u2 = subscribeGastos(setGastos)
+    return () => { u1(); u2() }
   }, [])
 
   const mes = new Date().getMonth()
