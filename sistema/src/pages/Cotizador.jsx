@@ -4,13 +4,13 @@ import {
   TARJETAS, BANDERAS_VELA, VOLANTES,
   BASTIDORES_PROVEEDOR, BASTIDORES_BIRTH, PALOMAS, PENDONES,
 } from '../data/productos'
-import { getClientes, saveCliente, saveCotizacion, getClienteById } from '../utils/storage'
+import { getClientes, saveCliente, saveCotizacion, getClienteById, getMiscelaneos, saveMiscelaneo, deleteMiscelaneo } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose } from '../utils/email'
 import { clp, hoy, sumarDias } from '../utils/formatters'
 import {
   Plus, Trash2, RotateCcw, ArrowRight,
-  User, UserPlus, X, Download, Save, Mail, Eye,
+  User, UserPlus, X, Download, Save, Mail, Eye, Pencil,
 } from 'lucide-react'
 
 // ─── BARRA DE CLIENTE (top) ────────────────────────────────────────────────
@@ -166,10 +166,10 @@ function ProductoFila({ producto, multiplicador }) {
       {u === 'm2' && (
         <div className="flex items-center gap-1 shrink-0">
           <input type="number" min="0" step="0.01" value={d1} onChange={e => setD1(e.target.value)}
-            placeholder="A" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
+            placeholder="Ancho" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
           <span className="text-birth-gray-3 text-xs">×</span>
           <input type="number" min="0" step="0.01" value={d2} onChange={e => setD2(e.target.value)}
-            placeholder="H" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
+            placeholder="Alto" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
         </div>
       )}
       {u === 'ml' && (
@@ -504,6 +504,93 @@ function BanderaVelaPanel({ multiplicador }) {
   )
 }
 
+function MiscelaneosPanel() {
+  const [items, setItems] = useState(() => getMiscelaneos())
+  const [form, setForm] = useState(null) // null | {} | item_obj
+
+  const recargar = () => setItems(getMiscelaneos())
+
+  const handleSave = (e) => {
+    e.preventDefault()
+    if (!form.nombre?.trim() || !form.precio) return
+    saveMiscelaneo({ ...form, precio: parseFloat(form.precio) })
+    recargar()
+    setForm(null)
+  }
+
+  const handleAdd = (item) => {
+    window.dispatchEvent(new CustomEvent('cotizador:agregar', {
+      detail: { descripcion: item.nombre, cantidad: 1, precioUnitario: item.precio, total: item.precio }
+    }))
+  }
+
+  return (
+    <div>
+      {/* Lista de ítems guardados */}
+      {items.length === 0 && !form && (
+        <div className="px-4 py-8 text-center text-birth-gray-3 text-sm font-dm">
+          <p>Sin misceláneos. Agrega tornillos, escuadras, pintura, etc.</p>
+        </div>
+      )}
+
+      {items.map(item => (
+        <div key={item.id} className="flex items-center gap-2 px-4 py-2.5 border-b border-birth-gray-2 hover:bg-birth-gray">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-dm font-medium truncate">{item.nombre}</p>
+            <p className="text-[11px] text-birth-gray-3 font-dm">{clp(item.precio)}/unidad</p>
+          </div>
+          <button onClick={() => setForm({ ...item })}
+            className="p-1.5 text-birth-gray-3 hover:text-birth-black shrink-0">
+            <RotateCcw size={13} />
+          </button>
+          <button onClick={() => { deleteMiscelaneo(item.id); recargar() }}
+            className="p-1.5 text-birth-gray-3 hover:text-birth-red shrink-0">
+            <Trash2 size={13} />
+          </button>
+          <button onClick={() => handleAdd(item)}
+            className="w-8 h-8 flex items-center justify-center rounded bg-birth-red text-white hover:bg-red-700 shrink-0">
+            <Plus size={14} />
+          </button>
+        </div>
+      ))}
+
+      {/* Formulario nuevo/editar */}
+      {form !== null ? (
+        <form onSubmit={handleSave} className="p-4 border-t border-birth-gray-2 space-y-3 bg-birth-gray">
+          <p className="text-xs font-dm font-medium text-birth-gray-4 uppercase tracking-wider">
+            {form.id ? 'Editar ítem' : 'Nuevo misceláneo'}
+          </p>
+          <input value={form.nombre || ''} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
+            placeholder="Nombre (ej: Tornillo autoperforante)" required
+            className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black bg-white" />
+          <div className="flex gap-2">
+            <input type="number" min="0" value={form.precio || ''} onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
+              placeholder="Precio por unidad" required
+              className="flex-1 border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black bg-white" />
+          </div>
+          <div className="flex gap-2">
+            <button type="submit"
+              className="flex-1 bg-birth-black text-white py-2 rounded text-sm font-dm hover:bg-birth-red transition-colors">
+              {form.id ? 'Guardar cambios' : 'Agregar'}
+            </button>
+            <button type="button" onClick={() => setForm(null)}
+              className="px-4 border border-birth-gray-2 rounded text-sm font-dm text-birth-gray-4 hover:border-birth-black">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="px-4 py-3 border-t border-birth-gray-2">
+          <button onClick={() => setForm({})}
+            className="w-full flex items-center justify-center gap-2 border border-dashed border-birth-gray-3 rounded py-2.5 text-sm font-dm text-birth-gray-4 hover:border-birth-black hover:text-birth-black transition-colors">
+            <Plus size={14} /> Agregar misceláneo
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ManualPanel() {
   const [desc, setDesc] = useState('')
   const [precio, setPrecio] = useState('')
@@ -540,6 +627,7 @@ function CategoriaPanel({ categoria, multiplicador, setMultiplicador }) {
   if (categoria === 'bastidor') return <BastidoresPanel multiplicador={multiplicador} />
   if (categoria === 'pendon') return <PendonesPanel />
   if (categoria === 'bandera_vela') return <BanderaVelaPanel multiplicador={multiplicador} />
+  if (categoria === 'miscelaneos') return <MiscelaneosPanel />
   if (categoria === 'manual') return <ManualPanel />
   return <ProductosGenericos categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
 }

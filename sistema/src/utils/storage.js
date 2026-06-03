@@ -5,6 +5,7 @@ const KEYS = {
   gastos: 'BIRTH_GASTOS',
   pagos: 'BIRTH_PAGOS',
   settings: 'BIRTH_SETTINGS',
+  miscelaneos: 'BIRTH_MISCELANEOS',
 }
 
 function load(key) {
@@ -168,4 +169,27 @@ export function deletePago(id) {
 
 export function getPagosByCotizacion(cotizacionId) {
   return getPagos().filter(p => p.cotizacionId === cotizacionId)
+}
+
+// ─── MISCELÁNEOS ──────────────────────────────────────────────────────────────
+export function getMiscelaneos() {
+  return load(KEYS.miscelaneos) || []
+}
+
+export function saveMiscelaneo(item) {
+  const list = getMiscelaneos()
+  if (item.id) {
+    const idx = list.findIndex(m => m.id === item.id)
+    if (idx >= 0) list[idx] = item
+    else list.push(item)
+  } else {
+    item.id = crypto.randomUUID()
+    list.push(item)
+  }
+  save(KEYS.miscelaneos, list)
+  return item
+}
+
+export function deleteMiscelaneo(id) {
+  save(KEYS.miscelaneos, getMiscelaneos().filter(m => m.id !== id))
 }

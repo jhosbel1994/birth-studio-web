@@ -523,6 +523,36 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
   )
 }
 
+// ─── MODAL CONFIRMAR BORRADO ──────────────────────────────────────────────────
+function ConfirmDeleteModal({ cotizacion, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-[80] p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-sm shadow-2xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+            <Trash2 size={18} className="text-birth-red" />
+          </div>
+          <div>
+            <p className="font-barlow font-bold text-birth-black text-lg leading-tight">¿Eliminar cotización?</p>
+            <p className="text-xs text-birth-gray-3 font-dm mt-0.5">#{cotizacion.numero} · {cotizacion.clienteNombre || '—'}</p>
+          </div>
+        </div>
+        <p className="text-sm text-birth-gray-4 font-dm">Esta acción no se puede deshacer. La cotización se eliminará permanentemente.</p>
+        <div className="flex gap-3 pt-1 pb-safe">
+          <button onClick={onCancel}
+            className="flex-1 border border-birth-gray-2 rounded py-2.5 text-sm font-dm text-birth-gray-4 hover:border-birth-black transition-colors">
+            Cancelar
+          </button>
+          <button onClick={onConfirm}
+            className="flex-1 bg-birth-red text-white rounded py-2.5 text-sm font-dm font-medium hover:bg-red-700 transition-colors">
+            Sí, eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
 export default function Cotizaciones() {
   const location = useLocation()
@@ -535,6 +565,7 @@ export default function Cotizaciones() {
   const [envioEstado, setEnvioEstado] = useState(null)
   const [filtroEstado, setFiltroEstado] = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   const cargar = () => { setCotizaciones(getCotizaciones()); setClientes(getClientes()) }
 
@@ -546,7 +577,8 @@ export default function Cotizaciones() {
   }, [])
 
   const handleSave = (data) => { saveCotizacion(data); cargar(); setModal(null) }
-  const handleDelete = (id) => { if (!confirm('¿Eliminar?')) return; deleteCotizacion(id); cargar(); setMenuAbierto(null) }
+  const handleDelete = (cot) => { setMenuAbierto(null); setConfirmDelete(cot) }
+  const handleConfirmDelete = () => { deleteCotizacion(confirmDelete.id); cargar(); setConfirmDelete(null) }
 
   const handlePDF = async (cot, modo = 'download') => {
     const cliente = getClienteById(cot.clienteId)
@@ -617,6 +649,14 @@ export default function Cotizaciones() {
         />
       )}
 
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          cotizacion={confirmDelete}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
       {cotMenu && (
         <AccionesMenu
           cotizacion={cotMenu}
@@ -626,7 +666,7 @@ export default function Cotizaciones() {
           onEnviarEmail={() => handleEnviarEmail(cotMenu)}
           onEnviarWhatsApp={() => handleEnviarWhatsApp(cotMenu)}
           onEditar={() => { setModal({ ...cotMenu }); setMenuAbierto(null) }}
-          onEliminar={() => handleDelete(cotMenu.id)}
+          onEliminar={() => handleDelete(cotMenu)}
           onClose={() => setMenuAbierto(null)}
         />
       )}

@@ -26,6 +26,7 @@ export const CATEGORIAS = [
   { id: 'insumos', label: 'Insumos' },
   { id: 'logistica', label: 'Instalación y Logística' },
   { id: 'web', label: 'Desarrollo Web' },
+  { id: 'miscelaneos', label: 'Misceláneos' },
   { id: 'manual', label: 'Ítem manual (precio libre)' },
 ]
 
