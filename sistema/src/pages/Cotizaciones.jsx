@@ -185,8 +185,8 @@ function ActionPill({ icon: Icon, label, tone = 'neutral', onClick, disabled }) 
 }
 
 // ─── MENÚ DE ACCIONES ─────────────────────────────────────────────────────────
-function AccionesMenu({ cotizacion, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onClose }) {
-  const cliente = getClienteById(cotizacion.clienteId)
+function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onClose }) {
+  const cliente = clientes.find(c => c.id === cotizacion.clienteId) || null
 
   const acciones = [
     {
@@ -333,9 +333,9 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
     const c = clientes.find(c => c.id === id)
     set('clienteId', id); set('clienteNombre', c ? c.nombre : '')
   }
-  const crearCliente = () => {
+  const crearCliente = async () => {
     if (!ncForm.nombre.trim()) return
-    const c = saveCliente(ncForm)
+    const c = await saveCliente(ncForm)
     handleClienteChange(c.id)
     setNuevoCliente(false)
   }
@@ -567,7 +567,12 @@ export default function Cotizaciones() {
   const [busqueda, setBusqueda] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
 
-  const cargar = () => { setCotizaciones(getCotizaciones()); setClientes(getClientes()) }
+  const clienteLocal = (id) => clientes.find(c => c.id === id) || null
+
+  const cargar = async () => {
+    const [cots, clis] = await Promise.all([getCotizaciones(), getClientes()])
+    setCotizaciones(cots); setClientes(clis)
+  }
 
   useEffect(() => {
     cargar()
@@ -576,22 +581,22 @@ export default function Cotizaciones() {
     }
   }, [])
 
-  const handleSave = (data) => { saveCotizacion(data); cargar(); setModal(null) }
+  const handleSave = async (data) => { await saveCotizacion(data); cargar(); setModal(null) }
   const handleDelete = (cot) => { setMenuAbierto(null); setConfirmDelete(cot) }
-  const handleConfirmDelete = () => { deleteCotizacion(confirmDelete.id); cargar(); setConfirmDelete(null) }
+  const handleConfirmDelete = async () => { await deleteCotizacion(confirmDelete.id); cargar(); setConfirmDelete(null) }
 
   const handlePDF = async (cot, modo = 'download') => {
-    const cliente = getClienteById(cot.clienteId)
+    const cliente = clienteLocal(cot.clienteId)
     const result = await generarCotizacionPDF(cot, cliente, modo)
     if (modo === 'preview' && result?.url) {
       setPdfPreview(result)
     }
   }
 
-  const handleEstado = (cot, estado) => { saveCotizacion({ ...cot, estado }); cargar() }
+  const handleEstado = async (cot, estado) => { await saveCotizacion({ ...cot, estado }); cargar() }
 
   const handleEnviarEmail = async (cot) => {
-    const cliente = getClienteById(cot.clienteId)
+    const cliente = clienteLocal(cot.clienteId)
     const email = cliente?.correo || prompt('Email del cliente:')
     if (!email) return
     setMenuAbierto(null)
@@ -607,7 +612,7 @@ export default function Cotizaciones() {
   }
 
   const handleEnviarWhatsApp = (cot) => {
-    const cliente = getClienteById(cot.clienteId)
+    const cliente = clienteLocal(cot.clienteId)
     window.open(buildWhatsAppUrl(cot, cliente), '_blank')
     setMenuAbierto(null)
   }
@@ -635,7 +640,7 @@ export default function Cotizaciones() {
       {resumen && (
         <ModalResumen
           cotizacion={resumen}
-          cliente={getClienteById(resumen.clienteId)}
+          cliente={clienteLocal(resumen.clienteId)}
           onClose={() => setResumen(null)}
         />
       )}
@@ -660,6 +665,7 @@ export default function Cotizaciones() {
       {cotMenu && (
         <AccionesMenu
           cotizacion={cotMenu}
+          clientes={clientes}
           onResumen={() => { setResumen(cotMenu); setMenuAbierto(null) }}
           onVerPDF={() => { handlePDF(cotMenu, 'preview'); setMenuAbierto(null) }}
           onDescargar={() => { handlePDF(cotMenu, 'download'); setMenuAbierto(null) }}

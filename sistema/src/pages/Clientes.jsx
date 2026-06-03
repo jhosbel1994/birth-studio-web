@@ -204,9 +204,9 @@ export default function Clientes() {
   const [ficha, setFicha] = useState(null)
   const [editando, setEditando] = useState(null)
 
-  const cargar = () => {
-    setClientes(getClientes())
-    setCotizaciones(getCotizaciones())
+  const cargar = async () => {
+    const [c, cot] = await Promise.all([getClientes(), getCotizaciones()])
+    setClientes(c); setCotizaciones(cot)
   }
 
   useEffect(() => { cargar() }, [])
@@ -217,16 +217,16 @@ export default function Clientes() {
     c.empresa?.toLowerCase().includes(busqueda.toLowerCase())
   )
 
-  const handleSave = (form) => {
-    saveCliente(form)
+  const handleSave = async (form) => {
+    await saveCliente(form)
     cargar()
     setModal(null)
     setEditando(null)
     if (ficha?.id === form.id) setFicha(form)
   }
 
-  const handleDelete = (id) => {
-    deleteCliente(id)
+  const handleDelete = async (id) => {
+    await deleteCliente(id)
     cargar()
     setFicha(null)
   }

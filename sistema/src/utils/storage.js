@@ -1,195 +1,206 @@
-const KEYS = {
-  clientes: 'BIRTH_CLIENTES',
-  cotizaciones: 'BIRTH_COTIZACIONES',
-  contratos: 'BIRTH_CONTRATOS',
-  gastos: 'BIRTH_GASTOS',
-  pagos: 'BIRTH_PAGOS',
-  settings: 'BIRTH_SETTINGS',
-  miscelaneos: 'BIRTH_MISCELANEOS',
+import {
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc,
+  query, orderBy, runTransaction,
+} from 'firebase/firestore'
+import { db } from '../firebase'
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function snapToObj(snap) {
+  if (!snap.exists()) return null
+  const d = snap.data()
+  if (d.createdAt?.toDate) d.createdAt = d.createdAt.toDate().toISOString()
+  return { ...d, id: snap.id }
 }
 
-function load(key) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
+function snapsToArr(snap) {
+  return snap.docs.map(snapToObj)
 }
 
-function save(key, data) {
-  localStorage.setItem(key, JSON.stringify(data))
+// ─── SETTINGS / PIN ───────────────────────────────────────────────────────────
+const SETTINGS_ID = 'app'
+
+export async function getPin() {
+  const snap = await getDoc(doc(db, 'settings', SETTINGS_ID))
+  return snap.exists() ? (snap.data().pin || '2025') : '2025'
 }
 
-// ─── SETTINGS ─────────────────────────────────────────────────────────────────
-export function getSettings() {
-  return load(KEYS.settings) || { ultimoNumeroCotizacion: 238 }
+export async function setPin(nuevoPin) {
+  await setDoc(doc(db, 'settings', SETTINGS_ID), { pin: nuevoPin }, { merge: true })
 }
 
-export function saveSettings(settings) {
-  save(KEYS.settings, settings)
-}
-
-export function nextNumeroCotizacion() {
-  const s = getSettings()
-  s.ultimoNumeroCotizacion += 1
-  saveSettings(s)
-  return s.ultimoNumeroCotizacion
+export async function nextNumeroCotizacion() {
+  return runTransaction(db, async (tx) => {
+    const ref = doc(db, 'settings', SETTINGS_ID)
+    const snap = await tx.get(ref)
+    const current = snap.exists() ? (snap.data().ultimoNumeroCotizacion || 238) : 238
+    const next = current + 1
+    tx.set(ref, { ultimoNumeroCotizacion: next }, { merge: true })
+    return next
+  })
 }
 
 // ─── CLIENTES ─────────────────────────────────────────────────────────────────
-export function getClientes() {
-  return load(KEYS.clientes) || []
+export async function getClientes() {
+  const snap = await getDocs(query(collection(db, 'clientes'), orderBy('createdAt', 'asc')))
+  return snapsToArr(snap)
 }
 
-export function saveCliente(cliente) {
-  const list = getClientes()
-  if (cliente.id) {
-    const idx = list.findIndex(c => c.id === cliente.id)
-    if (idx >= 0) list[idx] = cliente
-    else list.push(cliente)
-  } else {
-    cliente.id = crypto.randomUUID()
-    cliente.createdAt = new Date().toISOString()
-    list.push(cliente)
-  }
-  save(KEYS.clientes, list)
-  return cliente
+export async function saveCliente(cliente) {
+  const id = cliente.id || crypto.randomUUID()
+  const data = { ...cliente, id, createdAt: cliente.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'clientes', id), data)
+  return data
 }
 
-export function deleteCliente(id) {
-  save(KEYS.clientes, getClientes().filter(c => c.id !== id))
+export async function deleteCliente(id) {
+  await deleteDoc(doc(db, 'clientes', id))
 }
 
-export function getClienteById(id) {
-  return getClientes().find(c => c.id === id) || null
+export async function getClienteById(id) {
+  if (!id) return null
+  const snap = await getDoc(doc(db, 'clientes', id))
+  return snapToObj(snap)
 }
 
 // ─── COTIZACIONES ─────────────────────────────────────────────────────────────
-export function getCotizaciones() {
-  return load(KEYS.cotizaciones) || []
+export async function getCotizaciones() {
+  const snap = await getDocs(query(collection(db, 'cotizaciones'), orderBy('createdAt', 'desc')))
+  return snapsToArr(snap)
 }
 
-export function saveCotizacion(cotizacion) {
-  const list = getCotizaciones()
-  if (cotizacion.id) {
-    const idx = list.findIndex(c => c.id === cotizacion.id)
-    if (idx >= 0) list[idx] = cotizacion
-    else list.push(cotizacion)
-  } else {
-    cotizacion.id = crypto.randomUUID()
-    cotizacion.createdAt = new Date().toISOString()
-    const num = nextNumeroCotizacion()
-    cotizacion.numero = String(num).padStart(5, '0')
-    list.push(cotizacion)
+export async function saveCotizacion(cotizacion) {
+  const id = cotizacion.id || crypto.randomUUID()
+  const data = { ...cotizacion, id }
+  if (!cotizacion.id) {
+    data.createdAt = new Date().toISOString()
+    const num = await nextNumeroCotizacion()
+    data.numero = String(num).padStart(5, '0')
   }
-  save(KEYS.cotizaciones, list)
-  return cotizacion
+  await setDoc(doc(db, 'cotizaciones', id), data)
+  return data
 }
 
-export function deleteCotizacion(id) {
-  save(KEYS.cotizaciones, getCotizaciones().filter(c => c.id !== id))
+export async function deleteCotizacion(id) {
+  await deleteDoc(doc(db, 'cotizaciones', id))
 }
 
-export function getCotizacionById(id) {
-  return getCotizaciones().find(c => c.id === id) || null
+export async function getCotizacionById(id) {
+  if (!id) return null
+  const snap = await getDoc(doc(db, 'cotizaciones', id))
+  return snapToObj(snap)
 }
 
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
-export function getContratos() {
-  return load(KEYS.contratos) || []
+export async function getContratos() {
+  const snap = await getDocs(query(collection(db, 'contratos'), orderBy('createdAt', 'desc')))
+  return snapsToArr(snap)
 }
 
-export function saveContrato(contrato) {
-  const list = getContratos()
-  if (contrato.id) {
-    const idx = list.findIndex(c => c.id === contrato.id)
-    if (idx >= 0) list[idx] = contrato
-    else list.push(contrato)
-  } else {
-    contrato.id = crypto.randomUUID()
-    contrato.createdAt = new Date().toISOString()
-    list.push(contrato)
-  }
-  save(KEYS.contratos, list)
-  return contrato
+export async function saveContrato(contrato) {
+  const id = contrato.id || crypto.randomUUID()
+  const data = { ...contrato, id, createdAt: contrato.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'contratos', id), data)
+  return data
 }
 
-export function deleteContrato(id) {
-  save(KEYS.contratos, getContratos().filter(c => c.id !== id))
+export async function deleteContrato(id) {
+  await deleteDoc(doc(db, 'contratos', id))
 }
 
 // ─── GASTOS ───────────────────────────────────────────────────────────────────
-export function getGastos() {
-  return load(KEYS.gastos) || []
+export async function getGastos() {
+  const snap = await getDocs(query(collection(db, 'gastos'), orderBy('createdAt', 'desc')))
+  return snapsToArr(snap)
 }
 
-export function saveGasto(gasto) {
-  const list = getGastos()
-  if (gasto.id) {
-    const idx = list.findIndex(g => g.id === gasto.id)
-    if (idx >= 0) list[idx] = gasto
-    else list.push(gasto)
-  } else {
-    gasto.id = crypto.randomUUID()
-    gasto.createdAt = new Date().toISOString()
-    list.push(gasto)
-  }
-  save(KEYS.gastos, list)
-  return gasto
+export async function saveGasto(gasto) {
+  const id = gasto.id || crypto.randomUUID()
+  const data = { ...gasto, id, createdAt: gasto.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'gastos', id), data)
+  return data
 }
 
-export function deleteGasto(id) {
-  save(KEYS.gastos, getGastos().filter(g => g.id !== id))
+export async function deleteGasto(id) {
+  await deleteDoc(doc(db, 'gastos', id))
 }
 
 // ─── PAGOS ────────────────────────────────────────────────────────────────────
-export function getPagos() {
-  return load(KEYS.pagos) || []
+export async function getPagos() {
+  const snap = await getDocs(query(collection(db, 'pagos'), orderBy('createdAt', 'desc')))
+  return snapsToArr(snap)
 }
 
-export function savePago(pago) {
-  const list = getPagos()
-  if (pago.id) {
-    const idx = list.findIndex(p => p.id === pago.id)
-    if (idx >= 0) list[idx] = pago
-    else list.push(pago)
-  } else {
-    pago.id = crypto.randomUUID()
-    pago.createdAt = new Date().toISOString()
-    list.push(pago)
-  }
-  save(KEYS.pagos, list)
-  return pago
+export async function savePago(pago) {
+  const id = pago.id || crypto.randomUUID()
+  const data = { ...pago, id, createdAt: pago.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'pagos', id), data)
+  return data
 }
 
-export function deletePago(id) {
-  save(KEYS.pagos, getPagos().filter(p => p.id !== id))
+export async function deletePago(id) {
+  await deleteDoc(doc(db, 'pagos', id))
 }
 
-export function getPagosByCotizacion(cotizacionId) {
-  return getPagos().filter(p => p.cotizacionId === cotizacionId)
+export async function getPagosByCotizacion(cotizacionId) {
+  const pagos = await getPagos()
+  return pagos.filter(p => p.cotizacionId === cotizacionId)
 }
 
 // ─── MISCELÁNEOS ──────────────────────────────────────────────────────────────
-export function getMiscelaneos() {
-  return load(KEYS.miscelaneos) || []
+export async function getMiscelaneos() {
+  const snap = await getDocs(collection(db, 'miscelaneos'))
+  return snapsToArr(snap)
 }
 
-export function saveMiscelaneo(item) {
-  const list = getMiscelaneos()
-  if (item.id) {
-    const idx = list.findIndex(m => m.id === item.id)
-    if (idx >= 0) list[idx] = item
-    else list.push(item)
-  } else {
-    item.id = crypto.randomUUID()
-    list.push(item)
+export async function saveMiscelaneo(item) {
+  const id = item.id || crypto.randomUUID()
+  const data = { ...item, id }
+  await setDoc(doc(db, 'miscelaneos', id), data)
+  return data
+}
+
+export async function deleteMiscelaneo(id) {
+  await deleteDoc(doc(db, 'miscelaneos', id))
+}
+
+// ─── MIGRACIÓN DESDE LOCALSTORAGE (se ejecuta solo una vez) ───────────────────
+const MIGRATED_KEY = 'BIRTH_MIGRATED_v1'
+
+export async function migrarDesdeLocalStorage() {
+  if (localStorage.getItem(MIGRATED_KEY)) return
+
+  const colecciones = [
+    { key: 'BIRTH_CLIENTES', col: 'clientes' },
+    { key: 'BIRTH_COTIZACIONES', col: 'cotizaciones' },
+    { key: 'BIRTH_CONTRATOS', col: 'contratos' },
+    { key: 'BIRTH_GASTOS', col: 'gastos' },
+    { key: 'BIRTH_PAGOS', col: 'pagos' },
+    { key: 'BIRTH_MISCELANEOS', col: 'miscelaneos' },
+  ]
+
+  for (const { key, col } of colecciones) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const items = JSON.parse(raw)
+      if (!Array.isArray(items) || items.length === 0) continue
+      for (const item of items) {
+        if (item.id) await setDoc(doc(db, col, item.id), item)
+      }
+    } catch {}
   }
-  save(KEYS.miscelaneos, list)
-  return item
-}
 
-export function deleteMiscelaneo(id) {
-  save(KEYS.miscelaneos, getMiscelaneos().filter(m => m.id !== id))
+  // Migrar settings (número cotización y PIN)
+  try {
+    const settings = JSON.parse(localStorage.getItem('BIRTH_SETTINGS') || '{}')
+    const pin = localStorage.getItem('BIRTH_PIN')
+    const settingsData = {}
+    if (settings.ultimoNumeroCotizacion) settingsData.ultimoNumeroCotizacion = settings.ultimoNumeroCotizacion
+    if (pin) settingsData.pin = pin
+    if (Object.keys(settingsData).length > 0) {
+      await setDoc(doc(db, 'settings', 'app'), settingsData, { merge: true })
+    }
+  } catch {}
+
+  localStorage.setItem(MIGRATED_KEY, '1')
 }

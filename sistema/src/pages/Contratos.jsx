@@ -149,28 +149,27 @@ export default function Contratos() {
   const [cotizaciones, setCotizaciones] = useState([])
   const [modal, setModal] = useState(null)
 
-  const cargar = () => {
-    setContratos(getContratos())
-    setClientes(getClientes())
-    setCotizaciones(getCotizaciones())
+  const cargar = async () => {
+    const [c, cl, cot] = await Promise.all([getContratos(), getClientes(), getCotizaciones()])
+    setContratos(c); setClientes(cl); setCotizaciones(cot)
   }
 
   useEffect(() => { cargar() }, [])
 
-  const handleSave = (data) => {
-    saveContrato(data)
+  const handleSave = async (data) => {
+    await saveContrato(data)
     cargar()
     setModal(null)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!confirm('¿Eliminar este contrato?')) return
-    deleteContrato(id)
+    await deleteContrato(id)
     cargar()
   }
 
   const handlePDF = async (contrato) => {
-    const cliente = getClienteById(contrato.clienteId)
+    const cliente = await getClienteById(contrato.clienteId)
     if (contrato.tipo === 'letras_corporeas') await generarContratoLetras(contrato, cliente)
     else await generarContratoWeb(contrato, cliente)
   }

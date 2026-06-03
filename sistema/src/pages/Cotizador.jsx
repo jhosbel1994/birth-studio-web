@@ -35,9 +35,9 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
     }
   }
 
-  const handleGuardarEnBD = () => {
+  const handleGuardarEnBD = async () => {
     if (!nombre.trim()) return
-    const c = saveCliente({ nombre, rut, empresa: '', ciudad: '', correo: '', telefono: '' })
+    const c = await saveCliente({ nombre, rut, empresa: '', ciudad: '', correo: '', telefono: '' })
     setClienteId(c.id)
     setClienteNombre(c.nombre)
     onClienteGuardado()
@@ -505,15 +505,17 @@ function BanderaVelaPanel({ multiplicador }) {
 }
 
 function MiscelaneosPanel() {
-  const [items, setItems] = useState(() => getMiscelaneos())
-  const [form, setForm] = useState(null) // null | {} | item_obj
+  const [items, setItems] = useState([])
+  const [form, setForm] = useState(null)
 
-  const recargar = () => setItems(getMiscelaneos())
+  const recargar = () => getMiscelaneos().then(setItems)
 
-  const handleSave = (e) => {
+  useEffect(() => { recargar() }, [])
+
+  const handleSave = async (e) => {
     e.preventDefault()
     if (!form.nombre?.trim() || !form.precio) return
-    saveMiscelaneo({ ...form, precio: parseFloat(form.precio) })
+    await saveMiscelaneo({ ...form, precio: parseFloat(form.precio) })
     recargar()
     setForm(null)
   }
@@ -543,7 +545,7 @@ function MiscelaneosPanel() {
             className="p-1.5 text-birth-gray-3 hover:text-birth-black shrink-0">
             <RotateCcw size={13} />
           </button>
-          <button onClick={() => { deleteMiscelaneo(item.id); recargar() }}
+          <button onClick={() => deleteMiscelaneo(item.id).then(recargar)}
             className="p-1.5 text-birth-gray-3 hover:text-birth-red shrink-0">
             <Trash2 size={13} />
           </button>
@@ -663,14 +665,10 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
   const [formaPago, setFormaPago] = useState('Transferencia bancaria — 50% anticipo, 50% contra entrega')
   const [plazo, setPlazo] = useState('')
   const [conIva, setConIva] = useState(true)
-  const [emailCliente, setEmailCliente] = useState(() => {
-    // Pre-cargar email si el cliente está en BD
-    if (clienteId) {
-      const c = getClienteById(clienteId)
-      return c?.correo || ''
-    }
-    return ''
-  })
+  const [emailCliente, setEmailCliente] = useState('')
+  useEffect(() => {
+    if (clienteId) getClienteById(clienteId).then(c => { if (c?.correo) setEmailCliente(c.correo) })
+  }, [clienteId])
   const [loading, setLoading] = useState(false)
   const [msgEmail, setMsgEmail] = useState(null) // { tipo: 'ok'|'error', texto }
   const [preview, setPreview] = useState(null) // { url, filename }
@@ -692,8 +690,8 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
 
   const guardar = async (conPdf = false) => {
     setLoading(true)
-    const cot = saveCotizacion(buildCot())
-    const cliente = getClienteById(clienteId) || { nombre: clienteNombre }
+    const cot = await saveCotizacion(buildCot())
+    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre }
     if (conPdf) await generarCotizacionPDF(cot, cliente, 'download')
     setLoading(false)
     onGuardado()
@@ -702,23 +700,20 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
 
   const handlePreview = async () => {
     setLoading(true)
-    const cotTmp = buildCot()
-    cotTmp.numero = cotTmp.numero || '????'
-    // Guardamos temporalmente para tener número
-    const cot = saveCotizacion(cotTmp)
-    const cliente = getClienteById(clienteId) || { nombre: clienteNombre }
+    const cot = await saveCotizacion(buildCot())
+    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre }
     const result = await generarCotizacionPDF(cot, cliente, 'preview')
     setPreview(result)
     setLoading(false)
-    onGuardado() // limpiar items ya que se guardó
+    onGuardado()
   }
 
   const handleEnviarEmail = async () => {
     if (!emailCliente.trim()) return
     setLoading(true)
     setMsgEmail(null)
-    const cot = saveCotizacion(buildCot())
-    const cliente = getClienteById(clienteId) || { nombre: clienteNombre }
+    const cot = await saveCotizacion(buildCot())
+    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre }
 
     // Intentar EmailJS primero, fallback a Gmail
     try {
@@ -909,7 +904,7 @@ export default function Cotizador() {
   // Tab móvil: 'calcular' | 'cotizacion'
   const [tabMovil, setTabMovil] = useState('calcular')
 
-  const cargarClientes = () => setClientes(getClientes())
+  const cargarClientes = () => getClientes().then(setClientes)
   useEffect(() => {
     cargarClientes()
     const handler = (e) => {

@@ -62,8 +62,8 @@ export default function Dashboard() {
   const [gastos, setGastos] = useState([])
 
   useEffect(() => {
-    setCotizaciones(getCotizaciones())
-    setGastos(getGastos())
+    getCotizaciones().then(setCotizaciones)
+    getGastos().then(setGastos)
   }, [])
 
   const mes = new Date().getMonth()
