@@ -1,13 +1,48 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { saveGasto, deleteGasto, savePago, deletePago, subscribeGastos, subscribePagos, subscribeCotizaciones } from '../utils/storage'
 import { clp, fechaCorta, hoy, CATEGORIAS_GASTO } from '../utils/formatters'
-import { Plus, Trash2, X, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
+import { escanearBoleta } from '../utils/scanner'
+import { Plus, Trash2, X, TrendingUp, TrendingDown, DollarSign, Camera, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 function ModalGasto({ gasto, onClose, onSave }) {
   const [form, setForm] = useState(gasto?.id ? { ...gasto } : {
     descripcion: '', monto: '', fecha: hoy(), categoria: 'Materiales', notas: ''
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const [escaneando, setEscaneando] = useState(false)
+  const [scanStatus, setScanStatus] = useState(null) // null | 'ok' | 'error'
+  const [scanMsg, setScanMsg] = useState('')
+  const fileRef = useRef(null)
+
+  const handleScanFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset input para poder volver a escanear la misma imagen
+    e.target.value = ''
+
+    setEscaneando(true)
+    setScanStatus(null)
+    setScanMsg('')
+
+    try {
+      const datos = await escanearBoleta(file)
+
+      // Autocompletar campos
+      if (datos.establecimiento) set('descripcion', datos.establecimiento)
+      if (datos.monto && !isNaN(datos.monto)) set('monto', Number(datos.monto))
+      if (datos.fecha) set('fecha', datos.fecha)
+      if (datos.numero_transaccion) set('notas', `Boleta #${datos.numero_transaccion}`)
+
+      setScanStatus('ok')
+      setScanMsg('Boleta leída — revisa y edita si es necesario')
+    } catch (err) {
+      setScanStatus('error')
+      setScanMsg(err.message || 'No se pudo leer la boleta. Ingresa los datos manualmente.')
+    } finally {
+      setEscaneando(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
@@ -18,7 +53,50 @@ function ModalGasto({ gasto, onClose, onSave }) {
           </h2>
           <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
         </div>
-        <form onSubmit={e => { e.preventDefault(); if (!form.descripcion || !form.monto) return; onSave(form) }} className="p-5 md:p-6 space-y-4">
+
+        <div className="px-5 md:px-6 pt-5">
+          {/* Botón escanear boleta */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleScanFile}
+          />
+          <button
+            type="button"
+            disabled={escaneando}
+            onClick={() => fileRef.current?.click()}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed text-sm font-dm font-medium transition-all ${
+              escaneando
+                ? 'border-birth-gray-2 text-birth-gray-3 cursor-not-allowed'
+                : 'border-birth-black text-birth-black hover:bg-birth-gray active:bg-birth-gray-2'
+            }`}>
+            {escaneando
+              ? <><Loader2 size={16} className="animate-spin" /> Analizando boleta...</>
+              : <><Camera size={16} /> Escanear boleta</>
+            }
+          </button>
+
+          {/* Feedback del escaneo */}
+          {scanStatus && (
+            <div className={`mt-2 flex items-start gap-2 px-3 py-2 rounded text-xs font-dm ${
+              scanStatus === 'ok'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-birth-red border border-red-200'
+            }`}>
+              {scanStatus === 'ok'
+                ? <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
+                : <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              }
+              {scanMsg}
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={e => { e.preventDefault(); if (!form.descripcion || !form.monto) return; onSave(form) }}
+          className="p-5 md:p-6 pt-4 space-y-4">
           <div>
             <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Descripción *</label>
             <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)} required

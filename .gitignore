@@ -1,2 +1,4 @@
 sistema/node_modules
 sistema/dist
+sistema/.env
+sistema/.env.local
