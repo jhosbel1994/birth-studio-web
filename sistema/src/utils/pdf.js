@@ -129,16 +129,18 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   doc.setTextColor(...NEGRO)
   doc.text('SEÑORES:', 14, y)
 
+  const nombreCompleto = [cliente?.nombre, cliente?.apellido].filter(Boolean).join(' ') || cotizacion.clienteNombre || '—'
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  doc.text(cliente?.nombre || cotizacion.clienteNombre || '—', 14, y + 5)
+  doc.text(nombreCompleto, 14, y + 5)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(...GRIS)
-  if (cliente?.empresa) doc.text(cliente.empresa, 14, y + 10)
-  if (cliente?.rut) doc.text(`RUT: ${cliente.rut}`, 14, y + 14)
-  if (cliente?.ciudad) doc.text(cliente.ciudad, 14, y + 18)
+  let offsetCliente = 10
+  if (cliente?.empresa) { doc.text(cliente.empresa, 14, y + offsetCliente); offsetCliente += 4 }
+  if (cliente?.rut)     { doc.text(`RUT: ${cliente.rut}`, 14, y + offsetCliente); offsetCliente += 4 }
+  if (cliente?.ciudad)  { doc.text(cliente.ciudad, 14, y + offsetCliente) }
 
   y += 28
   linea(doc, y)

@@ -269,16 +269,26 @@ function AfichesAcrilicosPanel() {
   const cArea   = cForma === 'rectangular'
     ? (parseFloat(cAncho) || 0) * (parseFloat(cAlto) || 0) / 10000
     : Math.PI * Math.pow((parseFloat(cDiam) || 0) / 2, 2) / 10000
-  const cPrecio = cArea > 0 ? Math.round(cArea * precioM2Custom) : 0
+  const cPrecioBase = cArea > 0 ? Math.round(cArea * precioM2Custom) : 0
+  let cSubtotal = cPrecioBase > 0 ? cPrecioBase + costDist : 0
+  if (cSubtotal > 0) {
+    if (instalacion === 'sin_andamio') cSubtotal = Math.round(cSubtotal * 1.5)
+    if (instalacion === 'con_andamio') cSubtotal = Math.round(cSubtotal * 1.5) + andamioCuerpos * 5000
+  }
 
   const handleAddCustom = () => {
-    if (!cPrecio) return
+    if (!cSubtotal) return
     const tipoLabel = AFICHES_TIPOS.find(t => t.id === tipo)?.label
     const forma = cForma === 'rectangular' ? `${cAncho}×${cAlto}cm` : `Ø${cDiam}cm`
+    const adics = []
+    if (conDistPeq) adics.push(`${cantDistPeq} dist. pequeños`)
+    if (conDistGrande) adics.push(`${cantDistGrande} dist. grandes`)
+    if (instalacion === 'sin_andamio') adics.push('instalación s/andamio')
+    if (instalacion === 'con_andamio') adics.push(`instalación c/andamio ${andamioCuerpos} cuerpos`)
     window.dispatchEvent(new CustomEvent('cotizador:agregar', {
       detail: {
-        descripcion: `Acrílico personalizado ${forma} ${cGrosor} — ${tipoLabel} (${cArea.toFixed(3)} m²)`,
-        cantidad: 1, precioUnitario: cPrecio, total: cPrecio,
+        descripcion: `Acrílico personalizado ${forma} ${cGrosor} — ${tipoLabel}${adics.length ? ' | ' + adics.join(', ') : ''} (${cArea.toFixed(3)} m²)`,
+        cantidad: 1, precioUnitario: cSubtotal, total: cSubtotal,
       }
     }))
     setCAncho(''); setCAlto(''); setCDiam('')
@@ -539,16 +549,33 @@ function AfichesAcrilicosPanel() {
 
         {/* Resultado */}
         {cArea > 0 && (
-          <div className="bg-birth-black rounded px-4 py-3 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-dm text-white/60">{cArea.toFixed(4)} m² × {clp(precioM2Custom)}/m²{parseFloat(cPrecioM2) !== precioM2Sugerido ? ' ✎' : ''}</p>
-              <p className="text-[11px] font-dm text-white/40">{cForma === 'circular' ? 'π × (Ø/2)²' : 'ancho × alto'}</p>
+          <div className="bg-birth-black rounded px-4 py-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-dm text-white/60">{cArea.toFixed(4)} m² × {clp(precioM2Custom)}/m²</p>
+              <span className="font-dm text-sm text-white/80">{clp(cPrecioBase)}</span>
             </div>
-            <span className="font-barlow font-bold text-2xl text-white">{clp(cPrecio)}</span>
+            {costDist > 0 && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-dm text-white/60">Distanciadores</p>
+                <span className="font-dm text-sm text-white/80">{clp(costDist)}</span>
+              </div>
+            )}
+            {instalacion !== 'ninguna' && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-dm text-white/60">
+                  {instalacion === 'sin_andamio' ? 'Instalación ×1.5' : `Instalación ×1.5 + ${andamioCuerpos} cuerpos`}
+                </p>
+                <span className="text-white/60 text-xs font-dm">incluido</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-white/20 pt-1.5">
+              <span className="text-xs font-dm text-white/50">{cForma === 'circular' ? 'π × (Ø/2)²' : 'ancho × alto'}</span>
+              <span className="font-barlow font-bold text-2xl text-white">{clp(cSubtotal)}</span>
+            </div>
           </div>
         )}
 
-        <button onClick={handleAddCustom} disabled={!cPrecio}
+        <button onClick={handleAddCustom} disabled={!cSubtotal}
           className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
           <Plus size={15} /> Agregar a cotización
         </button>
