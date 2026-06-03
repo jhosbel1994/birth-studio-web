@@ -715,7 +715,7 @@ export default function Cotizaciones() {
     try {
       await enviarCotizacionEmailJS(cot, cliente, email)
       setEnvioEstado({ tipo: 'ok', mensaje: `Correo enviado a ${email}` })
-      setTimeout(() => setEnvioEstado(null), 4200)
+      setTimeout(() => setEnvioEstado(null), 2500)
     } catch {
       abrirGmailCompose(cot, cliente, email)
       setEnvioEstado({ tipo: 'error', mensaje: 'EmailJS no respondió. Abrí Gmail con el correo listo para enviar.' })
@@ -893,43 +893,30 @@ export default function Cotizaciones() {
                           <option value="rechazada">Rechazada</option>
                         </select>
                       </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-1 justify-end">
-                          {/* Ver resumen inline */}
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5 justify-end">
                           <button onClick={() => setResumen(c)} title="Ver resumen"
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray">
-                            <Eye size={14} />
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-birth-gray-2 text-birth-gray-4 hover:border-birth-black hover:text-birth-black transition-colors text-[11px] font-dm">
+                            <Eye size={13} /> <span>Resumen</span>
                           </button>
-                          {/* Ver PDF */}
-                          <button onClick={() => handlePDF(c, 'preview')} title="Ver PDF"
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray">
-                            <FileText size={14} />
-                          </button>
-                          {/* Descargar PDF */}
                           <button onClick={() => handlePDF(c, 'download')} title="Descargar PDF"
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray">
-                            <Download size={14} />
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-birth-gray-2 text-birth-gray-4 hover:border-birth-black hover:text-birth-black transition-colors text-[11px] font-dm">
+                            <Download size={13} /> <span>PDF</span>
                           </button>
-                          <button onClick={() => handleEnviarWhatsApp(c)} title="Enviar por WhatsApp"
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray">
-                            <MessageCircle size={14} />
+                          <button onClick={() => handleEnviarWhatsApp(c)} title="WhatsApp"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-birth-gray-2 text-birth-gray-4 hover:border-green-600 hover:text-green-600 transition-colors text-[11px] font-dm">
+                            <MessageCircle size={13} /> <span>WA</span>
                           </button>
-                          <button onClick={() => handleEnviarEmail(c)} title="Enviar por correo"
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray">
-                            <Mail size={14} />
+                          <button onClick={() => handleEnviarEmail(c)} title="Correo"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-birth-gray-2 text-birth-gray-4 hover:border-birth-red hover:text-birth-red transition-colors text-[11px] font-dm">
+                            <Mail size={13} /> <span>Correo</span>
                           </button>
-                          <button onClick={() => setMenuAbierto(c.id)} title="Más acciones"
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray">
-                            <MoreHorizontal size={14} />
-                          </button>
-                          {/* Editar */}
                           <button onClick={() => setModal({ ...c })} title="Editar"
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray">
+                            className="p-1.5 rounded border border-birth-gray-2 text-birth-gray-4 hover:border-birth-black hover:text-birth-black transition-colors">
                             <Edit2 size={14} />
                           </button>
-                          {/* Eliminar */}
-                          <button onClick={() => handleDelete(c.id)} title="Eliminar"
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray">
+                          <button onClick={() => handleDelete(c)} title="Eliminar"
+                            className="p-1.5 rounded border border-red-200 text-birth-red hover:border-birth-red hover:bg-red-50 transition-colors">
                             <Trash2 size={14} />
                           </button>
                         </div>
