@@ -3,11 +3,97 @@ import { saveCotizacion, deleteCotizacion, saveCliente, getClienteById, subscrib
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl } from '../utils/email'
+import { CATEGORIAS, PRODUCTOS } from '../data/productos'
 import { useLocation } from 'react-router-dom'
 import {
   Plus, Download, Trash2, Edit2, X, Search,
   Eye, Mail, MessageCircle, FileText, MoreHorizontal, CheckCircle, AlertCircle, Loader2,
+  BookOpen,
 } from 'lucide-react'
+
+// Catálogo plano para el selector — excluye calculadoras complejas
+const SKIP = new Set(['tarjetas', 'bastidor', 'bandera_vela', 'volantes', 'pendon', 'manual', 'miscelaneos'])
+const CATALOGO_PLANO = CATEGORIAS
+  .filter(c => !SKIP.has(c.id))
+  .flatMap(cat => (PRODUCTOS[cat.id] || []).map(p => ({ ...p, catLabel: cat.label })))
+
+// ─── SELECTOR DE PRODUCTOS DEL CATÁLOGO ──────────────────────────────────────
+function CatalogoPicker({ onAgregar, onClose }) {
+  const [buscar, setBuscar] = useState('')
+
+  const filtrados = buscar.length >= 1
+    ? CATALOGO_PLANO.filter(p =>
+        p.nombre.toLowerCase().includes(buscar.toLowerCase()) ||
+        p.catLabel.toLowerCase().includes(buscar.toLowerCase())
+      )
+    : CATALOGO_PLANO
+
+  const handleSelect = (producto) => {
+    const needsDims = ['m2', 'ml'].includes(producto.unidad)
+    const desc = needsDims
+      ? `${producto.nombre} (ingresar medidas)`
+      : producto.nombre
+    const total = needsDims || producto.unidad === 'libre' ? 0 : producto.precio
+
+    onAgregar({
+      descripcion: desc,
+      cantidad: 1,
+      precioUnitario: producto.precio,
+      total,
+    })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-end md:items-center justify-center p-0 md:p-4"
+      onClick={onClose}>
+      <div className="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[80vh]"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-birth-gray-2 flex items-center gap-3 shrink-0">
+          <div className="flex-1 flex items-center gap-2 bg-birth-gray rounded px-3 py-2">
+            <Search size={14} className="text-birth-gray-3 shrink-0" />
+            <input
+              value={buscar}
+              onChange={e => setBuscar(e.target.value)}
+              placeholder="Buscar producto o servicio..."
+              autoFocus
+              className="flex-1 bg-transparent text-sm font-dm focus:outline-none placeholder-birth-gray-3"
+            />
+          </div>
+          <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black p-1"><X size={16} /></button>
+        </div>
+
+        {/* Lista */}
+        <div className="overflow-y-auto flex-1">
+          {filtrados.length === 0 ? (
+            <p className="py-10 text-center text-birth-gray-3 text-sm font-dm">Sin resultados</p>
+          ) : (
+            filtrados.map(p => (
+              <button key={p.id} onClick={() => handleSelect(p)}
+                className="w-full flex items-center justify-between px-4 py-3 border-b border-birth-gray-2 hover:bg-birth-gray active:bg-birth-gray-2 text-left transition-colors">
+                <div className="flex-1 min-w-0 mr-3">
+                  <p className="text-sm font-dm font-medium text-birth-black leading-snug">{p.nombre}</p>
+                  <p className="text-[11px] text-birth-gray-3 font-dm mt-0.5">{p.catLabel}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  {p.precio > 0 && (
+                    <p className="text-sm font-dm font-semibold text-birth-black">
+                      {clp(p.precio)}
+                      <span className="text-[10px] text-birth-gray-3 ml-1 font-normal">/{p.unidad}</span>
+                    </p>
+                  )}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+        <div className="pb-safe shrink-0 h-2" />
+      </div>
+    </div>
+  )
+}
 
 const EMPTY_COT = {
   clienteId: '', clienteNombre: '', descripcion: '',
@@ -335,10 +421,12 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
   const [form, setForm] = useState(cotizacion?.id ? { ...cotizacion } : { ...EMPTY_COT })
   const [nuevoCliente, setNuevoCliente] = useState(false)
   const [ncForm, setNcForm] = useState({ nombre: '', empresa: '', rut: '', ciudad: '', correo: '', telefono: '' })
+  const [showCatalog, setShowCatalog] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const totales = calcularTotales(form.items, form.conIva)
   const fechaVencimiento = sumarDias(form.fecha, parseInt(form.validez) || 15)
   const agregarItem = () => set('items', [...form.items, { descripcion: '', cantidad: 1, precioUnitario: 0, total: 0 }])
+  const agregarDesde = (item) => set('items', [...form.items, { ...item }])
   const updateItem = (idx, item) => { const items = [...form.items]; items[idx] = item; set('items', items) }
   const deleteItem = (idx) => set('items', form.items.filter((_, i) => i !== idx))
 
@@ -427,11 +515,24 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
 
           {/* Ítems */}
           <div>
+            {showCatalog && (
+              <CatalogoPicker
+                onAgregar={agregarDesde}
+                onClose={() => setShowCatalog(false)}
+              />
+            )}
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Ítems</label>
-              <button type="button" onClick={agregarItem} className="flex items-center gap-1 text-xs font-dm text-birth-black hover:text-birth-red">
-                <Plus size={12} /> Agregar ítem
-              </button>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setShowCatalog(true)}
+                  className="flex items-center gap-1 text-xs font-dm text-birth-black border border-birth-gray-2 rounded px-2.5 py-1 hover:border-birth-black hover:bg-birth-gray transition-colors">
+                  <BookOpen size={11} /> Catálogo
+                </button>
+                <button type="button" onClick={agregarItem}
+                  className="flex items-center gap-1 text-xs font-dm text-birth-black hover:text-birth-red">
+                  <Plus size={12} /> Manual
+                </button>
+              </div>
             </div>
             {/* Móvil: cards */}
             <div className="md:hidden space-y-2">

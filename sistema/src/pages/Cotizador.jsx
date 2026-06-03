@@ -153,7 +153,7 @@ function ProductoFila({ producto, multiplicador }) {
     <div className={`flex items-center gap-2 px-4 py-2.5 border-b border-birth-gray-2 transition-colors ${added ? 'bg-green-50' : 'hover:bg-birth-gray'}`}>
       {/* Nombre + precio unitario */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-dm font-medium truncate text-birth-black">{producto.nombre}</p>
+        <p className="text-sm font-dm font-medium leading-snug text-birth-black">{producto.nombre}</p>
         {producto.precio > 0 && (
           <p className="text-[11px] text-birth-gray-3 font-dm">
             {clp(producto.precio)}/{u === 'libre' ? 'libre' : u}
