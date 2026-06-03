@@ -223,6 +223,21 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
 
   linea(doc, y)
   y += 5
+
+  const tieneDescuento = cotizacion.descuento > 0 && cotizacion.montoDescuento > 0
+  if (tieneDescuento) {
+    const subtotalBruto = cotizacion.subtotal + cotizacion.montoDescuento
+    addTotal('Subtotal bruto:', subtotalBruto)
+
+    // Línea descuento en rojo
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...ROJO)
+    doc.text(`Descuento ${cotizacion.descuento}%:`, totalesX, y)
+    doc.text(`-${clp(cotizacion.montoDescuento)}`, totalesValX, y, { align: 'right' })
+    y += 5
+  }
+
   addTotal('Subtotal neto:', cotizacion.subtotal)
   if (cotizacion.iva > 0) addTotal('IVA (19%):', cotizacion.iva)
   linea(doc, y)
