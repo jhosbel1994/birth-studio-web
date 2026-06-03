@@ -209,6 +209,221 @@ function ProductoFila({ producto, multiplicador }) {
 // ─── UTILIDAD: búsqueda sin importar tildes ni mayúsculas ─────────────────
 const normalizar = s => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 
+// ─── DATOS AFICHES ACRÍLICOS ───────────────────────────────────────────────
+const AFICHES_MEDIDAS = [
+  { label: '40×40cm',   m2: 0.16, simple: 28900,  adhesivo: 34700,  retro: 32000,  retroRelieve: 40000,  relieve: 35500  },
+  { label: '50×50cm',   m2: 0.25, simple: 45100,  adhesivo: 54100,  retro: 50000,  retroRelieve: 62500,  relieve: 55500  },
+  { label: '60×60cm',   m2: 0.36, simple: 65000,  adhesivo: 78000,  retro: 72000,  retroRelieve: 90000,  relieve: 80000  },
+  { label: '70×70cm',   m2: 0.49, simple: 88400,  adhesivo: 106100, retro: 98000,  retroRelieve: 122500, relieve: 108800 },
+  { label: '80×80cm',   m2: 0.64, simple: 115500, adhesivo: 138600, retro: 128000, retroRelieve: 160000, relieve: 142100 },
+  { label: '90×90cm',   m2: 0.81, simple: 146200, adhesivo: 175400, retro: 162000, retroRelieve: 202500, relieve: 179800 },
+  { label: '100×100cm', m2: 1.00, simple: 180500, adhesivo: 216600, retro: 200000, retroRelieve: 250000, relieve: 222000 },
+  { label: '110×110cm', m2: 1.21, simple: 218400, adhesivo: 262100, retro: 242000, retroRelieve: 302500, relieve: 268600 },
+  { label: '120×120cm', m2: 1.44, simple: 259900, adhesivo: 311900, retro: 288000, retroRelieve: 360000, relieve: 319700 },
+  { label: '130×130cm', m2: 1.69, simple: 305000, adhesivo: 366000, retro: 338000, retroRelieve: 422500, relieve: 375200 },
+  { label: '140×140cm', m2: 1.96, simple: 353800, adhesivo: 424600, retro: 392000, retroRelieve: 490000, relieve: 435100 },
+  { label: '150×150cm', m2: 2.25, simple: 406100, adhesivo: 487300, retro: 450000, retroRelieve: 562500, relieve: 499500 },
+]
+const AFICHES_TIPOS = [
+  { id: 'simple',       label: 'Simple' },
+  { id: 'adhesivo',     label: 'Con adhesivo' },
+  { id: 'retro',        label: 'Con retroiluminación' },
+  { id: 'retroRelieve', label: 'Retroiluminado + relieve' },
+  { id: 'relieve',      label: 'Relieve sin retroiluminación' },
+]
+
+// ─── PANEL AFICHES ACRÍLICOS ───────────────────────────────────────────────
+function AfichesAcrilicosPanel() {
+  const [grosor, setGrosor]             = useState('3mm')
+  const [tipo, setTipo]                 = useState('simple')
+  const [medidaIdx, setMedidaIdx]       = useState(null)
+  const [conDist, setConDist]           = useState(false)
+  const [cantDist, setCantDist]         = useState(4)
+  const [instalacion, setInstalacion]   = useState('ninguna')
+  const [andamioCuerpos, setAndamioCuerpos] = useState(1)
+  const [conIva, setConIva]             = useState(false)
+
+  function precioMedida(m, t) {
+    return m[t] + (grosor === '5mm' ? Math.round(m.m2 * 15000) : 0)
+  }
+
+  const medida   = medidaIdx !== null ? AFICHES_MEDIDAS[medidaIdx] : null
+  const base     = medida ? precioMedida(medida, tipo) : 0
+  const costDist = conDist ? cantDist * 1500 : 0
+  let subtotal   = base + costDist
+  if (instalacion === 'sin_andamio') subtotal = Math.round(subtotal * 1.5)
+  if (instalacion === 'con_andamio') subtotal = Math.round(subtotal * 1.5) + andamioCuerpos * 5000
+  const iva   = conIva ? Math.round(subtotal * 0.19) : 0
+  const total = subtotal + iva
+
+  const handleAdd = () => {
+    if (!medida || !subtotal) return
+    const tipoLabel = AFICHES_TIPOS.find(t => t.id === tipo).label
+    const adics = []
+    if (conDist) adics.push(`${cantDist} distanciadores`)
+    if (instalacion === 'sin_andamio') adics.push('instalación s/andamio')
+    if (instalacion === 'con_andamio') adics.push(`instalación c/andamio ${andamioCuerpos} cuerpos`)
+    const desc = `Afiche acrílico ${medida.label} ${grosor} — ${tipoLabel}${adics.length ? ' | ' + adics.join(', ') : ''}`
+    window.dispatchEvent(new CustomEvent('cotizador:agregar', {
+      detail: { descripcion: desc, cantidad: 1, precioUnitario: subtotal, total: subtotal }
+    }))
+    setMedidaIdx(null)
+  }
+
+  return (
+    <div className="divide-y divide-birth-gray-2">
+
+      {/* ── Filtros ── */}
+      <div className="p-4 space-y-4">
+        {/* Grosor */}
+        <div>
+          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider mb-2">Grosor</p>
+          <div className="flex gap-1.5">
+            {['3mm', '5mm'].map(g => (
+              <button key={g} onClick={() => setGrosor(g)}
+                className={`px-5 py-1.5 rounded text-sm font-dm border transition-colors ${grosor === g ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+                {g}
+              </button>
+            ))}
+          </div>
+          {grosor === '5mm' && (
+            <p className="text-[11px] text-birth-red font-dm mt-1.5">+$15.000 × m² sobre precio base</p>
+          )}
+        </div>
+
+        {/* Tipo */}
+        <div>
+          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider mb-2">Tipo</p>
+          <div className="flex flex-wrap gap-1.5">
+            {AFICHES_TIPOS.map(t => (
+              <button key={t.id} onClick={() => setTipo(t.id)}
+                className={`px-3 py-1.5 rounded text-xs font-dm border transition-colors ${tipo === t.id ? 'bg-birth-red text-white border-birth-red' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Tabla de precios ── */}
+      <div>
+        <div className="px-4 py-2 bg-birth-gray">
+          <p className="text-[10px] font-dm font-bold uppercase tracking-wider text-birth-gray-4">
+            Selecciona medida — {AFICHES_TIPOS.find(t => t.id === tipo)?.label} · {grosor}
+          </p>
+        </div>
+        {AFICHES_MEDIDAS.map((m, i) => {
+          const precio = precioMedida(m, tipo)
+          const sel    = medidaIdx === i
+          return (
+            <button key={i} onClick={() => setMedidaIdx(sel ? null : i)}
+              className={`w-full flex items-center gap-3 px-4 py-3 border-b border-birth-gray-2 text-left transition-colors ${sel ? 'bg-birth-black' : 'hover:bg-birth-gray'}`}>
+              <div className="flex-1">
+                <p className={`text-sm font-dm font-semibold ${sel ? 'text-white' : 'text-birth-black'}`}>{m.label}</p>
+                <p className={`text-[11px] font-dm ${sel ? 'text-white/50' : 'text-birth-gray-3'}`}>{m.m2} m²{grosor === '5mm' ? ` · +${clp(Math.round(m.m2*15000))}` : ''}</p>
+              </div>
+              <span className={`font-barlow font-bold text-lg ${sel ? 'text-white' : 'text-birth-black'}`}>{clp(precio)}</span>
+              <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center ${sel ? 'border-white' : 'border-birth-gray-2'}`}>
+                {sel && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Adicionales ── */}
+      <div className="p-4 space-y-3">
+        <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Adicionales</p>
+
+        {/* Distanciadores */}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={conDist} onChange={e => setConDist(e.target.checked)} className="accent-birth-black" />
+          <span className="text-sm font-dm text-birth-gray-4 flex-1">Distanciadores — $1.500 c/u</span>
+          {conDist && (
+            <input type="number" min="1" value={cantDist} onChange={e => setCantDist(parseInt(e.target.value) || 1)}
+              className="w-16 text-center border border-birth-gray-2 rounded px-2 py-1 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          )}
+        </label>
+
+        {/* Instalación */}
+        <div className="space-y-2">
+          {[
+            { id: 'ninguna',     label: 'Sin instalación' },
+            { id: 'sin_andamio', label: 'Instalación sin andamio (× 1.5)' },
+            { id: 'con_andamio', label: 'Instalación con andamio (× 1.5 + cuerpos)' },
+          ].map(op => (
+            <label key={op.id} className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="af-inst" value={op.id} checked={instalacion === op.id}
+                onChange={() => setInstalacion(op.id)} className="accent-birth-black" />
+              <span className="text-sm font-dm text-birth-gray-4 flex-1">{op.label}</span>
+              {op.id === 'con_andamio' && instalacion === 'con_andamio' && (
+                <div className="flex items-center gap-1.5">
+                  <input type="number" min="1" value={andamioCuerpos} onChange={e => setAndamioCuerpos(parseInt(e.target.value) || 1)}
+                    className="w-14 text-center border border-birth-gray-2 rounded px-2 py-1 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                  <span className="text-xs text-birth-gray-3 font-dm">cuerpos</span>
+                </div>
+              )}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Resumen + totales ── */}
+      <div className="p-4 space-y-3">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} className="accent-birth-black" />
+          <span className="text-sm font-dm text-birth-gray-4">Incluir IVA 19% (solo vista previa)</span>
+        </label>
+
+        {medida ? (
+          <div className="bg-birth-gray rounded p-4 space-y-1.5">
+            <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+              <span>{medida.label} · {grosor} · {AFICHES_TIPOS.find(t => t.id === tipo)?.label}</span>
+              <span>{clp(base)}</span>
+            </div>
+            {conDist && (
+              <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                <span>Distanciadores ×{cantDist}</span><span>{clp(costDist)}</span>
+              </div>
+            )}
+            {instalacion === 'sin_andamio' && (
+              <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                <span>Instalación s/andamio</span><span>× 1.5</span>
+              </div>
+            )}
+            {instalacion === 'con_andamio' && (
+              <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                <span>Instalación c/andamio ({andamioCuerpos} cuerpos)</span>
+                <span>× 1.5 + {clp(andamioCuerpos * 5000)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-dm text-birth-gray-4 border-t border-birth-gray-2 pt-1.5">
+              <span>Subtotal neto</span><span>{clp(subtotal)}</span>
+            </div>
+            {conIva && (
+              <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                <span>IVA 19%</span><span>{clp(iva)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-barlow text-2xl font-bold pt-1">
+              <span>TOTAL</span><span className="text-birth-red">{clp(total)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-birth-gray rounded p-4 text-center">
+            <p className="text-sm font-dm text-birth-gray-3">Selecciona una medida en la tabla</p>
+          </div>
+        )}
+
+        <button onClick={handleAdd} disabled={!medida || !subtotal}
+          className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <Plus size={15} /> Agregar a cotización
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── PANEL DE PRODUCTOS GENÉRICO ──────────────────────────────────────────
 function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
   const productos = PRODUCTOS[categoria] || []
@@ -874,6 +1089,7 @@ function CategoriaPanel({ categoria, multiplicador, setMultiplicador }) {
   if (categoria === 'miscelaneos') return <MiscelaneosPanel />
   if (categoria === 'manual') return <ManualPanel />
   if (categoria === 'acrilico') return <AcrilicoPanel multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
+  if (categoria === 'afiches_acrilico') return <AfichesAcrilicosPanel />
   return <ProductosGenericos categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
 }
 
