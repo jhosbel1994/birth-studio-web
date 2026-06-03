@@ -23,7 +23,7 @@ export default function BottomNav() {
             to={to}
             className={({ isActive }) =>
               `relative flex min-w-0 flex-col items-center justify-center gap-0.5 py-1.5 transition-colors ${
-                isActive ? 'text-white' : 'text-white/38 active:text-white/70'
+                isActive ? 'text-white' : 'text-white/65 active:text-white'
               }`
             }
           >

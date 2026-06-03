@@ -62,7 +62,7 @@ export default function MobileHeader() {
                     `flex items-center gap-2 rounded-md border px-3 py-3 text-sm font-dm font-medium ${
                       isActive
                         ? 'border-birth-red bg-birth-red text-white'
-                        : 'border-white/10 bg-white/5 text-white/72'
+                        : 'border-white/20 bg-white/10 text-white/90'
                     }`
                   }
                 >
