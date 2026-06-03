@@ -150,8 +150,8 @@ function ProductoFila({ producto, multiplicador }) {
   }
 
   return (
-    <div className={`flex items-center gap-2 px-4 py-2.5 border-b border-birth-gray-2 transition-colors ${added ? 'bg-green-50' : 'hover:bg-birth-gray'}`}>
-      {/* Nombre + precio unitario */}
+    <div className={`flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 px-4 py-2.5 border-b border-birth-gray-2 transition-colors ${added ? 'bg-green-50' : 'hover:bg-birth-gray'}`}>
+      {/* Nombre + precio unitario — fila completa en móvil */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-dm font-medium leading-snug text-birth-black">{producto.nombre}</p>
         {producto.precio > 0 && (
@@ -162,42 +162,45 @@ function ProductoFila({ producto, multiplicador }) {
         )}
       </div>
 
-      {/* Inputs según unidad */}
-      {u === 'm2' && (
-        <div className="flex items-center gap-1 shrink-0">
+      {/* Inputs + total + botón — segunda fila en móvil */}
+      <div className="flex items-center gap-2">
+        {/* Inputs según unidad */}
+        {u === 'm2' && (
+          <div className="flex items-center gap-1 shrink-0">
+            <input type="number" min="0" step="0.01" value={d1} onChange={e => setD1(e.target.value)}
+              placeholder="Ancho" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
+            <span className="text-birth-gray-3 text-xs">×</span>
+            <input type="number" min="0" step="0.01" value={d2} onChange={e => setD2(e.target.value)}
+              placeholder="Alto" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+        )}
+        {u === 'ml' && (
           <input type="number" min="0" step="0.01" value={d1} onChange={e => setD1(e.target.value)}
-            placeholder="Ancho" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
-          <span className="text-birth-gray-3 text-xs">×</span>
-          <input type="number" min="0" step="0.01" value={d2} onChange={e => setD2(e.target.value)}
-            placeholder="Alto" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
-        </div>
-      )}
-      {u === 'ml' && (
-        <input type="number" min="0" step="0.01" value={d1} onChange={e => setD1(e.target.value)}
-          placeholder="mt" className="w-16 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
-      )}
-      {['unidad', 'plancha', 'hora', 'set', 'dia'].includes(u) && (
-        <input type="number" min="1" value={d1 || ''} onChange={e => setD1(e.target.value)}
-          placeholder="1" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
-      )}
-      {u === 'libre' && (
-        <input type="number" min="0" value={d1} onChange={e => setD1(e.target.value)}
-          placeholder="$" className="w-20 text-right border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
-      )}
-      {['proyecto', 'año'].includes(u) && (
-        <span className="text-xs text-birth-gray-3 font-dm w-14 text-right">{clp(producto.precio)}</span>
-      )}
+            placeholder="mt" className="w-16 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
+        )}
+        {['unidad', 'plancha', 'hora', 'set', 'dia'].includes(u) && (
+          <input type="number" min="1" value={d1 || ''} onChange={e => setD1(e.target.value)}
+            placeholder="1" className="w-14 text-center border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
+        )}
+        {u === 'libre' && (
+          <input type="number" min="0" value={d1} onChange={e => setD1(e.target.value)}
+            placeholder="$" className="w-20 text-right border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
+        )}
+        {['proyecto', 'año'].includes(u) && (
+          <span className="text-xs text-birth-gray-3 font-dm w-14 text-right">{clp(producto.precio)}</span>
+        )}
 
-      {/* Total preview */}
-      <span className={`text-sm font-dm font-bold w-20 text-right shrink-0 ${total > 0 ? 'text-birth-black' : 'text-birth-gray-2'}`}>
-        {total > 0 ? clp(total) : '—'}
-      </span>
+        {/* Total preview */}
+        <span className={`text-sm font-dm font-bold w-20 text-right shrink-0 ${total > 0 ? 'text-birth-black' : 'text-birth-gray-2'}`}>
+          {total > 0 ? clp(total) : '—'}
+        </span>
 
-      {/* Botón agregar */}
-      <button onClick={handleAdd} disabled={!canAdd}
-        className={`w-8 h-8 flex items-center justify-center rounded shrink-0 transition-all ${canAdd ? 'bg-birth-red text-white hover:bg-red-700' : 'bg-birth-gray-2 text-birth-gray-3 cursor-not-allowed'}`}>
-        <Plus size={14} />
-      </button>
+        {/* Botón agregar */}
+        <button onClick={handleAdd} disabled={!canAdd}
+          className={`w-8 h-8 flex items-center justify-center rounded shrink-0 transition-all ${canAdd ? 'bg-birth-red text-white hover:bg-red-700' : 'bg-birth-gray-2 text-birth-gray-3 cursor-not-allowed'}`}>
+          <Plus size={14} />
+        </button>
+      </div>
     </div>
   )
 }
