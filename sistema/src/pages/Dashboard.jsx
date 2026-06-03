@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCotizaciones, getGastos } from '../utils/storage'
 import { clp, fechaCorta, ESTADOS } from '../utils/formatters'
-import { TrendingUp, FileText, Clock, CheckCircle, XCircle, DollarSign } from 'lucide-react'
+import {
+  TrendingUp, FileText, Clock, CheckCircle, XCircle, DollarSign,
+  Calculator, Users, ScrollText, Wallet,
+} from 'lucide-react'
 
 function StatCard({ label, value, sub, color, icon: Icon }) {
   return (
@@ -19,6 +22,36 @@ function StatCard({ label, value, sub, color, icon: Icon }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function MobileQuickNav({ navigate }) {
+  const items = [
+    { to: '/cotizador', label: 'Cotizador', icon: Calculator },
+    { to: '/clientes', label: 'Clientes', icon: Users },
+    { to: '/cotizaciones', label: 'Cotizaciones', icon: FileText },
+    { to: '/contratos', label: 'Contratos', icon: ScrollText },
+    { to: '/gastos', label: 'Finanzas', icon: Wallet },
+  ]
+
+  return (
+    <div className="md:hidden grid grid-cols-2 gap-2 mb-5">
+      {items.map(({ to, label, icon: Icon }, index) => (
+        <button
+          key={to}
+          type="button"
+          onClick={() => navigate(to)}
+          className={`h-12 rounded-md border flex items-center justify-center gap-2 text-sm font-dm font-medium ${
+            index === 0
+              ? 'col-span-2 bg-birth-red border-birth-red text-white'
+              : 'bg-white border-birth-gray-2 text-birth-black active:border-birth-black'
+          }`}
+        >
+          <Icon size={17} strokeWidth={2} />
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
@@ -63,6 +96,8 @@ export default function Dashboard() {
         <h1 className="font-barlow text-3xl md:text-4xl font-bold text-birth-black tracking-wide">DASHBOARD</h1>
         <p className="text-birth-gray-3 text-xs md:text-sm font-dm mt-1">Resumen — Birth Studio SpA</p>
       </div>
+
+      <MobileQuickNav navigate={navigate} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5 md:mb-8">
