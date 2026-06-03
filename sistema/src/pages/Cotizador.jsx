@@ -243,11 +243,12 @@ function AfichesAcrilicosPanel() {
   const [andamioCuerpos, setAndamioCuerpos] = useState(1)
   const [conIva, setConIva]             = useState(false)
   // Personalizados por m² — tipo del panel, grosor propio
-  const [cGrosor, setCGrosor] = useState('3mm')
-  const [cForma, setCForma]   = useState('rectangular')
-  const [cAncho, setCAncho]   = useState('')
-  const [cAlto, setCAlto]     = useState('')
-  const [cDiam, setCDiam]     = useState('')
+  const [cGrosor, setCGrosor]     = useState('3mm')
+  const [cForma, setCForma]       = useState('rectangular')
+  const [cAncho, setCAncho]       = useState('')
+  const [cAlto, setCAlto]         = useState('')
+  const [cDiam, setCDiam]         = useState('')
+  const [cPrecioM2, setCPrecioM2] = useState('')
 
   // Precio por m² derivado de la tabla (ref: 100×100cm = 1.00 m²)
   const PRECIO_M2_TIPO = {
@@ -257,7 +258,12 @@ function AfichesAcrilicosPanel() {
     retroRelieve: { '3mm': 250000, '5mm': 265000 },
     relieve:      { '3mm': 222000, '5mm': 237000 },
   }
-  const precioM2Custom = PRECIO_M2_TIPO[tipo]?.[cGrosor] || 0
+  const precioM2Sugerido = PRECIO_M2_TIPO[tipo]?.[cGrosor] || 0
+  const precioM2Custom = parseFloat(cPrecioM2) || precioM2Sugerido
+
+  useEffect(() => {
+    setCPrecioM2(String(PRECIO_M2_TIPO[tipo]?.[cGrosor] || ''))
+  }, [tipo, cGrosor])
   const cArea   = cForma === 'rectangular'
     ? (parseFloat(cAncho) || 0) * (parseFloat(cAlto) || 0) / 10000
     : Math.PI * Math.pow((parseFloat(cDiam) || 0) / 2, 2) / 10000
@@ -468,19 +474,25 @@ function AfichesAcrilicosPanel() {
           ))}
         </div>
 
-        {/* Tarjeta dinámica — precio/m² según tipo (panel) y grosor (propio) */}
-        <div className="bg-birth-gray rounded p-3 flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Precio/m²</p>
-            <p className="text-xs font-dm text-birth-gray-3 mt-0.5">
-              {AFICHES_TIPOS.find(t => t.id === tipo)?.label} · {cGrosor}
-            </p>
-          </div>
-          <span className="font-barlow font-bold text-2xl text-birth-black">{clp(precioM2Custom)}</span>
+        {/* Precio/m² editable */}
+        <div>
+          <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1.5">
+            Precio por m² — {AFICHES_TIPOS.find(t => t.id === tipo)?.label} · {cGrosor}
+            <span className="ml-1 normal-case text-birth-gray-3">(editable)</span>
+          </label>
+          <input
+            type="number" min="0"
+            value={cPrecioM2}
+            onChange={e => setCPrecioM2(e.target.value)}
+            className="w-full border-2 border-birth-black rounded px-3 py-2 text-lg font-barlow font-bold focus:outline-none focus:border-birth-red"
+          />
+          {cPrecioM2 && parseFloat(cPrecioM2) !== precioM2Sugerido && (
+            <button onClick={() => setCPrecioM2(String(precioM2Sugerido))}
+              className="text-[11px] font-dm text-birth-red mt-1 hover:underline">
+              Restaurar sugerido ({clp(precioM2Sugerido)}/m²)
+            </button>
+          )}
         </div>
-        <p className="text-[11px] text-birth-gray-3 font-dm -mt-1">
-          El tipo se toma de los filtros de arriba (Simple, Retro, etc.)
-        </p>
 
         {/* Selector forma */}
         <div className="flex gap-1.5">
@@ -512,7 +524,7 @@ function AfichesAcrilicosPanel() {
         {cArea > 0 && (
           <div className="bg-birth-black rounded px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-xs font-dm text-white/60">{cArea.toFixed(4)} m² × {clp(precioM2Custom)}/m²</p>
+              <p className="text-xs font-dm text-white/60">{cArea.toFixed(4)} m² × {clp(precioM2Custom)}/m²{parseFloat(cPrecioM2) !== precioM2Sugerido ? ' ✎' : ''}</p>
               <p className="text-[11px] font-dm text-white/40">{cForma === 'circular' ? 'π × (Ø/2)²' : 'ancho × alto'}</p>
             </div>
             <span className="font-barlow font-bold text-2xl text-white">{clp(cPrecio)}</span>
