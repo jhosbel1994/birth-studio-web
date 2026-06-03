@@ -264,7 +264,7 @@ function AfichesAcrilicosPanel() {
   const precioM2Custom = parseFloat(cPrecioM2) || precioM2Sugerido
 
   useEffect(() => {
-    setCPrecioM2(String(PRECIO_M2_TIPO[tipo]?.[cGrosor] || ''))
+    setCPrecioM2(String(PRECIO_M2_AFICHES[tipo]?.[cGrosor] || ''))
   }, [tipo, cGrosor])
   const cArea   = cForma === 'rectangular'
     ? (parseFloat(cAncho) || 0) * (parseFloat(cAlto) || 0) / 10000
