@@ -255,7 +255,29 @@ export default function Gastos() {
               gastosMes.length === 0 ? (
                 <div className="py-16 text-center text-birth-gray-3 text-sm font-dm">Sin gastos este mes</div>
               ) : (
-                <table className="w-full text-sm font-dm">
+                <>
+                <div className="md:hidden divide-y divide-birth-gray-2">
+                  {[...gastosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(g => (
+                    <div key={g.id} className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-dm font-semibold text-sm text-birth-black truncate">{g.descripcion}</p>
+                          <p className="text-xs text-birth-gray-3 mt-1 font-dm">{fechaCorta(g.fecha)}</p>
+                          <span className="inline-block mt-2 bg-birth-gray px-2 py-0.5 rounded text-[11px] font-dm text-birth-gray-4">{g.categoria}</span>
+                        </div>
+                        <p className="font-barlow text-lg font-bold text-birth-red shrink-0">{clp(g.monto)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id); cargar() } }}
+                        className="mt-4 h-10 w-full rounded border border-birth-gray-2 text-xs font-dm text-birth-red flex items-center justify-center gap-2 active:border-birth-red"
+                      >
+                        <Trash2 size={14} /> Eliminar gasto
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <table className="hidden md:table w-full text-sm font-dm">
                   <thead>
                     <tr className="border-b border-birth-gray-2">
                       <th className="text-left px-5 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Descripción</th>
@@ -284,12 +306,38 @@ export default function Gastos() {
                     ))}
                   </tbody>
                 </table>
+                </>
               )
             ) : (
               pagosMes.length === 0 ? (
                 <div className="py-16 text-center text-birth-gray-3 text-sm font-dm">Sin ingresos este mes</div>
               ) : (
-                <table className="w-full text-sm font-dm">
+                <>
+                <div className="md:hidden divide-y divide-birth-gray-2">
+                  {[...pagosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(p => {
+                    const cot = cotizaciones.find(c => c.id === p.cotizacionId)
+                    return (
+                      <div key={p.id} className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-dm font-semibold text-sm text-birth-black truncate">{p.notas || 'Ingreso registrado'}</p>
+                            <p className="text-xs text-birth-gray-3 mt-1 font-dm">{fechaCorta(p.fecha)}{cot ? ` · #${cot.numero}` : ''}</p>
+                            <span className="inline-block mt-2 bg-birth-gray px-2 py-0.5 rounded text-[11px] font-dm text-birth-gray-4 capitalize">{p.tipo}</span>
+                          </div>
+                          <p className="font-barlow text-lg font-bold text-green-700 shrink-0">{clp(p.monto)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id); cargar() } }}
+                          className="mt-4 h-10 w-full rounded border border-birth-gray-2 text-xs font-dm text-birth-red flex items-center justify-center gap-2 active:border-birth-red"
+                        >
+                          <Trash2 size={14} /> Eliminar ingreso
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+                <table className="hidden md:table w-full text-sm font-dm">
                   <thead>
                     <tr className="border-b border-birth-gray-2">
                       <th className="text-left px-5 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Notas</th>
@@ -323,6 +371,7 @@ export default function Gastos() {
                     })}
                   </tbody>
                 </table>
+                </>
               )
             )}
           </div>
