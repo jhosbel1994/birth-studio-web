@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getClientes, saveCliente, deleteCliente, getCotizaciones } from '../utils/storage'
 import { fechaCorta, clp, ESTADOS } from '../utils/formatters'
-import { Plus, Search, Trash2, Edit2, FileText, Phone, Mail, X, ChevronDown } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, FileText, Phone, Mail, X } from 'lucide-react'
 
 const EMPTY = { nombre: '', empresa: '', rut: '', ciudad: '', correo: '', telefono: '', notas: '' }
 
@@ -18,16 +18,16 @@ function Modal({ cliente, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded w-full max-w-lg shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-birth-gray-2">
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
           <h2 className="font-barlow text-xl font-bold tracking-wide">
             {cliente?.id ? 'EDITAR CLIENTE' : 'NUEVO CLIENTE'}
           </h2>
           <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="p-5 md:p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Nombre *</label>
               <input value={form.nombre} onChange={e => set('nombre', e.target.value)} required
@@ -39,7 +39,7 @@ function Modal({ cliente, onClose, onSave }) {
                 className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">RUT</label>
               <input value={form.rut} onChange={e => set('rut', e.target.value)}
@@ -51,7 +51,7 @@ function Modal({ cliente, onClose, onSave }) {
                 className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" placeholder="Talca" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Correo</label>
               <input type="email" value={form.correo} onChange={e => set('correo', e.target.value)}
@@ -68,7 +68,7 @@ function Modal({ cliente, onClose, onSave }) {
             <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
               className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2 pb-safe">
             <button type="submit"
               className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
               {cliente?.id ? 'Guardar cambios' : 'Crear cliente'}
@@ -89,9 +89,9 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-4">
-      <div className="bg-white rounded w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white">
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-2xl max-h-[92vh] md:max-h-[85vh] overflow-y-auto shadow-xl">
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
           <div>
             <h2 className="font-barlow text-xl font-bold tracking-wide">{cliente.nombre}</h2>
             {cliente.empresa && <p className="text-sm text-birth-gray-4 font-dm">{cliente.empresa}</p>}
@@ -103,9 +103,9 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-5 md:p-6 space-y-6 pb-safe">
           {/* Info */}
-          <div className="grid grid-cols-2 gap-4 text-sm font-dm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-dm">
             {cliente.rut && <div><span className="text-birth-gray-4 text-xs uppercase tracking-wider">RUT</span><p className="mt-0.5">{cliente.rut}</p></div>}
             {cliente.ciudad && <div><span className="text-birth-gray-4 text-xs uppercase tracking-wider">Ciudad</span><p className="mt-0.5">{cliente.ciudad}</p></div>}
             {cliente.correo && (
@@ -117,7 +117,7 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
                 <p className="mt-0.5 flex items-center gap-1"><Phone size={12} className="text-birth-gray-3" />{cliente.telefono}</p></div>
             )}
             {cliente.notas && (
-              <div className="col-span-2"><span className="text-birth-gray-4 text-xs uppercase tracking-wider">Notas</span><p className="mt-0.5 text-birth-gray-4">{cliente.notas}</p></div>
+              <div className="sm:col-span-2"><span className="text-birth-gray-4 text-xs uppercase tracking-wider">Notas</span><p className="mt-0.5 text-birth-gray-4">{cliente.notas}</p></div>
             )}
           </div>
 
@@ -222,19 +222,19 @@ export default function Clientes() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between gap-3 mb-5 md:mb-8">
         <div>
-          <h1 className="font-barlow text-4xl font-bold text-birth-black tracking-wide">CLIENTES</h1>
-          <p className="text-birth-gray-3 text-sm font-dm mt-1">{clientes.length} clientes registrados</p>
+          <h1 className="font-barlow text-3xl md:text-4xl font-bold text-birth-black tracking-wide">CLIENTES</h1>
+          <p className="text-birth-gray-3 text-xs md:text-sm font-dm mt-1">{clientes.length} clientes registrados</p>
         </div>
         <button onClick={() => setModal('nuevo')}
-          className="flex items-center gap-2 bg-birth-black text-white px-5 py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
-          <Plus size={16} /> Nuevo cliente
+          className="flex items-center gap-2 bg-birth-black text-white px-3 md:px-5 py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
+          <Plus size={16} /> <span className="hidden sm:inline">Nuevo</span> cliente
         </button>
       </div>
 
       {/* Búsqueda */}
-      <div className="relative mb-6 max-w-sm">
+      <div className="relative mb-5 md:mb-6 max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-birth-gray-3" />
         <input
           value={busqueda}
