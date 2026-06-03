@@ -722,10 +722,32 @@ export default function Cotizaciones() {
     }
   }
 
-  const handleEnviarWhatsApp = (cot) => {
+  const handleEnviarWhatsApp = async (cot) => {
     const cliente = clienteLocal(cot.clienteId)
-    window.open(buildWhatsAppUrl(cot, cliente), '_blank')
     setMenuAbierto(null)
+    try {
+      const { blob, filename } = await generarCotizacionPDF(cot, cliente, 'blob')
+      const file = new File([blob], filename, { type: 'application/pdf' })
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // Móvil: selector nativo del sistema — el usuario elige WhatsApp
+        await navigator.share({
+          files: [file],
+          title: `Cotización #${cot.numero} — Birth Studio`,
+          text: `Hola${cot.clienteNombre ? ' ' + cot.clienteNombre : ''}, adjunto la cotización #${cot.numero} de Birth Studio SpA por ${clp(cot.total)}.`,
+        })
+      } else {
+        // Desktop: descarga el PDF y abre WhatsApp con el texto
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
+        URL.revokeObjectURL(url)
+        setTimeout(() => window.open(buildWhatsAppUrl(cot, cliente), '_blank'), 600)
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        // Si algo falla, fallback al link de WhatsApp normal
+        window.open(buildWhatsAppUrl(cot, cliente), '_blank')
+      }
+    }
   }
 
   const filtradas = cotizaciones
