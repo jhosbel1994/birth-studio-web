@@ -217,10 +217,11 @@ function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, 
     <div className="fixed inset-0 bg-black/40 z-40 flex items-end md:items-center justify-center p-0 md:p-4"
       onClick={onClose}>
       <div
-        className="bg-white w-full md:max-w-xs rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden"
+        className="bg-white w-full md:max-w-xs rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[85vh]"
         onClick={e => e.stopPropagation()}>
-        {/* Header del menú */}
-        <div className="px-4 py-3 border-b border-birth-gray-2 flex items-center justify-between">
+
+        {/* Header del menú — fijo arriba */}
+        <div className="px-4 py-3 border-b border-birth-gray-2 flex items-center justify-between shrink-0">
           <div>
             <p className="font-barlow font-bold text-birth-black">#{cotizacion.numero}</p>
             <p className="text-xs text-birth-gray-3 font-dm">{cotizacion.clienteNombre || '—'} · {clp(cotizacion.total)}</p>
@@ -228,22 +229,34 @@ function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, 
           <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black p-1"><X size={16} /></button>
         </div>
 
-        {acciones.map(grupo => (
-          <div key={grupo.grupo}>
-            <p className="px-4 pt-3 pb-1 text-[9px] font-dm uppercase tracking-widest text-birth-gray-3">{grupo.grupo}</p>
-            {grupo.items.map(({ icon: Icon, label, desc, onClick, danger }) => (
-              <button key={label} onClick={onClick}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-birth-gray transition-colors active:bg-birth-gray-2 ${danger ? 'text-birth-red' : 'text-birth-black'}`}>
-                <Icon size={17} strokeWidth={1.75} className={danger ? 'text-birth-red' : 'text-birth-gray-4'} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-dm font-medium">{label}</p>
-                  {desc && <p className="text-[10px] text-birth-gray-3 truncate">{desc}</p>}
-                </div>
-              </button>
-            ))}
-          </div>
-        ))}
-        <div className="pb-safe h-4" />
+        {/* Acciones con scroll si no caben */}
+        <div className="overflow-y-auto flex-1">
+          {acciones.map(grupo => (
+            <div key={grupo.grupo}>
+              <p className="px-4 pt-3 pb-1 text-[9px] font-dm uppercase tracking-widest text-birth-gray-3">{grupo.grupo}</p>
+              {grupo.items.map(({ icon: Icon, label, desc, onClick, danger }) => (
+                <button key={label} onClick={onClick}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-birth-gray transition-colors active:bg-birth-gray-2 ${danger ? 'text-birth-red' : 'text-birth-black'}`}>
+                  <Icon size={17} strokeWidth={1.75} className={danger ? 'text-birth-red' : 'text-birth-gray-4'} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-dm font-medium">{label}</p>
+                    {desc && <p className="text-[10px] text-birth-gray-3 truncate">{desc}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Botón eliminar fijo al fondo — siempre visible */}
+        <div className="border-t border-birth-gray-2 shrink-0">
+          <button onClick={onEliminar}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 text-birth-red hover:bg-red-50 active:bg-red-100 transition-colors">
+            <Trash2 size={16} />
+            <span className="text-sm font-dm font-semibold">Eliminar cotización</span>
+          </button>
+          <div className="pb-safe" />
+        </div>
       </div>
     </div>
   )
