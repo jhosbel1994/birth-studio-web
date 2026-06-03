@@ -263,6 +263,85 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
   )
 }
 
+// ─── FORMULARIO CORTE RECTANGULAR ACRÍLICO ────────────────────────────────
+function AcrilicoRectangularPanel({ multiplicador }) {
+  const AREA_PLANCHA = 1.22 * 2.44
+
+  const materiales = [
+    { id: 'bnt_3mm', label: 'Blanco / Negro / Transparente 3mm', costoM2: Math.round(75000 / AREA_PLANCHA) },
+    { id: 'color_3mm', label: 'Color 3mm',                        costoM2: Math.round(95000 / AREA_PLANCHA) },
+    { id: 'bnt_5mm', label: 'Blanco / Negro / Transparente 5mm', costoM2: Math.round(125000 / AREA_PLANCHA) },
+  ]
+
+  const [matId, setMatId] = useState('bnt_3mm')
+  const [ancho, setAncho] = useState('')
+  const [alto, setAlto] = useState('')
+  const [precioM2, setPrecioM2] = useState('')
+
+  const mat = materiales.find(m => m.id === matId)
+
+  useEffect(() => {
+    if (mat) setPrecioM2(String(mat.costoM2 * multiplicador))
+  }, [matId, multiplicador])
+
+  const area = (parseFloat(ancho) || 0) * (parseFloat(alto) || 0) / 10000
+  const total = area > 0 && precioM2 ? Math.round(area * parseFloat(precioM2)) : 0
+
+  const handleAdd = () => {
+    if (!area || !total) return
+    window.dispatchEvent(new CustomEvent('cotizador:agregar', {
+      detail: {
+        descripcion: `Acrílico rect. ${mat.label} ${ancho}×${alto}cm`,
+        cantidad: 1, precioUnitario: total, total,
+      }
+    }))
+    setAncho(''); setAlto('')
+  }
+
+  return (
+    <div className="p-4 space-y-3">
+      <select value={matId} onChange={e => setMatId(e.target.value)}
+        className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
+        {materiales.map(m => (
+          <option key={m.id} value={m.id}>{m.label} — costo {clp(m.costoM2)}/m²</option>
+        ))}
+      </select>
+
+      <div className="grid grid-cols-2 gap-2">
+        <input type="number" min="0" value={ancho} onChange={e => setAncho(e.target.value)}
+          placeholder="Ancho (cm)"
+          className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+        <input type="number" min="0" value={alto} onChange={e => setAlto(e.target.value)}
+          placeholder="Alto (cm)"
+          className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+      </div>
+
+      {area > 0 && (
+        <p className="text-xs text-birth-gray-3 font-dm">Área: {area.toFixed(4)} m²</p>
+      )}
+
+      <div>
+        <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">
+          Precio de venta por m² (editable)
+        </label>
+        <input type="number" min="0" value={precioM2} onChange={e => setPrecioM2(e.target.value)}
+          placeholder="$ por m²"
+          className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+      </div>
+
+      <div className="flex items-center justify-between bg-birth-gray rounded px-4 py-2.5">
+        <span className="text-xs font-dm text-birth-gray-4">Total estimado</span>
+        <span className="font-barlow text-xl font-bold">{total > 0 ? clp(total) : '—'}</span>
+      </div>
+
+      <button onClick={handleAdd} disabled={!area || !total}
+        className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
+        <Plus size={15} /> Agregar a cotización
+      </button>
+    </div>
+  )
+}
+
 // ─── PANEL ESPECIAL ACRÍLICO ───────────────────────────────────────────────
 function AcrilicoPanel({ multiplicador, setMultiplicador }) {
   const todos = PRODUCTOS.acrilico || []
@@ -335,7 +414,15 @@ function AcrilicoPanel({ multiplicador, setMultiplicador }) {
         </>
       )}
 
-      {filtrarPlancha.length === 0 && filtrarCircular.length === 0 && (
+      {/* Sección: Corte Rectangular */}
+      {!q && (
+        <>
+          <SectionHeader label="Corte Rectangular — ingresar dimensiones en cm" />
+          <AcrilicoRectangularPanel multiplicador={multiplicador} />
+        </>
+      )}
+
+      {filtrarPlancha.length === 0 && filtrarCircular.length === 0 && q && (
         <p className="p-4 text-sm text-birth-gray-3 font-dm">Sin resultados para "{query}"</p>
       )}
     </div>
