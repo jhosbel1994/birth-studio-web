@@ -247,7 +247,7 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
         />
       </div>
       <div className="px-2 py-1 bg-birth-gray border-b border-birth-gray-2">
-        <div className="flex items-center text-[10px] text-birth-gray-3 font-dm uppercase tracking-wider px-2 gap-2">
+        <div className="hidden sm:flex items-center text-[10px] text-birth-gray-3 font-dm uppercase tracking-wider px-2 gap-2">
           <span className="flex-1">Producto</span>
           <span className="w-32">Medida / Cantidad</span>
           <span className="w-20 text-right">Total</span>
@@ -310,7 +310,7 @@ function AcrilicoPanel({ multiplicador, setMultiplicador }) {
 
       {/* Cabecera columnas */}
       <div className="px-2 py-1 bg-birth-gray border-b border-birth-gray-2">
-        <div className="flex items-center text-[10px] text-birth-gray-3 font-dm uppercase tracking-wider px-2 gap-2">
+        <div className="hidden sm:flex items-center text-[10px] text-birth-gray-3 font-dm uppercase tracking-wider px-2 gap-2">
           <span className="flex-1">Producto</span>
           <span className="w-32">Medida / Cantidad</span>
           <span className="w-20 text-right">Total</span>
@@ -815,17 +815,13 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
     const cot = await saveCotizacion(buildCot())
     const cliente = await getClienteById(clienteId) || { nombre: clienteNombre }
 
-    // Intentar EmailJS primero, fallback a Gmail
     try {
       await enviarCotizacionEmailJS(cot, cliente, emailCliente)
       setMsgEmail({ tipo: 'ok', texto: `Email enviado a ${emailCliente}` })
       onGuardado()
-    } catch {
-      // Fallback: abrir Gmail compose + descargar PDF
-      await generarCotizacionPDF(cot, cliente, 'download')
-      abrirGmailCompose(cot, cliente, emailCliente)
-      setMsgEmail({ tipo: 'info', texto: 'PDF descargado. Gmail abierto — adjunta el PDF al correo.' })
-      onGuardado()
+    } catch (err) {
+      const detalle = err?.text || err?.message || JSON.stringify(err) || 'error desconocido'
+      setMsgEmail({ tipo: 'error', texto: `EmailJS falló: ${detalle}` })
     }
     setLoading(false)
   }
