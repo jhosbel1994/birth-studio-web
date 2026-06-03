@@ -11,6 +11,7 @@ import { clp, hoy, sumarDias } from '../utils/formatters'
 import {
   Plus, Trash2, RotateCcw, ArrowRight,
   User, UserPlus, X, Download, Save, Mail, Eye, Pencil,
+  LayoutGrid, List, Search,
 } from 'lucide-react'
 
 // ─── BARRA DE CLIENTE (top) ────────────────────────────────────────────────
@@ -721,6 +722,61 @@ function ManualPanel() {
   )
 }
 
+// ─── PANEL RESULTADOS BÚSQUEDA GLOBAL ─────────────────────────────────────
+function BusquedaGlobalPanel({ resultados, query, multiplicador }) {
+  return (
+    <div className="flex-1 overflow-y-auto bg-white rounded border border-birth-gray-2">
+      <div className="px-4 py-2 bg-birth-gray border-b border-birth-gray-2 sticky top-0">
+        <p className="text-xs font-dm text-birth-gray-4">
+          {resultados.length > 0
+            ? `${resultados.length} resultado${resultados.length !== 1 ? 's' : ''} para "${query}"`
+            : `Sin resultados para "${query}"`}
+        </p>
+      </div>
+      {resultados.map(p => (
+        <ProductoFila key={`${p.catId}-${p.id}`} producto={p} multiplicador={multiplicador} />
+      ))}
+      {resultados.length === 0 && (
+        <p className="p-6 text-sm text-birth-gray-3 font-dm text-center">No se encontró ningún producto</p>
+      )}
+    </div>
+  )
+}
+
+// ─── VISTA CUADRÍCULA ─────────────────────────────────────────────────────
+function CuadriculaPanel({ categoria, setCategoria, multiplicador, setMultiplicador }) {
+  function conteo(catId) { return (PRODUCTOS[catId] || []).length }
+  return (
+    <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 px-2.5">
+        {CATEGORIAS.map(cat => {
+          const activa = cat.id === categoria
+          const n = conteo(cat.id)
+          return (
+            <button key={cat.id} onClick={() => setCategoria(cat.id)}
+              className={`text-left p-3 rounded border transition-all ${activa ? 'bg-birth-black border-birth-black' : 'bg-white border-birth-gray-2 hover:border-birth-black'}`}>
+              <p className={`text-sm font-dm font-semibold leading-tight ${activa ? 'text-white' : 'text-birth-black'}`}>
+                {cat.label}
+              </p>
+              {n > 0 && <p className={`text-[11px] mt-0.5 font-dm ${activa ? 'text-white/60' : 'text-birth-gray-3'}`}>{n} productos</p>}
+            </button>
+          )
+        })}
+      </div>
+      {categoria && (
+        <div className="mx-2.5 bg-white rounded border border-birth-gray-2">
+          <div className="px-4 py-2.5 border-b border-birth-gray-2 bg-birth-gray sticky top-0">
+            <h3 className="font-barlow text-sm font-bold tracking-wider text-birth-black uppercase">
+              {CATEGORIAS.find(c => c.id === categoria)?.label}
+            </h3>
+          </div>
+          <CategoriaPanel categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── PANEL DE PRODUCTOS SEGÚN CATEGORÍA ──────────────────────────────────
 function CategoriaPanel({ categoria, multiplicador, setMultiplicador }) {
   if (categoria === 'tarjetas') return <TarjetasPanel multiplicador={multiplicador} />
@@ -992,13 +1048,23 @@ export default function Cotizador() {
   const [clientes, setClientes] = useState([])
   const [clienteId, setClienteId] = useState('')
   const [clienteNombre, setClienteNombre] = useState('')
-  const [categoria, setCategoria] = useState('tela')
+  const [categoria, setCategoria] = useState('acrilico')
   const [multiplicador, setMultiplicador] = useState(2)
   const [items, setItems] = useState([])
   const [conIva, setConIva] = useState(true)
   const [modal, setModal] = useState(false)
-  // Tab móvil: 'calcular' | 'cotizacion'
   const [tabMovil, setTabMovil] = useState('calcular')
+  const [vistaMode, setVistaMode] = useState('lista')
+  const [globalQuery, setGlobalQuery] = useState('')
+
+  const busquedaGlobal = globalQuery.trim()
+    ? Object.entries(PRODUCTOS).flatMap(([catId, prods]) => {
+        const cat = CATEGORIAS.find(c => c.id === catId)
+        return prods
+          .filter(p => normalizar(p.nombre).includes(normalizar(globalQuery.trim())))
+          .map(p => ({ ...p, catId, catLabel: cat?.label || catId }))
+      })
+    : []
 
   const cargarClientes = () => getClientes().then(setClientes)
   useEffect(() => {
@@ -1033,12 +1099,27 @@ export default function Cotizador() {
           <h1 className="font-barlow text-2xl md:text-4xl font-bold text-birth-black tracking-wide">COTIZADOR</h1>
           <p className="text-birth-gray-3 text-[10px] md:text-xs font-dm hidden md:block">Selecciona categoría, ingresa medidas y agrega</p>
         </div>
-        {items.length > 0 && (
-          <button onClick={() => setItems([])}
-            className="flex items-center gap-1.5 text-xs font-dm text-birth-gray-4 border border-birth-gray-2 px-2.5 py-1.5 rounded">
-            <RotateCcw size={11} /> Limpiar
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Toggle lista / cuadrícula */}
+          <div className="flex border border-birth-gray-2 rounded overflow-hidden">
+            <button onClick={() => setVistaMode('lista')}
+              title="Vista lista"
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-dm transition-colors ${vistaMode === 'lista' ? 'bg-birth-black text-white' : 'text-birth-gray-4 hover:bg-birth-gray'}`}>
+              <List size={13} /><span className="hidden sm:inline">Lista</span>
+            </button>
+            <button onClick={() => setVistaMode('cuadricula')}
+              title="Vista cuadrícula"
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-dm border-l border-birth-gray-2 transition-colors ${vistaMode === 'cuadricula' ? 'bg-birth-black text-white' : 'text-birth-gray-4 hover:bg-birth-gray'}`}>
+              <LayoutGrid size={13} /><span className="hidden sm:inline">Cuadrícula</span>
+            </button>
+          </div>
+          {items.length > 0 && (
+            <button onClick={() => setItems([])}
+              className="flex items-center gap-1.5 text-xs font-dm text-birth-gray-4 border border-birth-gray-2 px-2.5 py-1.5 rounded">
+              <RotateCcw size={11} /> Limpiar
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Barra de cliente */}
@@ -1048,6 +1129,24 @@ export default function Cotizador() {
           clienteNombre={clienteNombre} setClienteNombre={setClienteNombre}
           clientes={clientes} onClienteGuardado={cargarClientes}
         />
+      </div>
+
+      {/* Buscador global */}
+      <div className="px-2.5 md:px-6 pb-2 shrink-0">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-birth-gray-3 pointer-events-none" />
+          <input
+            value={globalQuery}
+            onChange={e => setGlobalQuery(e.target.value)}
+            placeholder="Buscar en todos los productos..."
+            className="w-full border border-birth-gray-2 rounded pl-8 pr-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black bg-white"
+          />
+          {globalQuery && (
+            <button onClick={() => setGlobalQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-birth-gray-3 hover:text-birth-black">
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ─── MÓVIL: Tab bar ─────────────────────────────────────────────── */}
@@ -1075,29 +1174,39 @@ export default function Cotizador() {
 
       {/* ─── MÓVIL: Vista Calcular ───────────────────────────────────────── */}
       <div className={`flex-1 overflow-hidden flex flex-col lg:hidden ${tabMovil === 'calcular' ? 'flex' : 'hidden'}`}>
-        {/* Chips de categoría (scroll horizontal) */}
-        <div className="flex gap-2 overflow-x-auto px-2.5 py-2.5 shrink-0 scrollbar-none"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {CATEGORIAS.map(cat => (
-            <button key={cat.id} onClick={() => setCategoria(cat.id)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-dm border transition-colors ${
-                categoria === cat.id
-                  ? 'bg-birth-black text-white border-birth-black'
-                  : 'bg-white text-birth-gray-4 border-birth-gray-2'
-              }`}>
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Productos de la categoría seleccionada */}
-        <div className="flex-1 overflow-y-auto bg-white mx-2.5 md:mx-6 rounded border border-birth-gray-2 mb-2">
-          <CategoriaPanel
-            categoria={categoria}
-            multiplicador={multiplicador}
-            setMultiplicador={setMultiplicador}
+        {globalQuery.trim() ? (
+          /* Resultados búsqueda global */
+          <div className="flex-1 overflow-hidden flex flex-col mx-2.5 mb-2">
+            <BusquedaGlobalPanel resultados={busquedaGlobal} query={globalQuery} multiplicador={multiplicador} />
+          </div>
+        ) : vistaMode === 'lista' ? (
+          <>
+            {/* Chips de categoría (scroll horizontal) */}
+            <div className="flex gap-2 overflow-x-auto px-2.5 py-2.5 shrink-0 scrollbar-none"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {CATEGORIAS.map(cat => (
+                <button key={cat.id} onClick={() => setCategoria(cat.id)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-dm border transition-colors ${
+                    categoria === cat.id
+                      ? 'bg-birth-black text-white border-birth-black'
+                      : 'bg-white text-birth-gray-4 border-birth-gray-2'
+                  }`}>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+            {/* Productos */}
+            <div className="flex-1 overflow-y-auto bg-white mx-2.5 rounded border border-birth-gray-2 mb-2">
+              <CategoriaPanel categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
+            </div>
+          </>
+        ) : (
+          /* Vista cuadrícula */
+          <CuadriculaPanel
+            categoria={categoria} setCategoria={setCategoria}
+            multiplicador={multiplicador} setMultiplicador={setMultiplicador}
           />
-        </div>
+        )}
       </div>
 
       {/* ─── MÓVIL: Vista Cotización ─────────────────────────────────────── */}
@@ -1111,32 +1220,54 @@ export default function Cotizador() {
 
       {/* ─── DESKTOP: Layout 3 columnas ─────────────────────────────────── */}
       <div className="hidden lg:grid grid-cols-12 gap-4 flex-1 overflow-hidden px-6 pb-6 md:px-8 md:pb-8">
-        {/* Categorías */}
-        <div className="col-span-2 bg-white border border-birth-gray-2 rounded overflow-y-auto">
-          {CATEGORIAS.map(cat => (
-            <button key={cat.id} onClick={() => setCategoria(cat.id)}
-              className={`w-full text-left px-3 py-2.5 text-sm font-dm border-l-2 transition-all ${
-                categoria === cat.id
-                  ? 'border-birth-red bg-birth-gray font-medium text-birth-black'
-                  : 'border-transparent text-birth-gray-4 hover:bg-birth-gray hover:text-birth-black'
-              }`}>
-              {cat.label}
-            </button>
-          ))}
+        {/* Categorías — lista o cuadrícula */}
+        <div className={`bg-white border border-birth-gray-2 rounded overflow-y-auto ${vistaMode === 'cuadricula' ? 'col-span-3' : 'col-span-2'}`}>
+          {vistaMode === 'lista' ? (
+            CATEGORIAS.map(cat => (
+              <button key={cat.id} onClick={() => setCategoria(cat.id)}
+                className={`w-full text-left px-3 py-2.5 text-sm font-dm border-l-2 transition-all ${
+                  categoria === cat.id
+                    ? 'border-birth-red bg-birth-gray font-medium text-birth-black'
+                    : 'border-transparent text-birth-gray-4 hover:bg-birth-gray hover:text-birth-black'
+                }`}>
+                {cat.label}
+              </button>
+            ))
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5 p-2">
+              {CATEGORIAS.map(cat => {
+                const activa = cat.id === categoria
+                return (
+                  <button key={cat.id} onClick={() => setCategoria(cat.id)}
+                    className={`text-left p-2.5 rounded border transition-all ${activa ? 'bg-birth-black border-birth-black' : 'bg-white border-birth-gray-2 hover:border-birth-black'}`}>
+                    <p className={`text-xs font-dm font-semibold leading-tight ${activa ? 'text-white' : 'text-birth-black'}`}>{cat.label}</p>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Productos */}
-        <div className="col-span-6 bg-white border border-birth-gray-2 rounded overflow-y-auto">
+        <div className={`bg-white border border-birth-gray-2 rounded overflow-y-auto ${vistaMode === 'cuadricula' ? 'col-span-5' : 'col-span-6'}`}>
           <div className="sticky top-0 bg-white border-b border-birth-gray-2 px-4 py-2.5 z-10">
-            <h2 className="font-barlow text-sm font-bold tracking-wider text-birth-black uppercase">
-              {CATEGORIAS.find(c => c.id === categoria)?.label}
-            </h2>
+            {globalQuery.trim() ? (
+              <p className="text-sm font-dm text-birth-gray-4">
+                {busquedaGlobal.length} resultado{busquedaGlobal.length !== 1 ? 's' : ''} para "{globalQuery}"
+              </p>
+            ) : (
+              <h2 className="font-barlow text-sm font-bold tracking-wider text-birth-black uppercase">
+                {CATEGORIAS.find(c => c.id === categoria)?.label}
+              </h2>
+            )}
           </div>
-          <CategoriaPanel
-            categoria={categoria}
-            multiplicador={multiplicador}
-            setMultiplicador={setMultiplicador}
-          />
+          {globalQuery.trim() ? (
+            busquedaGlobal.length > 0
+              ? busquedaGlobal.map(p => <ProductoFila key={`${p.catId}-${p.id}`} producto={p} multiplicador={multiplicador} />)
+              : <p className="p-6 text-sm text-birth-gray-3 font-dm text-center">No se encontró ningún producto</p>
+          ) : (
+            <CategoriaPanel categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
+          )}
         </div>
 
         {/* Cotización */}
