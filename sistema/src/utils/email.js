@@ -3,7 +3,7 @@ import { clp, fechaCorta } from './formatters'
 
 const EMAILJS_SERVICE = 'service_qtcrtcr'
 const EMAILJS_PUBLIC_KEY = 'x6DqzGj_3ceKhk2NQ'
-const EMAILJS_TEMPLATE_COT = 'template_cotizacion'
+const EMAILJS_TEMPLATE_COT = 'kvlfwpb'
 
 emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY })
 
