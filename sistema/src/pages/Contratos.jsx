@@ -58,15 +58,15 @@ function ModalContrato({ contrato, clientes, cotizaciones, onClose, onSave }) {
   const cotsAceptadas = cotizaciones.filter(c => c.estado === 'aceptada')
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded w-full max-w-xl shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white">
+    <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-xl shadow-xl max-h-[92vh] md:max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
           <h2 className="font-barlow text-xl font-bold tracking-wide">
             {contrato.id ? 'EDITAR CONTRATO' : isLetras ? 'CONTRATO LETRAS CORPÓREAS' : 'CONTRATO DESARROLLO WEB'}
           </h2>
           <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 md:p-6 space-y-4">
           {/* Vincular cotización */}
           <div>
             <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Vincular a cotización aceptada (opcional)</label>
@@ -107,7 +107,7 @@ function ModalContrato({ contrato, clientes, cotizaciones, onClose, onSave }) {
               className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Valor total *</label>
               <input type="number" min="0" value={form.valorTotal} onChange={e => set('valorTotal', parseFloat(e.target.value) || '')} required
@@ -127,7 +127,7 @@ function ModalContrato({ contrato, clientes, cotizaciones, onClose, onSave }) {
               placeholder={isLetras ? '5 días hábiles' : '3 semanas hábiles'} />
           </div>
 
-          <div className="flex gap-3 pt-2 border-t border-birth-gray-2">
+          <div className="flex gap-3 pt-2 border-t border-birth-gray-2 pb-safe">
             <button type="submit"
               className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
               {contrato.id ? 'Guardar cambios' : 'Crear contrato'}
@@ -179,8 +179,8 @@ export default function Contratos() {
   const web = contratos.filter(c => c.tipo === 'desarrollo_web').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
   const TipoCard = ({ tipo, icono: Icono, titulo, descripcion, count, onClick }) => (
-    <div className="bg-white border border-birth-gray-2 rounded p-6 flex items-start justify-between">
-      <div className="flex items-start gap-4">
+    <div className="bg-white border border-birth-gray-2 rounded p-4 md:p-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="flex items-start gap-3 md:gap-4">
         <div className="p-3 bg-birth-gray rounded">
           <Icono size={22} className="text-birth-black" />
         </div>
@@ -191,7 +191,7 @@ export default function Contratos() {
         </div>
       </div>
       <button onClick={onClick}
-        className="flex items-center gap-2 bg-birth-black text-white px-4 py-2 rounded text-sm font-dm hover:bg-birth-red transition-colors whitespace-nowrap">
+        className="flex items-center justify-center gap-2 bg-birth-black text-white px-4 py-2.5 rounded text-sm font-dm hover:bg-birth-red transition-colors whitespace-nowrap">
         <Plus size={14} /> Nuevo
       </button>
     </div>
@@ -241,13 +241,13 @@ export default function Contratos() {
       )}
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-barlow text-4xl font-bold text-birth-black tracking-wide">CONTRATOS</h1>
-        <p className="text-birth-gray-3 text-sm font-dm mt-1">Genera contratos para tus proyectos</p>
+      <div className="mb-5 md:mb-8">
+        <h1 className="font-barlow text-3xl md:text-4xl font-bold text-birth-black tracking-wide">CONTRATOS</h1>
+        <p className="text-birth-gray-3 text-xs md:text-sm font-dm mt-1">Genera contratos para tus proyectos</p>
       </div>
 
       {/* Cards de tipo de contrato */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6 md:mb-8">
         <TipoCard
           tipo="letras_corporeas"
           icono={Building2}
@@ -272,7 +272,45 @@ export default function Contratos() {
           <div className="px-5 py-4 border-b border-birth-gray-2">
             <h2 className="font-barlow text-lg font-bold tracking-wide">HISTORIAL DE CONTRATOS</h2>
           </div>
-          <table className="w-full text-sm">
+          <div className="md:hidden divide-y divide-birth-gray-2">
+            {[...letras, ...web].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(contrato => {
+              const isLetras = contrato.tipo === 'letras_corporeas'
+              return (
+                <div key={contrato.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {isLetras ? <Building2 size={14} className="text-birth-gray-3" /> : <Globe size={14} className="text-birth-gray-3" />}
+                        <span className="text-[11px] bg-birth-gray px-2 py-0.5 rounded font-dm text-birth-gray-4">
+                          {isLetras ? 'Letras corpóreas' : 'Web'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-dm font-semibold text-birth-black truncate">{contrato.clienteNombre || 'Sin cliente'}</p>
+                      <p className="text-xs text-birth-gray-3 font-dm mt-0.5">{fechaCorta(contrato.fecha)}</p>
+                    </div>
+                    <p className="font-barlow text-lg font-bold text-birth-black shrink-0">{clp(contrato.valorTotal)}</p>
+                  </div>
+                  <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePDF(contrato)}
+                      className="h-10 rounded border border-birth-gray-2 text-xs font-dm text-birth-black flex items-center justify-center gap-2 active:border-birth-black"
+                    >
+                      <Download size={14} /> Descargar PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(contrato.id)}
+                      className="h-10 w-11 rounded border border-birth-gray-2 text-birth-red flex items-center justify-center active:border-birth-red"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <table className="hidden md:table w-full text-sm">
             <thead>
               <tr className="border-b border-birth-gray-2">
                 <th className="text-left px-5 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Tipo</th>
