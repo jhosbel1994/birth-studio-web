@@ -250,6 +250,44 @@ function AccionesMenu({ cotizacion, onResumen, onVerPDF, onDescargar, onEditar, 
 }
 
 // ─── MODAL COTIZACIÓN (crear/editar) ─────────────────────────────────────────
+function MobileItemCard({ item, idx, onChange, onDelete }) {
+  const set = (k, v) => {
+    const updated = { ...item, [k]: v }
+    if (k === 'cantidad' || k === 'precioUnitario') {
+      updated.total = Math.round((updated.cantidad || 0) * (updated.precioUnitario || 0))
+    }
+    onChange(idx, updated)
+  }
+  return (
+    <div className="border border-birth-gray-2 rounded p-3 space-y-2">
+      <div className="flex gap-2">
+        <input value={item.descripcion} onChange={e => set('descripcion', e.target.value)}
+          placeholder="Descripción del ítem"
+          className="flex-1 min-w-0 border border-birth-gray-2 rounded px-2 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
+        <button type="button" onClick={() => onDelete(idx)} className="shrink-0 p-1.5 text-birth-gray-3 active:text-birth-red">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[10px] text-birth-gray-4 font-dm uppercase tracking-wider mb-0.5">Cant.</label>
+          <input type="number" min="0" value={item.cantidad} onChange={e => set('cantidad', parseFloat(e.target.value) || 0)}
+            className="w-full border border-birth-gray-2 rounded px-2 py-1.5 text-sm font-dm text-center focus:outline-none focus:border-birth-black" />
+        </div>
+        <div>
+          <label className="block text-[10px] text-birth-gray-4 font-dm uppercase tracking-wider mb-0.5">Precio unit.</label>
+          <input type="number" min="0" value={item.precioUnitario} onChange={e => set('precioUnitario', parseFloat(e.target.value) || 0)}
+            className="w-full border border-birth-gray-2 rounded px-2 py-1.5 text-sm font-dm text-right focus:outline-none focus:border-birth-black" />
+        </div>
+      </div>
+      <div className="flex justify-between items-center pt-0.5 border-t border-birth-gray-2">
+        <span className="text-xs text-birth-gray-4 font-dm">Total</span>
+        <span className="font-barlow text-base font-bold text-birth-black">{clp(item.total)}</span>
+      </div>
+    </div>
+  )
+}
+
 function ItemRow({ item, idx, onChange, onDelete }) {
   const set = (k, v) => {
     const updated = { ...item, [k]: v }
@@ -382,7 +420,16 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
                 <Plus size={12} /> Agregar ítem
               </button>
             </div>
-            <div className="border border-birth-gray-2 rounded overflow-hidden overflow-x-auto">
+            {/* Móvil: cards */}
+            <div className="md:hidden space-y-2">
+              {form.items.length === 0 ? (
+                <p className="text-center py-5 text-birth-gray-3 text-sm font-dm">Sin ítems</p>
+              ) : form.items.map((item, idx) => (
+                <MobileItemCard key={idx} item={item} idx={idx} onChange={updateItem} onDelete={deleteItem} />
+              ))}
+            </div>
+            {/* Desktop: tabla */}
+            <div className="hidden md:block border border-birth-gray-2 rounded overflow-hidden overflow-x-auto">
               <table className="w-full text-sm min-w-[400px]">
                 <thead className="bg-birth-gray">
                   <tr>

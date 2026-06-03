@@ -28,7 +28,7 @@ function StatCard({ label, value, sub, color, icon: Icon }) {
 
 function MobileQuickNav({ navigate }) {
   const items = [
-    { to: '/cotizador', label: 'Cotizador', icon: Calculator },
+    { to: '/cotizador', label: 'Cotizador', icon: Calculator, primary: true },
     { to: '/clientes', label: 'Clientes', icon: Users },
     { to: '/cotizaciones', label: 'Cotizaciones', icon: FileText },
     { to: '/contratos', label: 'Contratos', icon: ScrollText },
@@ -37,13 +37,13 @@ function MobileQuickNav({ navigate }) {
 
   return (
     <div className="md:hidden grid grid-cols-2 gap-2 mb-5">
-      {items.map(({ to, label, icon: Icon }, index) => (
+      {items.map(({ to, label, icon: Icon, primary }) => (
         <button
           key={to}
           type="button"
           onClick={() => navigate(to)}
           className={`h-12 rounded-md border flex items-center justify-center gap-2 text-sm font-dm font-medium ${
-            index === 0
+            primary
               ? 'col-span-2 bg-birth-red border-birth-red text-white'
               : 'bg-white border-birth-gray-2 text-birth-black active:border-birth-black'
           }`}
