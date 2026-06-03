@@ -761,6 +761,53 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
   )
 }
 
+// ─── PANEL RESUMEN COTIZACIÓN (reutilizable en móvil y desktop) ──────────────
+function QuotePanel({ items, setItems, conIva, setConIva, onCrear }) {
+  const subtotal = items.reduce((s, i) => s + (i.total || 0), 0)
+  const iva = conIva ? Math.round(subtotal * 0.19) : 0
+  const total = subtotal + iva
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto divide-y divide-birth-gray-2">
+        {items.length === 0 ? (
+          <p className="text-birth-gray-3 text-sm font-dm text-center py-12">Sin ítems agregados</p>
+        ) : items.map(item => (
+          <div key={item._id} className="flex items-start gap-2 px-4 py-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-dm font-medium text-birth-black leading-snug">{item.descripcion}</p>
+              <p className="text-xs text-birth-gray-3 mt-0.5">{item.cantidad} × {clp(item.precioUnitario)}</p>
+            </div>
+            <span className="font-barlow text-sm font-bold shrink-0">{clp(item.total)}</span>
+            <button onClick={() => setItems(prev => prev.filter(i => i._id !== item._id))}
+              className="text-birth-gray-3 active:text-birth-red shrink-0 mt-0.5 p-1"><Trash2 size={13} /></button>
+          </div>
+        ))}
+      </div>
+
+      {items.length > 0 && (
+        <div className="px-4 py-4 border-t border-birth-gray-2 space-y-2 bg-white">
+          <label className="flex items-center gap-2 text-sm font-dm cursor-pointer">
+            <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} className="accent-birth-black" />
+            <span className="text-birth-gray-4">IVA 19%</span>
+          </label>
+          <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+            <span>Subtotal</span><span>{clp(subtotal)}</span>
+          </div>
+          {conIva && <div className="flex justify-between text-sm font-dm text-birth-gray-4"><span>IVA</span><span>{clp(iva)}</span></div>}
+          <div className="flex justify-between font-barlow text-xl font-bold border-t border-birth-gray-2 pt-2">
+            <span>TOTAL</span><span>{clp(total)}</span>
+          </div>
+          <button onClick={onCrear}
+            className="w-full flex items-center justify-center gap-2 bg-birth-black text-white py-3.5 rounded text-sm font-dm font-medium active:bg-birth-red transition-colors">
+            Crear cotización formal <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────
 export default function Cotizador() {
   const [clientes, setClientes] = useState([])
@@ -771,12 +818,15 @@ export default function Cotizador() {
   const [items, setItems] = useState([])
   const [conIva, setConIva] = useState(true)
   const [modal, setModal] = useState(false)
+  // Tab móvil: 'calcular' | 'cotizacion'
+  const [tabMovil, setTabMovil] = useState('calcular')
 
   const cargarClientes = () => setClientes(getClientes())
   useEffect(() => {
     cargarClientes()
     const handler = (e) => {
       setItems(prev => [...prev, { ...e.detail, _id: crypto.randomUUID() }])
+      // En móvil, al agregar un ítem mostrar brevemente el badge
     }
     window.addEventListener('cotizador:agregar', handler)
     return () => window.removeEventListener('cotizador:agregar', handler)
@@ -787,7 +837,7 @@ export default function Cotizador() {
   const total = subtotal + iva
 
   return (
-    <div className="p-6 h-full">
+    <div className="h-[100dvh] flex flex-col overflow-hidden">
       {modal && (
         <ModalCrearCotizacion
           items={items.map(({ _id, ...r }) => r)}
@@ -799,29 +849,89 @@ export default function Cotizador() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between px-2.5 pt-3 pb-2 md:px-6 md:pt-6 shrink-0">
         <div>
-          <h1 className="font-barlow text-4xl font-bold text-birth-black tracking-wide">COTIZADOR</h1>
-          <p className="text-birth-gray-3 text-xs font-dm mt-0.5">Selecciona categoría, ingresa medidas y agrega a la cotización</p>
+          <h1 className="font-barlow text-2xl md:text-4xl font-bold text-birth-black tracking-wide">COTIZADOR</h1>
+          <p className="text-birth-gray-3 text-[10px] md:text-xs font-dm hidden md:block">Selecciona categoría, ingresa medidas y agrega</p>
         </div>
         {items.length > 0 && (
           <button onClick={() => setItems([])}
-            className="flex items-center gap-1.5 text-sm font-dm text-birth-gray-4 hover:text-birth-black border border-birth-gray-2 px-3 py-1.5 rounded hover:border-birth-black transition-colors">
-            <RotateCcw size={13} /> Limpiar
+            className="flex items-center gap-1.5 text-xs font-dm text-birth-gray-4 border border-birth-gray-2 px-2.5 py-1.5 rounded">
+            <RotateCcw size={11} /> Limpiar
           </button>
         )}
       </div>
 
       {/* Barra de cliente */}
-      <ClienteBar
-        clienteId={clienteId} setClienteId={setClienteId}
-        clienteNombre={clienteNombre} setClienteNombre={setClienteNombre}
-        clientes={clientes} onClienteGuardado={cargarClientes}
-      />
+      <div className="px-2.5 md:px-6 shrink-0">
+        <ClienteBar
+          clienteId={clienteId} setClienteId={setClienteId}
+          clienteNombre={clienteNombre} setClienteNombre={setClienteNombre}
+          clientes={clientes} onClienteGuardado={cargarClientes}
+        />
+      </div>
 
-      {/* Grid principal: categorías | productos | cotización */}
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-260px)] min-h-[500px]">
+      {/* ─── MÓVIL: Tab bar ─────────────────────────────────────────────── */}
+      <div className="flex lg:hidden border-b border-birth-gray-2 bg-white shrink-0 mx-2.5 md:mx-6 rounded-t overflow-hidden">
+        <button
+          onClick={() => setTabMovil('calcular')}
+          className={`flex-1 py-2.5 text-sm font-dm font-medium border-b-2 transition-colors ${
+            tabMovil === 'calcular' ? 'border-birth-red text-birth-black' : 'border-transparent text-birth-gray-3'
+          }`}>
+          Calcular
+        </button>
+        <button
+          onClick={() => setTabMovil('cotizacion')}
+          className={`flex-1 py-2.5 text-sm font-dm font-medium border-b-2 transition-colors relative ${
+            tabMovil === 'cotizacion' ? 'border-birth-red text-birth-black' : 'border-transparent text-birth-gray-3'
+          }`}>
+          Cotización
+          {items.length > 0 && (
+            <span className="absolute top-1.5 right-6 w-4 h-4 bg-birth-red text-white text-[9px] rounded-full flex items-center justify-center font-dm font-bold">
+              {items.length}
+            </span>
+          )}
+        </button>
+      </div>
 
+      {/* ─── MÓVIL: Vista Calcular ───────────────────────────────────────── */}
+      <div className={`flex-1 overflow-hidden flex flex-col lg:hidden ${tabMovil === 'calcular' ? 'flex' : 'hidden'}`}>
+        {/* Chips de categoría (scroll horizontal) */}
+        <div className="flex gap-2 overflow-x-auto px-2.5 py-2.5 shrink-0 scrollbar-none"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {CATEGORIAS.map(cat => (
+            <button key={cat.id} onClick={() => setCategoria(cat.id)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-dm border transition-colors ${
+                categoria === cat.id
+                  ? 'bg-birth-black text-white border-birth-black'
+                  : 'bg-white text-birth-gray-4 border-birth-gray-2'
+              }`}>
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Productos de la categoría seleccionada */}
+        <div className="flex-1 overflow-y-auto bg-white mx-2.5 md:mx-6 rounded border border-birth-gray-2 mb-2">
+          <CategoriaPanel
+            categoria={categoria}
+            multiplicador={multiplicador}
+            setMultiplicador={setMultiplicador}
+          />
+        </div>
+      </div>
+
+      {/* ─── MÓVIL: Vista Cotización ─────────────────────────────────────── */}
+      <div className={`flex-1 overflow-hidden flex flex-col lg:hidden bg-white mx-2.5 rounded border border-birth-gray-2 mb-2 ${tabMovil === 'cotizacion' ? 'flex' : 'hidden'}`}>
+        <QuotePanel
+          items={items} setItems={setItems}
+          conIva={conIva} setConIva={setConIva}
+          onCrear={() => setModal(true)}
+        />
+      </div>
+
+      {/* ─── DESKTOP: Layout 3 columnas ─────────────────────────────────── */}
+      <div className="hidden lg:grid grid-cols-12 gap-4 flex-1 overflow-hidden px-6 pb-6 md:px-8 md:pb-8">
         {/* Categorías */}
         <div className="col-span-2 bg-white border border-birth-gray-2 rounded overflow-y-auto">
           {CATEGORIAS.map(cat => (
@@ -851,49 +961,16 @@ export default function Cotizador() {
         </div>
 
         {/* Cotización */}
-        <div className="col-span-4 bg-white border border-birth-gray-2 rounded flex flex-col">
-          <div className="px-4 py-2.5 border-b border-birth-gray-2 flex items-center justify-between">
+        <div className="col-span-4 bg-white border border-birth-gray-2 rounded flex flex-col overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-birth-gray-2 flex items-center justify-between shrink-0">
             <h2 className="font-barlow text-sm font-bold tracking-wider">COTIZACIÓN</h2>
             <span className="text-xs text-birth-gray-3 font-dm">{items.length} ítem{items.length !== 1 ? 's' : ''}</span>
           </div>
-
-          {/* Items list */}
-          <div className="flex-1 overflow-y-auto divide-y divide-birth-gray-2">
-            {items.length === 0 ? (
-              <p className="text-birth-gray-3 text-sm font-dm text-center py-10">Sin ítems</p>
-            ) : items.map(item => (
-              <div key={item._id} className="flex items-start gap-2 px-3 py-2.5">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-dm font-medium text-birth-black leading-snug">{item.descripcion}</p>
-                  <p className="text-[10px] text-birth-gray-3 mt-0.5">{item.cantidad} × {clp(item.precioUnitario)}</p>
-                </div>
-                <span className="font-barlow text-sm font-bold shrink-0">{clp(item.total)}</span>
-                <button onClick={() => setItems(prev => prev.filter(i => i._id !== item._id))}
-                  className="text-birth-gray-3 hover:text-birth-red shrink-0 mt-0.5"><Trash2 size={12} /></button>
-              </div>
-            ))}
-          </div>
-
-          {/* Totales + IVA */}
-          {items.length > 0 && (
-            <div className="px-4 py-3 border-t border-birth-gray-2 space-y-2">
-              <label className="flex items-center gap-2 text-xs font-dm cursor-pointer">
-                <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} className="accent-birth-black" />
-                <span className="text-birth-gray-4">IVA 19%</span>
-              </label>
-              <div className="flex justify-between text-xs font-dm text-birth-gray-4">
-                <span>Subtotal</span><span>{clp(subtotal)}</span>
-              </div>
-              {conIva && <div className="flex justify-between text-xs font-dm text-birth-gray-4"><span>IVA</span><span>{clp(iva)}</span></div>}
-              <div className="flex justify-between font-barlow text-lg font-bold border-t border-birth-gray-2 pt-1">
-                <span>TOTAL</span><span>{clp(total)}</span>
-              </div>
-              <button onClick={() => setModal(true)}
-                className="w-full flex items-center justify-center gap-2 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors mt-1">
-                Crear cotización formal <ArrowRight size={14} />
-              </button>
-            </div>
-          )}
+          <QuotePanel
+            items={items} setItems={setItems}
+            conIva={conIva} setConIva={setConIva}
+            onCrear={() => setModal(true)}
+          />
         </div>
       </div>
     </div>

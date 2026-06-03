@@ -229,7 +229,7 @@ export default function Contratos() {
   }
 
   return (
-    <div className="p-8">
+    <div className="px-2.5 py-3 md:p-6 lg:p-8">
       {modal && (
         <ModalContrato
           contrato={modal}

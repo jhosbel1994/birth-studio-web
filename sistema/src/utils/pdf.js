@@ -57,7 +57,17 @@ function addHeader(doc, etiqueta, numero, logoImg) {
 function cargarLogo() {
   return new Promise((resolve) => {
     const img = new Image()
-    img.onload = () => resolve(img)
+    img.onload = () => {
+      // Reducir a max 500px de ancho para que el PDF no pese varios MB
+      const maxW = 500
+      const scale = Math.min(1, maxW / img.naturalWidth)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.naturalWidth * scale)
+      canvas.height = Math.round(img.naturalHeight * scale)
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/png'))
+    }
     img.onerror = () => resolve(null)
     img.src = logoBirthUrl
   })
