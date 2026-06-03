@@ -266,6 +266,22 @@ function AfichesAcrilicosPanel() {
   useEffect(() => {
     setCPrecioM2(String(PRECIO_M2_AFICHES[tipo]?.[cGrosor] || ''))
   }, [tipo, cGrosor])
+
+  function precioMedida(m) {
+    return Math.round(m.m2 * (PRECIO_M2_AFICHES[tipo]?.[grosor] || 0))
+  }
+
+  // costDist antes de cualquier cálculo que lo use
+  const medida   = medidaIdx !== null ? AFICHES_MEDIDAS[medidaIdx] : null
+  const base     = medida ? precioMedida(medida) : 0
+  const costDist = (conDistPeq ? cantDistPeq * 1500 : 0) + (conDistGrande ? cantDistGrande * 2500 : 0)
+  let subtotal   = base + costDist
+  if (instalacion === 'sin_andamio') subtotal = Math.round(subtotal * 1.5)
+  if (instalacion === 'con_andamio') subtotal = Math.round(subtotal * 1.5) + andamioCuerpos * 5000
+  const iva   = conIva ? Math.round(subtotal * 0.19) : 0
+  const total = subtotal + iva
+
+  // Calculador personalizado — ahora costDist ya está definido
   const cArea   = cForma === 'rectangular'
     ? (parseFloat(cAncho) || 0) * (parseFloat(cAlto) || 0) / 10000
     : Math.PI * Math.pow((parseFloat(cDiam) || 0) / 2, 2) / 10000
@@ -293,19 +309,6 @@ function AfichesAcrilicosPanel() {
     }))
     setCAncho(''); setCAlto(''); setCDiam('')
   }
-
-  function precioMedida(m) {
-    return Math.round(m.m2 * (PRECIO_M2_AFICHES[tipo]?.[grosor] || 0))
-  }
-
-  const medida   = medidaIdx !== null ? AFICHES_MEDIDAS[medidaIdx] : null
-  const base     = medida ? precioMedida(medida) : 0
-  const costDist = (conDistPeq ? cantDistPeq * 1500 : 0) + (conDistGrande ? cantDistGrande * 2500 : 0)
-  let subtotal   = base + costDist
-  if (instalacion === 'sin_andamio') subtotal = Math.round(subtotal * 1.5)
-  if (instalacion === 'con_andamio') subtotal = Math.round(subtotal * 1.5) + andamioCuerpos * 5000
-  const iva   = conIva ? Math.round(subtotal * 0.19) : 0
-  const total = subtotal + iva
 
   const handleAdd = () => {
     if (!medida || !subtotal) return
