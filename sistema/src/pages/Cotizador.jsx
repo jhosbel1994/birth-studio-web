@@ -211,19 +211,27 @@ const normalizar = s => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowe
 
 // ─── DATOS AFICHES ACRÍLICOS ───────────────────────────────────────────────
 const AFICHES_MEDIDAS = [
-  { label: '40×40cm',   m2: 0.16, simple: 28900,  adhesivo: 34700,  retro: 32000,  retroRelieve: 40000,  relieve: 35500  },
-  { label: '50×50cm',   m2: 0.25, simple: 45100,  adhesivo: 54100,  retro: 50000,  retroRelieve: 62500,  relieve: 55500  },
-  { label: '60×60cm',   m2: 0.36, simple: 65000,  adhesivo: 78000,  retro: 72000,  retroRelieve: 90000,  relieve: 80000  },
-  { label: '70×70cm',   m2: 0.49, simple: 88400,  adhesivo: 106100, retro: 98000,  retroRelieve: 122500, relieve: 108800 },
-  { label: '80×80cm',   m2: 0.64, simple: 115500, adhesivo: 138600, retro: 128000, retroRelieve: 160000, relieve: 142100 },
-  { label: '90×90cm',   m2: 0.81, simple: 146200, adhesivo: 175400, retro: 162000, retroRelieve: 202500, relieve: 179800 },
-  { label: '100×100cm', m2: 1.00, simple: 180500, adhesivo: 216600, retro: 200000, retroRelieve: 250000, relieve: 222000 },
-  { label: '110×110cm', m2: 1.21, simple: 218400, adhesivo: 262100, retro: 242000, retroRelieve: 302500, relieve: 268600 },
-  { label: '120×120cm', m2: 1.44, simple: 259900, adhesivo: 311900, retro: 288000, retroRelieve: 360000, relieve: 319700 },
-  { label: '130×130cm', m2: 1.69, simple: 305000, adhesivo: 366000, retro: 338000, retroRelieve: 422500, relieve: 375200 },
-  { label: '140×140cm', m2: 1.96, simple: 353800, adhesivo: 424600, retro: 392000, retroRelieve: 490000, relieve: 435100 },
-  { label: '150×150cm', m2: 2.25, simple: 406100, adhesivo: 487300, retro: 450000, retroRelieve: 562500, relieve: 499500 },
+  { label: '40×40cm',   m2: 0.16 },
+  { label: '50×50cm',   m2: 0.25 },
+  { label: '60×60cm',   m2: 0.36 },
+  { label: '70×70cm',   m2: 0.49 },
+  { label: '80×80cm',   m2: 0.64 },
+  { label: '90×90cm',   m2: 0.81 },
+  { label: '100×100cm', m2: 1.00 },
+  { label: '110×110cm', m2: 1.21 },
+  { label: '120×120cm', m2: 1.44 },
+  { label: '130×130cm', m2: 1.69 },
+  { label: '140×140cm', m2: 1.96 },
+  { label: '150×150cm', m2: 2.25 },
 ]
+
+const PRECIO_M2_AFICHES = {
+  simple:       { '3mm': 95000,  '5mm': 125000 },
+  adhesivo:     { '3mm': 106000, '5mm': 136000 },
+  retro:        { '3mm': 125000, '5mm': 155000 },
+  retroRelieve: { '3mm': 150000, '5mm': 180000 },
+  relieve:      { '3mm': 130000, '5mm': 157000 },
+}
 const AFICHES_TIPOS = [
   { id: 'simple',       label: 'Simple' },
   { id: 'adhesivo',     label: 'Con adhesivo' },
@@ -237,9 +245,11 @@ function AfichesAcrilicosPanel() {
   const [grosor, setGrosor]             = useState('3mm')
   const [tipo, setTipo]                 = useState('simple')
   const [medidaIdx, setMedidaIdx]       = useState(null)
-  const [conDist, setConDist]           = useState(false)
-  const [cantDist, setCantDist]         = useState(4)
-  const [instalacion, setInstalacion]   = useState('ninguna')
+  const [conDistPeq, setConDistPeq]         = useState(false)
+  const [cantDistPeq, setCantDistPeq]       = useState(4)
+  const [conDistGrande, setConDistGrande]   = useState(false)
+  const [cantDistGrande, setCantDistGrande] = useState(4)
+  const [instalacion, setInstalacion]       = useState('ninguna')
   const [andamioCuerpos, setAndamioCuerpos] = useState(1)
   const [conIva, setConIva]             = useState(false)
   // Personalizados por m² — tipo del panel, grosor propio
@@ -250,15 +260,7 @@ function AfichesAcrilicosPanel() {
   const [cDiam, setCDiam]         = useState('')
   const [cPrecioM2, setCPrecioM2] = useState('')
 
-  // Precio por m² derivado de la tabla (ref: 100×100cm = 1.00 m²)
-  const PRECIO_M2_TIPO = {
-    simple:       { '3mm': 180500, '5mm': 195500 },
-    adhesivo:     { '3mm': 216600, '5mm': 231600 },
-    retro:        { '3mm': 200000, '5mm': 215000 },
-    retroRelieve: { '3mm': 250000, '5mm': 265000 },
-    relieve:      { '3mm': 222000, '5mm': 237000 },
-  }
-  const precioM2Sugerido = PRECIO_M2_TIPO[tipo]?.[cGrosor] || 0
+  const precioM2Sugerido = PRECIO_M2_AFICHES[tipo]?.[cGrosor] || 0
   const precioM2Custom = parseFloat(cPrecioM2) || precioM2Sugerido
 
   useEffect(() => {
@@ -282,13 +284,13 @@ function AfichesAcrilicosPanel() {
     setCAncho(''); setCAlto(''); setCDiam('')
   }
 
-  function precioMedida(m, t) {
-    return m[t] + (grosor === '5mm' ? Math.round(m.m2 * 15000) : 0)
+  function precioMedida(m) {
+    return Math.round(m.m2 * (PRECIO_M2_AFICHES[tipo]?.[grosor] || 0))
   }
 
   const medida   = medidaIdx !== null ? AFICHES_MEDIDAS[medidaIdx] : null
-  const base     = medida ? precioMedida(medida, tipo) : 0
-  const costDist = conDist ? cantDist * 1500 : 0
+  const base     = medida ? precioMedida(medida) : 0
+  const costDist = (conDistPeq ? cantDistPeq * 1500 : 0) + (conDistGrande ? cantDistGrande * 2500 : 0)
   let subtotal   = base + costDist
   if (instalacion === 'sin_andamio') subtotal = Math.round(subtotal * 1.5)
   if (instalacion === 'con_andamio') subtotal = Math.round(subtotal * 1.5) + andamioCuerpos * 5000
@@ -299,7 +301,8 @@ function AfichesAcrilicosPanel() {
     if (!medida || !subtotal) return
     const tipoLabel = AFICHES_TIPOS.find(t => t.id === tipo).label
     const adics = []
-    if (conDist) adics.push(`${cantDist} distanciadores`)
+    if (conDistPeq) adics.push(`${cantDistPeq} distanciadores pequeños`)
+    if (conDistGrande) adics.push(`${cantDistGrande} distanciadores grandes`)
     if (instalacion === 'sin_andamio') adics.push('instalación s/andamio')
     if (instalacion === 'con_andamio') adics.push(`instalación c/andamio ${andamioCuerpos} cuerpos`)
     const desc = `Afiche acrílico ${medida.label} ${grosor} — ${tipoLabel}${adics.length ? ' | ' + adics.join(', ') : ''}`
@@ -352,7 +355,7 @@ function AfichesAcrilicosPanel() {
           </p>
         </div>
         {AFICHES_MEDIDAS.map((m, i) => {
-          const precio = precioMedida(m, tipo)
+          const precio = precioMedida(m)
           const sel    = medidaIdx === i
           return (
             <button key={i} onClick={() => setMedidaIdx(sel ? null : i)}
@@ -374,12 +377,21 @@ function AfichesAcrilicosPanel() {
       <div className="p-4 space-y-3">
         <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Adicionales</p>
 
-        {/* Distanciadores */}
+        {/* Distanciadores pequeños */}
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={conDist} onChange={e => setConDist(e.target.checked)} className="accent-birth-black" />
-          <span className="text-sm font-dm text-birth-gray-4 flex-1">Distanciadores — $1.500 c/u</span>
-          {conDist && (
-            <input type="number" min="1" value={cantDist} onChange={e => setCantDist(parseInt(e.target.value) || 1)}
+          <input type="checkbox" checked={conDistPeq} onChange={e => setConDistPeq(e.target.checked)} className="accent-birth-black" />
+          <span className="text-sm font-dm text-birth-gray-4 flex-1">Distanciadores pequeños — $1.500 c/u</span>
+          {conDistPeq && (
+            <input type="number" min="1" value={cantDistPeq} onChange={e => setCantDistPeq(parseInt(e.target.value) || 1)}
+              className="w-16 text-center border border-birth-gray-2 rounded px-2 py-1 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          )}
+        </label>
+        {/* Distanciadores grandes */}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={conDistGrande} onChange={e => setConDistGrande(e.target.checked)} className="accent-birth-black" />
+          <span className="text-sm font-dm text-birth-gray-4 flex-1">Distanciadores grandes — $2.500 c/u</span>
+          {conDistGrande && (
+            <input type="number" min="1" value={cantDistGrande} onChange={e => setCantDistGrande(parseInt(e.target.value) || 1)}
               className="w-16 text-center border border-birth-gray-2 rounded px-2 py-1 text-sm font-dm focus:outline-none focus:border-birth-black" />
           )}
         </label>
@@ -420,9 +432,14 @@ function AfichesAcrilicosPanel() {
               <span>{medida.label} · {grosor} · {AFICHES_TIPOS.find(t => t.id === tipo)?.label}</span>
               <span>{clp(base)}</span>
             </div>
-            {conDist && (
+            {conDistPeq && (
               <div className="flex justify-between text-sm font-dm text-birth-gray-4">
-                <span>Distanciadores ×{cantDist}</span><span>{clp(costDist)}</span>
+                <span>Dist. pequeños ×{cantDistPeq}</span><span>{clp(cantDistPeq * 1500)}</span>
+              </div>
+            )}
+            {conDistGrande && (
+              <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                <span>Dist. grandes ×{cantDistGrande}</span><span>{clp(cantDistGrande * 2500)}</span>
               </div>
             )}
             {instalacion === 'sin_andamio' && (
