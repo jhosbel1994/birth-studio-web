@@ -244,8 +244,73 @@ export default function Clientes() {
         />
       </div>
 
+      {filtrados.length === 0 && (
+        <div className="md:hidden bg-white border border-birth-gray-2 rounded py-16 text-center">
+          <p className="text-birth-gray-3 text-sm font-dm">
+            {busqueda ? 'Sin resultados' : 'Aún no hay clientes. Crea el primero.'}
+          </p>
+        </div>
+      )}
+
+      {/* Mobile cards */}
+      {filtrados.length > 0 && (
+        <div className="md:hidden space-y-3">
+          {filtrados.map(c => {
+            const nCot = cotizaciones.filter(ct => ct.clienteId === c.id).length
+            return (
+              <button
+                type="button"
+                key={c.id}
+                onClick={() => setFicha(c)}
+                className="w-full bg-white border border-birth-gray-2 rounded-xl p-4 text-left active:border-birth-black transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-dm font-semibold text-birth-black truncate">{c.nombre}</p>
+                    <p className="text-xs text-birth-gray-4 mt-0.5 truncate">{c.empresa || c.ciudad || 'Cliente sin empresa'}</p>
+                  </div>
+                  <span className="shrink-0 bg-birth-gray text-birth-black px-2 py-1 rounded text-[11px] font-dm">
+                    {nCot} cot.
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-1.5">
+                  {c.telefono && (
+                    <p className="flex items-center gap-2 text-xs text-birth-gray-4 font-dm">
+                      <Phone size={13} className="text-birth-gray-3" /> {c.telefono}
+                    </p>
+                  )}
+                  {c.correo && (
+                    <p className="flex items-center gap-2 text-xs text-birth-gray-4 font-dm truncate">
+                      <Mail size={13} className="text-birth-gray-3 shrink-0" /> <span className="truncate">{c.correo}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-4 flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => { setEditando(c); setModal('edit') }}
+                    className="h-10 flex-1 rounded border border-birth-gray-2 text-xs font-dm text-birth-black flex items-center justify-center gap-2 active:border-birth-black"
+                  >
+                    <Edit2 size={14} /> Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { if (confirm('¿Eliminar cliente?')) handleDelete(c.id) }}
+                    className="h-10 w-11 rounded border border-birth-gray-2 text-birth-red flex items-center justify-center active:border-birth-red"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Tabla */}
-      <div className="bg-white border border-birth-gray-2 rounded">
+      <div className="hidden md:block bg-white border border-birth-gray-2 rounded">
         {filtrados.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-birth-gray-3 text-sm font-dm">
