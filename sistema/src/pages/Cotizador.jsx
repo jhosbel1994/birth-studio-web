@@ -242,27 +242,33 @@ function AfichesAcrilicosPanel() {
   const [instalacion, setInstalacion]   = useState('ninguna')
   const [andamioCuerpos, setAndamioCuerpos] = useState(1)
   const [conIva, setConIva]             = useState(false)
-  // Personalizados por m²
-  const [cGrosor, setCGrosor]   = useState('3mm')
-  const [cForma, setCForma]     = useState('rectangular')
-  const [cAncho, setCAncho]     = useState('')
-  const [cAlto, setCAlto]       = useState('')
-  const [cDiam, setCDiam]       = useState('')
+  // Personalizados por m² — usan el mismo grosor y tipo del panel
+  const [cForma, setCForma] = useState('rectangular')
+  const [cAncho, setCAncho] = useState('')
+  const [cAlto, setCAlto]   = useState('')
+  const [cDiam, setCDiam]   = useState('')
 
-  const PRECIO_M2 = { '3mm': 30000, '5mm': 40000 }
-  const cArea = cForma === 'rectangular'
+  // Precio por m² derivado de la tabla (ref: 100×100cm = 1.00 m²)
+  const PRECIO_M2_TIPO = {
+    simple:       { '3mm': 180500, '5mm': 195500 },
+    adhesivo:     { '3mm': 216600, '5mm': 231600 },
+    retro:        { '3mm': 200000, '5mm': 215000 },
+    retroRelieve: { '3mm': 250000, '5mm': 265000 },
+    relieve:      { '3mm': 222000, '5mm': 237000 },
+  }
+  const precioM2Custom = PRECIO_M2_TIPO[tipo]?.[grosor] || 0
+  const cArea   = cForma === 'rectangular'
     ? (parseFloat(cAncho) || 0) * (parseFloat(cAlto) || 0) / 10000
     : Math.PI * Math.pow((parseFloat(cDiam) || 0) / 2, 2) / 10000
-  const cPrecio = cArea > 0 ? Math.round(cArea * PRECIO_M2[cGrosor]) : 0
+  const cPrecio = cArea > 0 ? Math.round(cArea * precioM2Custom) : 0
 
   const handleAddCustom = () => {
     if (!cPrecio) return
-    const forma = cForma === 'rectangular'
-      ? `${cAncho}×${cAlto}cm`
-      : `Ø${cDiam}cm`
+    const tipoLabel = AFICHES_TIPOS.find(t => t.id === tipo)?.label
+    const forma = cForma === 'rectangular' ? `${cAncho}×${cAlto}cm` : `Ø${cDiam}cm`
     window.dispatchEvent(new CustomEvent('cotizador:agregar', {
       detail: {
-        descripcion: `Acrílico personalizado ${forma} ${cGrosor} (${cArea.toFixed(3)} m²)`,
+        descripcion: `Acrílico personalizado ${forma} ${grosor} — ${tipoLabel} (${cArea.toFixed(3)} m²)`,
         cantidad: 1, precioUnitario: cPrecio, total: cPrecio,
       }
     }))
@@ -449,28 +455,21 @@ function AfichesAcrilicosPanel() {
 
       {/* ── Acrílico personalizado por m² ── */}
       <div className="p-4 space-y-3">
-        <p className="text-[11px] font-dm font-bold uppercase tracking-wider text-birth-gray-4">Acrílico Personalizado — precio por m²</p>
+        <p className="text-[11px] font-dm font-bold uppercase tracking-wider text-birth-gray-4">Medida personalizada</p>
 
-        {/* Tarjeta estática de referencia */}
-        <div className="grid grid-cols-2 gap-2">
-          {[{ g: '3mm', p: 30000 }, { g: '5mm', p: 40000 }].map(({ g, p }) => (
-            <div key={g} className={`rounded border p-3 text-center ${cGrosor === g ? 'bg-birth-black border-birth-black' : 'bg-white border-birth-gray-2'}`}>
-              <p className={`text-xs font-dm font-bold uppercase ${cGrosor === g ? 'text-white/60' : 'text-birth-gray-4'}`}>{g}</p>
-              <p className={`font-barlow font-bold text-xl ${cGrosor === g ? 'text-white' : 'text-birth-black'}`}>{clp(p)}</p>
-              <p className={`text-[10px] font-dm ${cGrosor === g ? 'text-white/50' : 'text-birth-gray-3'}`}>por m²</p>
-            </div>
-          ))}
+        {/* Tarjeta dinámica — precio/m² según tipo y grosor activo */}
+        <div className="bg-birth-gray rounded p-3 flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Precio/m² activo</p>
+            <p className="text-xs font-dm text-birth-gray-3 mt-0.5">
+              {AFICHES_TIPOS.find(t => t.id === tipo)?.label} · {grosor}
+            </p>
+          </div>
+          <span className="font-barlow font-bold text-2xl text-birth-black">{clp(precioM2Custom)}</span>
         </div>
-
-        {/* Selector grosor */}
-        <div className="flex gap-1.5">
-          {['3mm', '5mm'].map(g => (
-            <button key={g} onClick={() => setCGrosor(g)}
-              className={`flex-1 py-1.5 rounded text-sm font-dm border transition-colors ${cGrosor === g ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
-              {g}
-            </button>
-          ))}
-        </div>
+        <p className="text-[11px] text-birth-gray-3 font-dm -mt-1">
+          Cambia el tipo y grosor en los filtros de arriba para ajustar el precio/m²
+        </p>
 
         {/* Selector forma */}
         <div className="flex gap-1.5">
@@ -500,12 +499,12 @@ function AfichesAcrilicosPanel() {
 
         {/* Resultado */}
         {cArea > 0 && (
-          <div className="bg-birth-gray rounded px-4 py-3 flex items-center justify-between">
+          <div className="bg-birth-black rounded px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-xs font-dm text-birth-gray-4">{cArea.toFixed(4)} m² × {clp(PRECIO_M2[cGrosor])}/m²</p>
-              <p className="text-[11px] font-dm text-birth-gray-3">{cForma === 'circular' ? 'π × (d/2)²' : 'ancho × alto'}</p>
+              <p className="text-xs font-dm text-white/60">{cArea.toFixed(4)} m² × {clp(precioM2Custom)}/m²</p>
+              <p className="text-[11px] font-dm text-white/40">{cForma === 'circular' ? 'π × (Ø/2)²' : 'ancho × alto'}</p>
             </div>
-            <span className="font-barlow font-bold text-2xl text-birth-black">{clp(cPrecio)}</span>
+            <span className="font-barlow font-bold text-2xl text-white">{clp(cPrecio)}</span>
           </div>
         )}
 
