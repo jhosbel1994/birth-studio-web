@@ -10,21 +10,21 @@ function ModalGasto({ gasto, onClose, onSave }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-birth-gray-2">
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-md shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
           <h2 className="font-barlow text-xl font-bold tracking-wide">
             {gasto?.id ? 'EDITAR GASTO' : 'NUEVO GASTO'}
           </h2>
           <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
         </div>
-        <form onSubmit={e => { e.preventDefault(); if (!form.descripcion || !form.monto) return; onSave(form) }} className="p-6 space-y-4">
+        <form onSubmit={e => { e.preventDefault(); if (!form.descripcion || !form.monto) return; onSave(form) }} className="p-5 md:p-6 space-y-4">
           <div>
             <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Descripción *</label>
             <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)} required
               className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Monto *</label>
               <input type="number" min="0" value={form.monto} onChange={e => set('monto', parseFloat(e.target.value) || '')} required
@@ -48,7 +48,7 @@ function ModalGasto({ gasto, onClose, onSave }) {
             <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
               className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2 pb-safe">
             <button type="submit"
               className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
               {gasto?.id ? 'Guardar cambios' : 'Registrar gasto'}
@@ -70,13 +70,13 @@ function ModalPago({ cotizaciones, onClose, onSave }) {
   const cots = cotizaciones.filter(c => c.estado === 'aceptada')
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-birth-gray-2">
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-md shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
           <h2 className="font-barlow text-xl font-bold tracking-wide">REGISTRAR PAGO</h2>
           <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
         </div>
-        <form onSubmit={e => { e.preventDefault(); if (!form.monto) return; onSave(form) }} className="p-6 space-y-4">
+        <form onSubmit={e => { e.preventDefault(); if (!form.monto) return; onSave(form) }} className="p-5 md:p-6 space-y-4">
           <div>
             <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Cotización (opcional)</label>
             <select value={form.cotizacionId} onChange={e => set('cotizacionId', e.target.value)}
@@ -85,7 +85,7 @@ function ModalPago({ cotizaciones, onClose, onSave }) {
               {cots.map(c => <option key={c.id} value={c.id}>#{c.numero} — {c.clienteNombre} ({clp(c.total)})</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Monto *</label>
               <input type="number" min="0" value={form.monto} onChange={e => set('monto', parseFloat(e.target.value) || '')} required
@@ -112,7 +112,7 @@ function ModalPago({ cotizaciones, onClose, onSave }) {
             <input value={form.notas} onChange={e => set('notas', e.target.value)}
               className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2 pb-safe">
             <button type="submit"
               className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
               Registrar ingreso
@@ -186,10 +186,10 @@ export default function Gastos() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 md:mb-8">
         <div>
-          <h1 className="font-barlow text-4xl font-bold text-birth-black tracking-wide">GASTOS & FINANZAS</h1>
-          <p className="text-birth-gray-3 text-sm font-dm mt-1">Seguimiento de ingresos y gastos</p>
+          <h1 className="font-barlow text-3xl md:text-4xl font-bold text-birth-black tracking-wide">GASTOS & FINANZAS</h1>
+          <p className="text-birth-gray-3 text-xs md:text-sm font-dm mt-1">Seguimiento de ingresos y gastos</p>
         </div>
         <div className="flex gap-2">
           <select value={mesFiltro} onChange={e => setMesFiltro(e.target.value)}
@@ -204,36 +204,36 @@ export default function Gastos() {
       </div>
 
       {/* Resumen del mes */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white border border-birth-gray-2 rounded p-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div className="bg-white border border-birth-gray-2 rounded p-4 md:p-5">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp size={16} className="text-green-500" />
             <p className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Ingresos</p>
           </div>
-          <p className="font-barlow text-3xl font-bold text-green-700">{clp(totalIngresos)}</p>
+          <p className="font-barlow text-2xl md:text-3xl font-bold text-green-700">{clp(totalIngresos)}</p>
         </div>
-        <div className="bg-white border border-birth-gray-2 rounded p-5">
+        <div className="bg-white border border-birth-gray-2 rounded p-4 md:p-5">
           <div className="flex items-center gap-2 mb-1">
             <TrendingDown size={16} className="text-birth-red" />
             <p className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Gastos</p>
           </div>
-          <p className="font-barlow text-3xl font-bold text-birth-red">{clp(totalGastos)}</p>
+          <p className="font-barlow text-2xl md:text-3xl font-bold text-birth-red">{clp(totalGastos)}</p>
         </div>
-        <div className="bg-white border border-birth-gray-2 rounded p-5">
+        <div className="bg-white border border-birth-gray-2 rounded p-4 md:p-5">
           <div className="flex items-center gap-2 mb-1">
             <DollarSign size={16} className={ganancia >= 0 ? 'text-green-500' : 'text-birth-red'} />
             <p className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Ganancia neta</p>
           </div>
-          <p className={`font-barlow text-3xl font-bold ${ganancia >= 0 ? 'text-green-700' : 'text-birth-red'}`}>{clp(ganancia)}</p>
+          <p className={`font-barlow text-2xl md:text-3xl font-bold ${ganancia >= 0 ? 'text-green-700' : 'text-birth-red'}`}>{clp(ganancia)}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Tabla principal */}
         <div className="lg:col-span-2">
           {/* Tabs */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex gap-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="flex gap-1 overflow-x-auto">
               <button onClick={() => setTab('gastos')}
                 className={`px-4 py-2 rounded text-sm font-dm border transition-colors ${tab === 'gastos' ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
                 Gastos ({gastosMes.length})
@@ -245,7 +245,7 @@ export default function Gastos() {
             </div>
             <button
               onClick={() => tab === 'gastos' ? setModalGasto({}) : setModalPago(true)}
-              className="flex items-center gap-2 bg-birth-black text-white px-4 py-2 rounded text-sm font-dm hover:bg-birth-red transition-colors">
+              className="flex items-center justify-center gap-2 bg-birth-black text-white px-4 py-2.5 rounded text-sm font-dm hover:bg-birth-red transition-colors">
               <Plus size={14} /> {tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'}
             </button>
           </div>
