@@ -10,6 +10,7 @@ export const CATEGORIAS = [
   { id: 'acrilico', label: 'Acrílico / Letras Corpóreas' },
   { id: 'afiches_acrilico', label: 'Afiches Acrílicos' },
   { id: 'adhesivo', label: 'Adhesivo' },
+  { id: 'fachada', label: 'Fachada / ACM' },
   { id: 'bandera_vela', label: 'Bandera Vela' },
   { id: 'bastidor', label: 'Bastidores' },
   { id: 'web', label: 'Desarrollo Web' },

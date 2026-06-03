@@ -1187,6 +1187,248 @@ function ManualPanel() {
   )
 }
 
+// ─── PANEL FACHADA / ACM ───────────────────────────────────────────────────
+const ACM_NORMAL = [
+  { id: 'acm_blanco_brill', color: 'Blanco Brillante' },
+  { id: 'acm_negro_brill',  color: 'Negro Brillante'  },
+  { id: 'acm_rojo_brill',   color: 'Rojo Brillante'   },
+  { id: 'acm_azul_brill',   color: 'Azul Brillante'   },
+  { id: 'acm_amarillo',     color: 'Amarillo Mate'     },
+]
+const ACM_MATE = [
+  { id: 'acm_mate_blanco',  color: 'Blanco Mate'       },
+  { id: 'acm_mate_negro',   color: 'Negro Mate'        },
+  { id: 'acm_mate_plata',   color: 'Plata Mate'        },
+  { id: 'acm_mate_gray',    color: 'Dark Gray Metallic' },
+]
+
+function FachadaPanel({ multiplicador, setMultiplicador }) {
+  // ACM Normal
+  const [colorNormal, setColorNormal] = useState(ACM_NORMAL[0].color)
+  const [qNormal, setQNormal] = useState('')
+  // ACM Mate
+  const [colorMate, setColorMate] = useState(ACM_MATE[0].color)
+  const [qMate, setQMate] = useState('')
+  // Lámina Acanalada
+  const [qAcan, setQAcan] = useState('')
+  // M² personalizado
+  const [facPrecioM2, setFacPrecioM2] = useState('')
+  const [facAncho, setFacAncho] = useState('')
+  const [facAlto, setFacAlto] = useState('')
+  // Ítem libre con multiplicador propio
+  const [libDesc, setLibDesc] = useState('')
+  const [libCosto, setLibCosto] = useState('')
+  const [libMult, setLibMult] = useState('2')
+
+  const PRECIO_ACM_NORMAL = 62878
+  const PRECIO_ACM_MATE   = 106216
+  const PRECIO_ACAN       = 35000
+  const ENVIO_ACAN        = 25000
+
+  const totalNormal = qNormal ? Math.round(parseFloat(qNormal) * PRECIO_ACM_NORMAL * multiplicador) : 0
+  const totalMate   = qMate   ? Math.round(parseFloat(qMate)   * PRECIO_ACM_MATE   * multiplicador) : 0
+  const totalAcan   = qAcan   ? parseFloat(qAcan) * PRECIO_ACAN + ENVIO_ACAN : 0
+
+  const facArea     = (parseFloat(facAncho)||0) * (parseFloat(facAlto)||0) / 10000
+  const facTotal    = facArea > 0 && facPrecioM2 ? Math.round(facArea * parseFloat(facPrecioM2)) : 0
+
+  const libTotal    = libCosto && libMult ? Math.round(parseFloat(libCosto) * parseFloat(libMult)) : 0
+
+  const agregar = (descripcion, total) => {
+    if (!total) return
+    window.dispatchEvent(new CustomEvent('cotizador:agregar', {
+      detail: { descripcion, cantidad: 1, precioUnitario: total, total }
+    }))
+  }
+
+  const SH = ({ label }) => (
+    <div className="px-4 py-2 bg-birth-gray border-y border-birth-gray-2">
+      <p className="text-[10px] font-dm font-bold uppercase tracking-wider text-birth-gray-4">{label}</p>
+    </div>
+  )
+
+  return (
+    <div className="divide-y divide-birth-gray-2">
+
+      {/* Multiplicador instalación */}
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-birth-gray">
+        <span className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider shrink-0">Instalación:</span>
+        <div className="flex gap-1">
+          {MULTIPLICADORES.map(m => (
+            <button key={m.id} onClick={() => setMultiplicador(m.valor)}
+              className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+              ×{m.valor}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-birth-gray-3 font-dm">{MULTIPLICADORES.find(m => m.valor === multiplicador)?.label}</span>
+      </div>
+
+      {/* ── ACM NORMAL / BRILLANTE ── */}
+      <SH label={`ACM Normal/Brillante 3mm — ${clp(PRECIO_ACM_NORMAL)}/plancha × mult = ${clp(PRECIO_ACM_NORMAL * multiplicador)}/plancha`} />
+      <div className="p-4 space-y-3">
+        <div>
+          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider mb-1.5">Color</p>
+          <div className="flex flex-wrap gap-1.5">
+            {ACM_NORMAL.map(c => (
+              <button key={c.id} onClick={() => setColorNormal(c.color)}
+                className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${colorNormal === c.color ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+                {c.color}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Cantidad de planchas</label>
+            <input type="number" min="1" value={qNormal} onChange={e => setQNormal(e.target.value)}
+              placeholder="0" className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+          {totalNormal > 0 && (
+            <div className="text-right shrink-0">
+              <p className="text-xs text-birth-gray-3 font-dm">Total</p>
+              <p className="font-barlow font-bold text-xl">{clp(totalNormal)}</p>
+            </div>
+          )}
+        </div>
+        <button onClick={() => { agregar(`ACM ${colorNormal} 3mm ×${qNormal} planchas`, totalNormal); setQNormal('') }}
+          disabled={!totalNormal}
+          className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <Plus size={14} /> Agregar a cotización
+        </button>
+      </div>
+
+      {/* ── ACM MATE ── */}
+      <SH label={`ACM Mate 4mm — ${clp(PRECIO_ACM_MATE)}/plancha × mult = ${clp(PRECIO_ACM_MATE * multiplicador)}/plancha`} />
+      <div className="p-4 space-y-3">
+        <div>
+          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider mb-1.5">Color</p>
+          <div className="flex flex-wrap gap-1.5">
+            {ACM_MATE.map(c => (
+              <button key={c.id} onClick={() => setColorMate(c.color)}
+                className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${colorMate === c.color ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+                {c.color}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Cantidad de planchas</label>
+            <input type="number" min="1" value={qMate} onChange={e => setQMate(e.target.value)}
+              placeholder="0" className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+          {totalMate > 0 && (
+            <div className="text-right shrink-0">
+              <p className="text-xs text-birth-gray-3 font-dm">Total</p>
+              <p className="font-barlow font-bold text-xl">{clp(totalMate)}</p>
+            </div>
+          )}
+        </div>
+        <button onClick={() => { agregar(`ACM ${colorMate} 4mm ×${qMate} planchas`, totalMate); setQMate('') }}
+          disabled={!totalMate}
+          className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <Plus size={14} /> Agregar a cotización
+        </button>
+      </div>
+
+      {/* ── LÁMINA ACANALADA ── */}
+      <SH label={`Lámina Acanalada — ${clp(PRECIO_ACAN)}/unidad + envío fijo ${clp(ENVIO_ACAN)}`} />
+      <div className="p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Cantidad de láminas</label>
+            <input type="number" min="1" value={qAcan} onChange={e => setQAcan(e.target.value)}
+              placeholder="0" className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+          {totalAcan > 0 && (
+            <div className="text-right shrink-0">
+              <p className="text-xs text-birth-gray-3 font-dm">Láminas + envío</p>
+              <p className="font-barlow font-bold text-xl">{clp(totalAcan)}</p>
+            </div>
+          )}
+        </div>
+        {qAcan > 0 && (
+          <div className="bg-birth-gray rounded px-3 py-2 text-xs font-dm text-birth-gray-4 space-y-0.5">
+            <div className="flex justify-between"><span>{qAcan} × {clp(PRECIO_ACAN)}</span><span>{clp(parseFloat(qAcan)*PRECIO_ACAN)}</span></div>
+            <div className="flex justify-between"><span>Envío fijo</span><span>{clp(ENVIO_ACAN)}</span></div>
+          </div>
+        )}
+        <button onClick={() => { agregar(`Lámina Acanalada ×${qAcan} + envío`, totalAcan); setQAcan('') }}
+          disabled={!totalAcan}
+          className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <Plus size={14} /> Agregar a cotización
+        </button>
+      </div>
+
+      {/* ── POR M² PERSONALIZADO ── */}
+      <SH label="Fachada por m² — precio libre" />
+      <div className="p-4 space-y-3">
+        <div>
+          <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Precio por m²</label>
+          <input type="number" min="0" value={facPrecioM2} onChange={e => setFacPrecioM2(e.target.value)}
+            placeholder="$ por m²" className="w-full border-2 border-birth-black rounded px-3 py-2 text-lg font-barlow font-bold focus:outline-none focus:border-birth-red" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Ancho (cm)</label>
+            <input type="number" min="0" value={facAncho} onChange={e => setFacAncho(e.target.value)}
+              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+          <div>
+            <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Alto (cm)</label>
+            <input type="number" min="0" value={facAlto} onChange={e => setFacAlto(e.target.value)}
+              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+        </div>
+        {facArea > 0 && facTotal > 0 && (
+          <div className="bg-birth-black rounded px-4 py-2.5 flex items-center justify-between">
+            <p className="text-xs font-dm text-white/60">{facArea.toFixed(3)} m² × {clp(parseFloat(facPrecioM2))}/m²</p>
+            <span className="font-barlow font-bold text-xl text-white">{clp(facTotal)}</span>
+          </div>
+        )}
+        <button onClick={() => { agregar(`Fachada por m² ${facAncho}×${facAlto}cm (${facArea.toFixed(3)} m²)`, facTotal); setFacAncho(''); setFacAlto('') }}
+          disabled={!facTotal}
+          className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <Plus size={14} /> Agregar a cotización
+        </button>
+      </div>
+
+      {/* ── ÍTEM LIBRE CON MULTIPLICADOR PROPIO ── */}
+      <SH label="Otro tipo de fachada — costo × multiplicador propio" />
+      <div className="p-4 space-y-3">
+        <input value={libDesc} onChange={e => setLibDesc(e.target.value)}
+          placeholder="Descripción del ítem..."
+          className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Costo base ($)</label>
+            <input type="number" min="0" value={libCosto} onChange={e => setLibCosto(e.target.value)}
+              placeholder="0" className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+          <div>
+            <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Multiplicador</label>
+            <input type="number" min="1" step="0.1" value={libMult} onChange={e => setLibMult(e.target.value)}
+              placeholder="2" className="w-full border-2 border-birth-black rounded px-3 py-2 text-sm font-dm font-bold focus:outline-none focus:border-birth-red" />
+          </div>
+        </div>
+        {libTotal > 0 && (
+          <div className="bg-birth-black rounded px-4 py-2.5 flex items-center justify-between">
+            <p className="text-xs font-dm text-white/60">{clp(parseFloat(libCosto))} × {libMult}</p>
+            <span className="font-barlow font-bold text-xl text-white">{clp(libTotal)}</span>
+          </div>
+        )}
+        <button onClick={() => { agregar(libDesc || 'Fachada personalizada', libTotal); setLibDesc(''); setLibCosto(''); setLibMult('2') }}
+          disabled={!libTotal || !libDesc}
+          className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <Plus size={14} /> Agregar a cotización
+        </button>
+      </div>
+
+    </div>
+  )
+}
+
 // ─── PANEL RESULTADOS BÚSQUEDA GLOBAL ─────────────────────────────────────
 function BusquedaGlobalPanel({ resultados, query, multiplicador }) {
   return (
@@ -1253,6 +1495,7 @@ function CategoriaPanel({ categoria, multiplicador, setMultiplicador }) {
   if (categoria === 'manual') return <ManualPanel />
   if (categoria === 'acrilico') return <AcrilicoPanel multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
   if (categoria === 'afiches_acrilico') return <AfichesAcrilicosPanel />
+  if (categoria === 'fachada') return <FachadaPanel multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
   return <ProductosGenericos categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
 }
 
@@ -1288,6 +1531,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
   const [plazo, setPlazo] = useState('')
   const [conIva, setConIva] = useState(true)
   const [descuento, setDescuento] = useState('')
+  const [traslado, setTraslado] = useState('')
   const [emailCliente, setEmailCliente] = useState('')
   useEffect(() => {
     if (clienteId) getClienteById(clienteId).then(c => { if (c?.correo) setEmailCliente(c.correo) })
@@ -1300,8 +1544,9 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
   const pctDesc         = Math.min(Math.max(parseFloat(descuento) || 0, 0), 100)
   const montoDescuento  = pctDesc > 0 ? Math.round(subtotalBruto * pctDesc / 100) : 0
   const subtotal        = subtotalBruto - montoDescuento
+  const montoTraslado   = parseFloat(traslado) || 0
   const iva             = conIva ? Math.round(subtotal * 0.19) : 0
-  const total           = subtotal + iva
+  const total           = subtotal + iva + montoTraslado
   const anticipo        = Math.round(total * 0.5)
 
   const buildCot = () => ({
@@ -1313,6 +1558,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
     anticipo, saldo: anticipo,
     descuento: pctDesc,
     montoDescuento,
+    traslado: montoTraslado,
     estado: 'por_aceptar',
   })
 
@@ -1440,6 +1686,24 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
                 )}
               </div>
 
+              {/* Traslado */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-dm text-birth-gray-4 uppercase tracking-wider shrink-0">Traslado</label>
+                <div className="flex items-center border border-birth-gray-2 rounded overflow-hidden flex-1">
+                  <span className="px-2.5 py-1.5 bg-birth-gray text-sm font-dm text-birth-gray-4 border-r border-birth-gray-2">$</span>
+                  <input
+                    type="number" min="0"
+                    value={traslado}
+                    onChange={e => setTraslado(e.target.value)}
+                    placeholder="0"
+                    className="flex-1 px-3 py-1.5 text-sm font-dm focus:outline-none text-right"
+                  />
+                </div>
+                {montoTraslado > 0 && (
+                  <span className="text-sm font-dm text-birth-gray-4 shrink-0">{clp(montoTraslado)}</span>
+                )}
+              </div>
+
               {/* IVA */}
               <label className="flex items-center gap-2 text-sm font-dm cursor-pointer">
                 <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} className="accent-birth-black" />
@@ -1464,6 +1728,11 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuar
                 {conIva && (
                   <div className="flex justify-between text-sm font-dm text-birth-gray-4">
                     <span>IVA 19%</span><span>{clp(iva)}</span>
+                  </div>
+                )}
+                {montoTraslado > 0 && (
+                  <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+                    <span>Traslado</span><span>{clp(montoTraslado)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-barlow text-xl font-bold border-t border-birth-gray-2 pt-1.5 mt-1">

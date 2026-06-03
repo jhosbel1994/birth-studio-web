@@ -242,6 +242,7 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
 
   addTotal('Subtotal neto:', cotizacion.subtotal)
   if (cotizacion.iva > 0) addTotal('IVA (19%):', cotizacion.iva)
+  if (cotizacion.traslado > 0) addTotal('Traslado:', cotizacion.traslado)
   linea(doc, y)
   y += 3
   addTotal('TOTAL:', cotizacion.total, true, true)
