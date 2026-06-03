@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { saveCliente, deleteCliente, subscribeClientes, subscribeCotizaciones } from '../utils/storage'
+import { generarCotizacionPDF } from '../utils/pdf'
 import { fechaCorta, clp, ESTADOS } from '../utils/formatters'
-import { Plus, Search, Trash2, Edit2, FileText, Phone, Mail, X } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, FileText, Phone, Mail, X, MoreVertical, Download } from 'lucide-react'
 
 function WhatsAppIcon({ size = 16 }) {
   return (
@@ -20,6 +21,7 @@ function whatsappUrl(telefono) {
 
 const EMPTY = { nombre: '', apellido: '', empresa: '', rut: '', direccion: '', correo: '', telefono: '', notas: '' }
 
+// ─── MODAL EDITAR/CREAR CLIENTE ───────────────────────────────────────────────
 function Modal({ cliente, onClose, onSave }) {
   const [form, setForm] = useState(cliente?.id ? { ...cliente } : { ...EMPTY })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -27,14 +29,11 @@ function Modal({ cliente, onClose, onSave }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
       <div className="bg-white rounded-t-2xl md:rounded w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
-          <h2 className="font-barlow text-xl font-bold tracking-wide">
-            {cliente?.id ? 'EDITAR CLIENTE' : 'NUEVO CLIENTE'}
-          </h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
+          <h2 className="font-barlow text-xl font-bold tracking-wide">{cliente?.id ? 'MODIFICAR CLIENTE' : 'NUEVO CLIENTE'}</h2>
           <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
         </div>
-        <form onSubmit={e => { e.preventDefault(); if (!form.nombre.trim()) return; onSave(form) }} className="p-5 md:p-6 space-y-3">
-          {/* Nombre + Apellido */}
+        <form onSubmit={e => { e.preventDefault(); if (!form.nombre.trim()) return; onSave(form) }} className="p-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Nombre *</label>
@@ -47,7 +46,6 @@ function Modal({ cliente, onClose, onSave }) {
                 className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
             </div>
           </div>
-          {/* Empresa + RUT */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Empresa</label>
@@ -60,13 +58,11 @@ function Modal({ cliente, onClose, onSave }) {
                 className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" placeholder="76.123.456-7" />
             </div>
           </div>
-          {/* Dirección */}
           <div>
             <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Dirección</label>
             <input value={form.direccion || ''} onChange={e => set('direccion', e.target.value)}
               className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" placeholder="Av. O'Higgins 123, Talca" />
           </div>
-          {/* Correo + Teléfono */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Correo</label>
@@ -79,15 +75,13 @@ function Modal({ cliente, onClose, onSave }) {
                 className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" placeholder="+56 9 1234 5678" />
             </div>
           </div>
-          {/* Notas */}
           <div>
             <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Notas</label>
             <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
               className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
           </div>
           <div className="flex gap-3 pt-2 pb-safe">
-            <button type="submit"
-              className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
+            <button type="submit" className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
               {cliente?.id ? 'Guardar cambios' : 'Crear cliente'}
             </button>
             <button type="button" onClick={onClose}
@@ -101,10 +95,38 @@ function Modal({ cliente, onClose, onSave }) {
   )
 }
 
+// ─── MENÚ DE OPCIONES DE TARJETA ──────────────────────────────────────────────
+function CardMenu({ cliente, onClose, onEditar, onEliminar }) {
+  const nombreCompleto = [cliente.nombre, cliente.apellido].filter(Boolean).join(' ')
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={onClose}>
+      <div className="bg-white w-full md:max-w-xs rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-4 py-3 border-b border-birth-gray-2">
+          <p className="font-barlow font-bold text-birth-black">{nombreCompleto}</p>
+          {cliente.empresa && <p className="text-xs text-birth-gray-3 font-dm">{cliente.empresa}</p>}
+        </div>
+        <button onClick={onEditar}
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-birth-gray active:bg-birth-gray-2 transition-colors text-birth-black">
+          <Edit2 size={16} className="text-birth-gray-4" />
+          <span className="text-sm font-dm font-medium">Modificar contacto</span>
+        </button>
+        <button onClick={onEliminar}
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-red-50 active:bg-red-100 transition-colors text-birth-red border-t border-birth-gray-2">
+          <Trash2 size={16} />
+          <span className="text-sm font-dm font-medium">Eliminar permanentemente</span>
+        </button>
+        <div className="pb-safe" />
+      </div>
+    </div>
+  )
+}
+
+// ─── FICHA CLIENTE ────────────────────────────────────────────────────────────
 function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuevaCotizacion }) {
   const historial = cotizaciones.filter(c => c.clienteId === cliente.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   const nombreCompleto = [cliente.nombre, cliente.apellido].filter(Boolean).join(' ')
+  const [confirmEliminar, setConfirmEliminar] = useState(false)
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4"
@@ -119,11 +141,19 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
               <h2 className="font-barlow text-xl font-bold tracking-wide leading-tight">{nombreCompleto}</h2>
               {cliente.empresa && <p className="text-xs text-birth-gray-4 font-dm mt-0.5 truncate">{cliente.empresa}</p>}
             </div>
-            <button onClick={onClose} className="shrink-0 p-1.5 text-birth-gray-3 hover:text-birth-black rounded-full hover:bg-birth-gray -mt-0.5">
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => onEdit(cliente)}
+                className="p-2 text-birth-gray-3 hover:text-birth-black rounded-full hover:bg-birth-gray" title="Modificar">
+                <Edit2 size={16} />
+              </button>
+              <button onClick={onClose}
+                className="p-2 text-birth-gray-3 hover:text-birth-black rounded-full hover:bg-birth-gray">
+                <X size={18} />
+              </button>
+            </div>
           </div>
-          {/* Botones de contacto en el header */}
+
+          {/* Botones de contacto */}
           <div className="flex gap-2 flex-wrap">
             {cliente.telefono && (
               <a href={whatsappUrl(cliente.telefono)} target="_blank" rel="noopener noreferrer"
@@ -143,58 +173,79 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
                 <Phone size={13} /> Llamar
               </a>
             )}
-            <button onClick={() => onEdit(cliente)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-birth-gray border border-birth-gray-2 text-birth-black text-xs font-dm font-medium active:bg-birth-gray-2 ml-auto">
-              <Edit2 size={13} /> Editar
-            </button>
-            <button onClick={() => { if (confirm('¿Eliminar?')) onDelete(cliente.id) }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-birth-gray border border-birth-gray-2 text-birth-red text-xs font-dm font-medium active:bg-birth-gray-2">
-              <Trash2 size={13} />
-            </button>
           </div>
         </div>
 
-        <div className="p-4 md:p-5 space-y-4 pb-safe">
-          {/* Info */}
+        <div className="p-4 md:p-5 space-y-5 pb-safe">
+          {/* Datos */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm font-dm">
-            {cliente.rut && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">RUT empresa</span><p className="mt-0.5 text-sm">{cliente.rut}</p></div>}
-            {(cliente.direccion || cliente.ciudad) && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Dirección</span><p className="mt-0.5 text-sm">{cliente.direccion || cliente.ciudad}</p></div>}
-            {cliente.correo && <div className="col-span-2"><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Correo</span><p className="mt-0.5 text-sm truncate">{cliente.correo}</p></div>}
-            {cliente.telefono && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Teléfono</span><p className="mt-0.5 text-sm">{cliente.telefono}</p></div>}
-            {cliente.notas && <div className="col-span-2"><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Notas</span><p className="mt-0.5 text-sm text-birth-gray-4">{cliente.notas}</p></div>}
+            {cliente.rut && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">RUT empresa</span><p className="mt-0.5">{cliente.rut}</p></div>}
+            {(cliente.direccion || cliente.ciudad) && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Dirección</span><p className="mt-0.5">{cliente.direccion || cliente.ciudad}</p></div>}
+            {cliente.correo && <div className="col-span-2"><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Correo</span><p className="mt-0.5 truncate">{cliente.correo}</p></div>}
+            {cliente.telefono && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Teléfono</span><p className="mt-0.5">{cliente.telefono}</p></div>}
+            {cliente.notas && <div className="col-span-2"><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Notas</span><p className="mt-0.5 text-birth-gray-4 text-sm">{cliente.notas}</p></div>}
           </div>
 
-          {/* Historial */}
+          {/* Historial de cotizaciones */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-barlow font-bold text-base tracking-wide">HISTORIAL DE COTIZACIONES</h3>
+              <h3 className="font-barlow font-bold text-base tracking-wide">HISTORIAL</h3>
               <button onClick={() => onNuevaCotizacion(cliente)}
                 className="flex items-center gap-1 text-xs bg-birth-black text-white px-3 py-1.5 rounded hover:bg-birth-red transition-colors font-dm">
                 <Plus size={12} /> Nueva cotización
               </button>
             </div>
             {historial.length === 0 ? (
-              <p className="text-sm text-birth-gray-3 font-dm">Sin cotizaciones</p>
+              <p className="text-sm text-birth-gray-3 font-dm">Sin cotizaciones aún.</p>
             ) : (
               <div className="space-y-2">
                 {historial.map(c => {
                   const est = ESTADOS[c.estado] || ESTADOS.por_aceptar
                   return (
-                    <div key={c.id} className="flex items-center justify-between p-3 bg-birth-gray rounded">
-                      <div className="flex items-center gap-3">
-                        <FileText size={14} className="text-birth-gray-3" />
-                        <div>
+                    <div key={c.id} className="flex items-center gap-3 p-3 bg-birth-gray rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
                           <p className="text-sm font-medium font-dm">#{c.numero}</p>
-                          <p className="text-xs text-birth-gray-3">{fechaCorta(c.createdAt)}</p>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${est.color}`}>{est.label}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <p className="text-xs text-birth-gray-3 font-dm">{fechaCorta(c.createdAt)}</p>
+                          <p className="text-sm font-medium font-dm">{clp(c.total)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium font-dm">{clp(c.total)}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded border ${est.color}`}>{est.label}</span>
-                      </div>
+                      <button
+                        onClick={() => generarCotizacionPDF(c, cliente, 'download')}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded bg-white border border-birth-gray-2 text-xs font-dm text-birth-black hover:border-birth-black active:bg-birth-gray transition-colors"
+                        title="Descargar PDF">
+                        <Download size={13} /> PDF
+                      </button>
                     </div>
                   )
                 })}
+              </div>
+            )}
+          </div>
+
+          {/* Botón eliminar cliente */}
+          <div className="pt-2 border-t border-birth-gray-2">
+            {!confirmEliminar ? (
+              <button onClick={() => setConfirmEliminar(true)}
+                className="w-full py-3 rounded border border-birth-red text-birth-red text-sm font-dm font-medium hover:bg-red-50 active:bg-red-100 transition-colors flex items-center justify-center gap-2">
+                <Trash2 size={15} /> Eliminar cliente
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-center font-dm text-birth-gray-4">¿Eliminar a <strong>{nombreCompleto}</strong> permanentemente?</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmEliminar(false)}
+                    className="flex-1 py-2.5 rounded border border-birth-gray-2 text-sm font-dm text-birth-gray-4 hover:border-birth-black">
+                    Cancelar
+                  </button>
+                  <button onClick={() => onDelete(cliente.id)}
+                    className="flex-1 py-2.5 rounded bg-birth-red text-white text-sm font-dm font-medium hover:bg-red-700">
+                    Sí, eliminar
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -204,6 +255,7 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
   )
 }
 
+// ─── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
 export default function Clientes() {
   const navigate = useNavigate()
   const [clientes, setClientes] = useState([])
@@ -212,6 +264,7 @@ export default function Clientes() {
   const [modal, setModal] = useState(null)
   const [ficha, setFicha] = useState(null)
   const [editando, setEditando] = useState(null)
+  const [cardMenu, setCardMenu] = useState(null) // cliente obj
 
   useEffect(() => {
     const u1 = subscribeClientes(setClientes)
@@ -261,6 +314,14 @@ export default function Clientes() {
           onNuevaCotizacion={handleNuevaCotizacion}
         />
       )}
+      {cardMenu && (
+        <CardMenu
+          cliente={cardMenu}
+          onClose={() => setCardMenu(null)}
+          onEditar={() => { setEditando(cardMenu); setModal('edit'); setCardMenu(null) }}
+          onEliminar={() => { if (confirm(`¿Eliminar a ${cardMenu.nombre} permanentemente?`)) { handleDelete(cardMenu.id); setCardMenu(null) } }}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-5 md:mb-8">
@@ -275,14 +336,11 @@ export default function Clientes() {
       </div>
 
       {/* Búsqueda */}
-      <div className="relative mb-5 md:mb-6 max-w-sm">
+      <div className="relative mb-5 max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-birth-gray-3" />
-        <input
-          value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
+        <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
           placeholder="Buscar por nombre o empresa..."
-          className="w-full pl-9 pr-4 py-2.5 border border-birth-gray-2 rounded text-sm font-dm focus:outline-none focus:border-birth-black bg-white"
-        />
+          className="w-full pl-9 pr-4 py-2.5 border border-birth-gray-2 rounded text-sm font-dm focus:outline-none focus:border-birth-black bg-white" />
       </div>
 
       {/* Mobile cards */}
@@ -297,17 +355,26 @@ export default function Clientes() {
             const nombreCompleto = [c.nombre, c.apellido].filter(Boolean).join(' ')
             return (
               <div key={c.id} className="bg-white border border-birth-gray-2 rounded-xl overflow-hidden">
-                {/* Info principal */}
+                {/* Info principal — clic abre ficha */}
                 <button type="button" onClick={() => setFicha(c)}
                   className="w-full p-4 text-left active:bg-birth-gray transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
                       <p className="font-dm font-semibold text-birth-black truncate">{nombreCompleto}</p>
                       <p className="text-xs text-birth-gray-4 mt-0.5 truncate">{c.empresa || c.direccion || '—'}</p>
                     </div>
-                    <span className="shrink-0 bg-birth-gray text-birth-black px-2 py-1 rounded text-[11px] font-dm">
-                      {nCot} cot.
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="bg-birth-gray text-birth-black px-2 py-0.5 rounded text-[11px] font-dm">
+                        {nCot} cot.
+                      </span>
+                      {/* Botón 3 puntos */}
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setCardMenu(c) }}
+                        className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded active:bg-birth-gray">
+                        <MoreVertical size={16} />
+                      </button>
+                    </div>
                   </div>
                   {(c.telefono || c.correo) && (
                     <div className="mt-2 space-y-0.5">
@@ -317,29 +384,31 @@ export default function Clientes() {
                   )}
                 </button>
 
-                {/* Botones de acción */}
-                <div className="border-t border-birth-gray-2 grid grid-cols-4 divide-x divide-birth-gray-2">
-                  <button type="button" onClick={() => { setEditando(c); setModal('edit') }}
-                    className="py-2.5 flex flex-col items-center gap-1 text-birth-gray-4 active:bg-birth-gray text-[10px] font-dm">
-                    <Edit2 size={15} />
-                    <span>Editar</span>
-                  </button>
-                  <a href={c.correo ? `mailto:${c.correo}` : undefined}
-                    className={`py-2.5 flex flex-col items-center gap-1 text-[10px] font-dm ${c.correo ? 'text-birth-gray-4 active:bg-birth-gray' : 'text-birth-gray-2 pointer-events-none'}`}>
-                    <Mail size={15} />
-                    <span>Correo</span>
-                  </a>
-                  <a href={c.telefono ? `tel:${c.telefono}` : undefined}
-                    className={`py-2.5 flex flex-col items-center gap-1 text-[10px] font-dm ${c.telefono ? 'text-birth-gray-4 active:bg-birth-gray' : 'text-birth-gray-2 pointer-events-none'}`}>
-                    <Phone size={15} />
-                    <span>Llamar</span>
-                  </a>
-                  <a href={c.telefono ? whatsappUrl(c.telefono) : undefined} target="_blank" rel="noopener noreferrer"
-                    className={`py-2.5 flex flex-col items-center gap-1 text-[10px] font-dm ${c.telefono ? 'text-[#25D366] active:bg-birth-gray' : 'text-birth-gray-2 pointer-events-none'}`}>
-                    <WhatsAppIcon size={15} />
-                    <span>WhatsApp</span>
-                  </a>
-                </div>
+                {/* Botones de contacto rápido */}
+                {(c.telefono || c.correo) && (
+                  <div className={`border-t border-birth-gray-2 grid divide-x divide-birth-gray-2 ${
+                    c.telefono && c.correo ? 'grid-cols-3' : 'grid-cols-2'
+                  }`}>
+                    {c.telefono && (
+                      <a href={whatsappUrl(c.telefono)} target="_blank" rel="noopener noreferrer"
+                        className="py-2.5 flex flex-col items-center gap-1 text-[#25D366] active:bg-birth-gray text-[10px] font-dm">
+                        <WhatsAppIcon size={15} /><span>WhatsApp</span>
+                      </a>
+                    )}
+                    {c.correo && (
+                      <a href={`mailto:${c.correo}`}
+                        className="py-2.5 flex flex-col items-center gap-1 text-birth-gray-4 active:bg-birth-gray text-[10px] font-dm">
+                        <Mail size={15} /><span>Correo</span>
+                      </a>
+                    )}
+                    {c.telefono && (
+                      <a href={`tel:${c.telefono}`}
+                        className="py-2.5 flex flex-col items-center gap-1 text-birth-gray-4 active:bg-birth-gray text-[10px] font-dm">
+                        <Phone size={15} /><span>Llamar</span>
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -380,7 +449,7 @@ export default function Clientes() {
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
                         {c.correo && (
-                          <a href={`mailto:${c.correo}`} className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray" title="Enviar correo">
+                          <a href={`mailto:${c.correo}`} className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray" title="Correo">
                             <Mail size={14} />
                           </a>
                         )}
@@ -390,10 +459,10 @@ export default function Clientes() {
                             <WhatsAppIcon size={14} />
                           </a>
                         )}
-                        <button onClick={() => { setEditando(c); setModal('edit') }} className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray" title="Editar">
+                        <button onClick={() => { setEditando(c); setModal('edit') }} className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray" title="Modificar">
                           <Edit2 size={14} />
                         </button>
-                        <button onClick={() => { if (confirm('¿Eliminar cliente?')) handleDelete(c.id) }} className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray" title="Eliminar">
+                        <button onClick={() => { if (confirm('¿Eliminar?')) handleDelete(c.id) }} className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray" title="Eliminar">
                           <Trash2 size={14} />
                         </button>
                       </div>
