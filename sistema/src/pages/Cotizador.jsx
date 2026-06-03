@@ -205,12 +205,20 @@ function ProductoFila({ producto, multiplicador }) {
   )
 }
 
+// ─── UTILIDAD: búsqueda sin importar tildes ni mayúsculas ─────────────────
+const normalizar = s => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+
 // ─── PANEL DE PRODUCTOS GENÉRICO ──────────────────────────────────────────
 function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
   const productos = PRODUCTOS[categoria] || []
+  const [query, setQuery] = useState('')
+
   if (!productos.length) return <p className="p-4 text-sm text-birth-gray-3 font-dm">Sin productos en esta categoría.</p>
 
   const tieneMultiplicador = productos.some(p => p.aplicaMultiplicador)
+  const filtrados = query.trim()
+    ? productos.filter(p => normalizar(p.nombre).includes(normalizar(query.trim())))
+    : productos
 
   return (
     <div>
@@ -230,6 +238,14 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
           </span>
         </div>
       )}
+      <div className="px-4 py-2 bg-white border-b border-birth-gray-2">
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar producto..."
+          className="w-full border border-birth-gray-2 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black"
+        />
+      </div>
       <div className="px-2 py-1 bg-birth-gray border-b border-birth-gray-2">
         <div className="flex items-center text-[10px] text-birth-gray-3 font-dm uppercase tracking-wider px-2 gap-2">
           <span className="flex-1">Producto</span>
@@ -238,9 +254,89 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
           <span className="w-8"></span>
         </div>
       </div>
-      {productos.map(p => (
-        <ProductoFila key={p.id} producto={p} multiplicador={multiplicador} />
-      ))}
+      {filtrados.length === 0
+        ? <p className="p-4 text-sm text-birth-gray-3 font-dm">Sin resultados para "{query}"</p>
+        : filtrados.map(p => <ProductoFila key={p.id} producto={p} multiplicador={multiplicador} />)
+      }
+    </div>
+  )
+}
+
+// ─── PANEL ESPECIAL ACRÍLICO ───────────────────────────────────────────────
+function AcrilicoPanel({ multiplicador, setMultiplicador }) {
+  const todos = PRODUCTOS.acrilico || []
+  const [query, setQuery] = useState('')
+
+  const plancha = todos.filter(p => !p.seccion)
+  const circular = todos.filter(p => p.seccion === 'circular')
+
+  const q = query.trim()
+  const filtrarPlancha = q ? plancha.filter(p => normalizar(p.nombre).includes(normalizar(q))) : plancha
+  const filtrarCircular = q ? circular.filter(p => normalizar(p.nombre).includes(normalizar(q))) : circular
+
+  const SectionHeader = ({ label }) => (
+    <div className="px-4 py-1.5 bg-birth-gray border-b border-birth-gray-2">
+      <span className="text-[10px] font-dm font-bold uppercase tracking-wider text-birth-gray-4">{label}</span>
+    </div>
+  )
+
+  return (
+    <div>
+      {/* Selector instalación */}
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-birth-gray border-b border-birth-gray-2">
+        <span className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Instalación:</span>
+        <div className="flex gap-1">
+          {MULTIPLICADORES.map(m => (
+            <button key={m.id} onClick={() => setMultiplicador(m.valor)}
+              className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+              ×{m.valor}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-birth-gray-3 font-dm ml-1">
+          {MULTIPLICADORES.find(m => m.valor === multiplicador)?.label}
+        </span>
+      </div>
+
+      {/* Buscador */}
+      <div className="px-4 py-2 bg-white border-b border-birth-gray-2">
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar producto..."
+          className="w-full border border-birth-gray-2 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black"
+        />
+      </div>
+
+      {/* Cabecera columnas */}
+      <div className="px-2 py-1 bg-birth-gray border-b border-birth-gray-2">
+        <div className="flex items-center text-[10px] text-birth-gray-3 font-dm uppercase tracking-wider px-2 gap-2">
+          <span className="flex-1">Producto</span>
+          <span className="w-32">Medida / Cantidad</span>
+          <span className="w-20 text-right">Total</span>
+          <span className="w-8"></span>
+        </div>
+      </div>
+
+      {/* Sección: Por Plancha */}
+      {filtrarPlancha.length > 0 && (
+        <>
+          <SectionHeader label="Por Plancha — 1220×2440mm (precio proveedor × mult.)" />
+          {filtrarPlancha.map(p => <ProductoFila key={p.id} producto={p} multiplicador={multiplicador} />)}
+        </>
+      )}
+
+      {/* Sección: Corte Circular */}
+      {filtrarCircular.length > 0 && (
+        <>
+          <SectionHeader label="Corte Circular ≤60×60cm — precio final al cliente" />
+          {filtrarCircular.map(p => <ProductoFila key={p.id} producto={p} multiplicador={multiplicador} />)}
+        </>
+      )}
+
+      {filtrarPlancha.length === 0 && filtrarCircular.length === 0 && (
+        <p className="p-4 text-sm text-birth-gray-3 font-dm">Sin resultados para "{query}"</p>
+      )}
     </div>
   )
 }
@@ -634,6 +730,7 @@ function CategoriaPanel({ categoria, multiplicador, setMultiplicador }) {
   if (categoria === 'bandera_vela') return <BanderaVelaPanel multiplicador={multiplicador} />
   if (categoria === 'miscelaneos') return <MiscelaneosPanel />
   if (categoria === 'manual') return <ManualPanel />
+  if (categoria === 'acrilico') return <AcrilicoPanel multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
   return <ProductosGenericos categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
 }
 

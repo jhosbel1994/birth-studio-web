@@ -89,12 +89,17 @@ export const PRODUCTOS = {
     { id: 'plotter', nombre: 'Plotter de corte', precio: 4000, unidad: 'ml', aplicaMultiplicador: true, nota: 'Sin material incluido' },
   ],
   acrilico: [
+    // Por plancha (precio proveedor × multiplicador)
     { id: 'acrilico_blanco_3mm', nombre: 'Acrílico Blanco/Negro/Transparente 3mm (1220×2440)', precio: 75000, unidad: 'plancha', aplicaMultiplicador: true },
     { id: 'acrilico_blanco_5mm', nombre: 'Acrílico Blanco/Negro/Transparente 5mm (1220×2440)', precio: 125000, unidad: 'plancha', aplicaMultiplicador: true },
     { id: 'acrilico_color_3mm', nombre: 'Acrílico Color 3mm (1220×2440)', precio: 95000, unidad: 'plancha', aplicaMultiplicador: true },
     { id: 'trovicel_3mm', nombre: 'Trovicel / PVC espumado 3mm', precio: 10000, unidad: 'plancha', aplicaMultiplicador: true },
     { id: 'trovicel_5mm', nombre: 'Trovicel / PVC espumado 5mm', precio: 20000, unidad: 'plancha', aplicaMultiplicador: true },
     { id: 'trovicel_10mm', nombre: 'Trovicel / PVC espumado 10mm', precio: 35000, unidad: 'plancha', aplicaMultiplicador: true },
+    // Corte circular ≤60×60cm — precio final al cliente (blanco, negro o transparente)
+    { id: 'acrilico_circ_sin_luz', nombre: 'Circular ≤60cm sin iluminación (distanciadores incl.)', precio: 65000, unidad: 'unidad', aplicaMultiplicador: false, seccion: 'circular' },
+    { id: 'acrilico_circ_retro_si', nombre: 'Circular ≤60cm retroiluminación neon flex — sin instalación', precio: 85000, unidad: 'unidad', aplicaMultiplicador: false, seccion: 'circular' },
+    { id: 'acrilico_circ_retro_ci', nombre: 'Circular ≤60cm retroiluminación neon flex — con instalación', precio: 90000, unidad: 'unidad', aplicaMultiplicador: false, seccion: 'circular' },
   ],
   iluminacion: [
     { id: 'calugas_led', nombre: 'Calugas LED (100 unidades)', precio: 37000, unidad: 'set', aplicaMultiplicador: false },
