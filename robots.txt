@@ -1,0 +1,25 @@
+# robots.txt — bspublicidad.cl
+# Sitio público indexable; herramientas internas bloqueadas.
+
+User-agent: *
+Allow: /
+Disallow: /cotizador/
+
+# Bots de motores de IA (GEO): acceso permitido explícitamente
+User-agent: GPTBot
+Allow: /
+Disallow: /cotizador/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /cotizador/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /cotizador/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /cotizador/
+
+Sitemap: https://www.bspublicidad.cl/sitemap.xml

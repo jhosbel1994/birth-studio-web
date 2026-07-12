@@ -1818,3 +1818,18 @@ input, textarea, select {
 /* Filtro del mapa: invierte colores en tema oscuro para que se vea bien */
 :root { --map-filter: invert(0.9) hue-rotate(180deg) brightness(1.05) contrast(0.9); }
 [data-theme="light"] { --map-filter: none; }
+
+/* ── ACCESIBILIDAD / SEO ──────────────────────────────────
+   Texto presente para buscadores y lectores de pantalla,
+   pero invisible en el diseño (técnica estándar, no penaliza). */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
