@@ -664,13 +664,13 @@ ul { list-style: none; }
 .service-card:hover .service-card__img { transform: scale(1.05); }
 
 .service-card__img--1 { background-image: url('../assets/BARBERIA.jpg'); background-size: cover; background-position: center; }
-.service-card__img--2 { background-image: url("../assets/FARMACIA HORIZONTAL.jpeg"); background-size: cover; background-position: center; }
+.service-card__img--2 { background-image: url("../assets/FARMACIA HORIZONTAL.jpg"); background-size: cover; background-position: center; }
 .service-card__img--3 { background-image: url('../assets/CAJETIN LUMINOSO.jpg'); background-size: cover; background-position: center; }
 .service-card__img--4 { background-image: url("../assets/pagina webb.jpg"); background-size: cover; background-position: center; }
 .service-card__img--5 { background-image: url('../assets/palomas.jpg'); background-size: cover; background-position: center; }
-.service-card__img--6 { background-image: url("../assets/acrilico luminoso.PNG"); background-size: cover; background-position: center; }
-.service-card__img--7 { background-image: url('../assets/oxxo.jpeg'); background-size: cover; background-position: center; }
-.service-card__img--8 { background-image: url('../assets/camioneta.jpeg'); background-size: cover; background-position: center; }
+.service-card__img--6 { background-image: url("../assets/acrilico luminoso.jpg"); background-size: cover; background-position: center; }
+.service-card__img--7 { background-image: url('../assets/oxxo.jpg'); background-size: cover; background-position: center; }
+.service-card__img--8 { background-image: url('../assets/camioneta.jpg'); background-size: cover; background-position: center; }
 .service-card__img--9 { background-image: url("../assets/LONA PVC.jpg"); background-size: cover; background-position: center; }
 
 .service-card__badge {
