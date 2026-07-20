@@ -163,6 +163,18 @@ export async function deleteMiscelaneo(id) {
   await deleteDoc(doc(db, 'miscelaneos', id))
 }
 
+// ─── COSTEO LETRAS CORPÓREAS (precios editables persistentes) ────────────────
+const COSTEO_LETRAS_ID = 'costeoLetras'
+
+export async function getCosteoLetrasPrecios() {
+  const snap = await getDoc(doc(db, 'settings', COSTEO_LETRAS_ID))
+  return snap.exists() ? (snap.data().precios || {}) : {}
+}
+
+export async function saveCosteoLetrasPrecios(precios) {
+  await setDoc(doc(db, 'settings', COSTEO_LETRAS_ID), { precios }, { merge: true })
+}
+
 // ─── SUSCRIPCIONES TIEMPO REAL ────────────────────────────────────────────────
 export function subscribeClientes(cb) {
   return onSnapshot(query(collection(db, 'clientes'), orderBy('createdAt', 'asc')), snap => cb(snapsToArr(snap)))

@@ -8,6 +8,7 @@ import { getClientes, saveCliente, saveCotizacion, getClienteById, getMiscelaneo
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose } from '../utils/email'
 import { clp, hoy, sumarDias } from '../utils/formatters'
+import CosteoLetrasPanel from '../components/CosteoLetras/CosteoLetrasPanel'
 import {
   Plus, Trash2, RotateCcw, ArrowRight,
   User, UserPlus, X, Download, Save, Mail, Eye, Pencil,
@@ -1494,6 +1495,7 @@ function CategoriaPanel({ categoria, multiplicador, setMultiplicador }) {
   if (categoria === 'miscelaneos') return <MiscelaneosPanel />
   if (categoria === 'manual') return <ManualPanel />
   if (categoria === 'acrilico') return <AcrilicoPanel multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
+  if (categoria === 'letras_costeo') return <CosteoLetrasPanel />
   if (categoria === 'afiches_acrilico') return <AfichesAcrilicosPanel />
   if (categoria === 'fachada') return <FachadaPanel multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
   return <ProductosGenericos categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
