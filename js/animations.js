@@ -23,6 +23,16 @@ function runIntroSequence() {
 
     if (!intro || !letters.length) return;
 
+    // En mobile nos saltamos la animación de intro (~3.5s con scroll
+    // bloqueado): el logo y el hero aparecen de inmediato en vez de
+    // hacer esperar al usuario.
+    if (window.matchMedia('(max-width: 768px)').matches) {
+        intro.style.display = 'none';
+        document.body.classList.remove('is-loading');
+        if (hero) hero.classList.add('is-visible');
+        return;
+    }
+
     // a) Letras entran escalonadas
     letters.forEach(function(letter, i) {
         setTimeout(function() {

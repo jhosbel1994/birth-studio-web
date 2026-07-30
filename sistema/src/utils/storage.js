@@ -2,7 +2,8 @@ import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc,
   query, orderBy, runTransaction, onSnapshot,
 } from 'firebase/firestore'
-import { db } from '../firebase'
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import { db, storage } from '../firebase'
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function snapToObj(snap) {
@@ -173,6 +174,44 @@ export async function getCosteoLetrasPrecios() {
 
 export async function saveCosteoLetrasPrecios(precios) {
   await setDoc(doc(db, 'settings', COSTEO_LETRAS_ID), { precios }, { merge: true })
+}
+
+// ─── GALERÍA (fotos del sitio público: banner + catálogo) ────────────────────
+export async function getGaleria() {
+  const snap = await getDocs(query(collection(db, 'galeria'), orderBy('orden', 'asc')))
+  return snapsToArr(snap)
+}
+
+export function subscribeGaleria(cb) {
+  return onSnapshot(query(collection(db, 'galeria'), orderBy('orden', 'asc')), snap => cb(snapsToArr(snap)))
+}
+
+export async function saveGaleriaItem(item) {
+  const id = item.id || crypto.randomUUID()
+  const data = { ...item, id, createdAt: item.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'galeria', id), data)
+  return data
+}
+
+export async function deleteGaleriaItem(id) {
+  await deleteDoc(doc(db, 'galeria', id))
+}
+
+export async function uploadGaleriaImagen(file) {
+  const path = `galeria/${crypto.randomUUID()}-${file.name}`
+  const storageRef = ref(storage, path)
+  await uploadBytes(storageRef, file)
+  const url = await getDownloadURL(storageRef)
+  return { url, path }
+}
+
+export async function deleteGaleriaImagen(storagePath) {
+  if (!storagePath) return
+  try {
+    await deleteObject(ref(storage, storagePath))
+  } catch {
+    // el archivo ya no existe en Storage — no debe bloquear el borrado del doc
+  }
 }
 
 // ─── SUSCRIPCIONES TIEMPO REAL ────────────────────────────────────────────────

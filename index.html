@@ -198,6 +198,25 @@
 
 
 <!-- ════════════════════════════════════════
+     BANNER DE PROYECTOS — Carrusel de trabajos reales
+     (JS lo llena desde la Galería del sistema interno,
+      con fotos locales de respaldo si aún no hay datos)
+════════════════════════════════════════ -->
+<section id="banner-proyectos" class="banner-proyectos" aria-label="Proyectos realizados">
+    <div class="pb-track" id="pb-track"></div>
+
+    <button type="button" class="pb-arrow pb-arrow--prev" id="pb-prev" aria-label="Proyecto anterior">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button type="button" class="pb-arrow pb-arrow--next" id="pb-next" aria-label="Siguiente proyecto">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+
+    <div class="pb-dots" id="pb-dots" aria-hidden="true"></div>
+</section>
+
+
+<!-- ════════════════════════════════════════
      SERVICIOS
 ════════════════════════════════════════ -->
 <section id="servicios" class="section">
@@ -281,22 +300,70 @@
                 </div>
             </article>
 
-            <!-- ── Circulos Luminosos ── -->
+            <!-- ── Acrílicos 360° (ex Círculos acrílicos) ── -->
             <article class="service-card reveal">
                 <div class="service-card__visual">
                     <div class="service-card__img service-card__img--6"></div>
+                    <span class="service-card__badge service-card__badge--360" aria-hidden="true">360°</span>
                 </div>
                 <div class="service-card__body">
-                    <h3>Circulos acrílicos   </h3>
-                    <p>Circulo acrilico con iluminación led y sin iluminación.</p>
+                    <h3>Acrílicos 360°</h3>
+                    <p>Círculo acrílico con iluminación LED y sin iluminación.</p>
                     <span class="service-card__price">Desde $55.000</span>
                     <a href="#cotizacion" class="service-card__cta">Cotizar →</a>
                 </div>
             </article>
 
-            
-
         </div><!-- /services-grid -->
+
+        <!-- ── Catálogo completo ── -->
+        <div class="catalog reveal">
+            <header class="section__header">
+                <span class="section__label">Todo lo que hacemos</span>
+                <h3 class="catalog__title">Catálogo <em>completo</em></h3>
+            </header>
+
+            <div class="catalog__grid">
+
+                <div class="catalog__category">
+                    <h4 class="catalog__category-title">Señalética / Letreros</h4>
+                    <ul class="catalog__list">
+                        <li><a href="#cotizacion">Letras corpóreas iluminadas (LED)</a></li>
+                        <li><a href="#cotizacion">Cajetín luminoso</a></li>
+                        <li><a href="#cotizacion">Letreros de acrílico</a></li>
+                        <li><a href="#cotizacion">Acrílicos 360°</a></li>
+                        <li><a href="#cotizacion">Bastidores</a></li>
+                    </ul>
+                </div>
+
+                <div class="catalog__category">
+                    <h4 class="catalog__category-title">Impresión y Gráfica</h4>
+                    <ul class="catalog__list">
+                        <li><a href="#cotizacion">Vinilos</a></li>
+                        <li><a href="#cotizacion">Neón flex</a></li>
+                        <li><a href="#cotizacion">Banners / lonas</a></li>
+                        <li><a href="#cotizacion">Palomas y pósteres</a></li>
+                    </ul>
+                </div>
+
+                <div class="catalog__category">
+                    <h4 class="catalog__category-title">Diseño y Digital</h4>
+                    <ul class="catalog__list">
+                        <li><a href="#cotizacion">Diseño gráfico y vectorización</a></li>
+                        <li><a href="#cotizacion">Páginas web (desarrollo)</a></li>
+                    </ul>
+                </div>
+
+                <div class="catalog__category">
+                    <h4 class="catalog__category-title">Servicio</h4>
+                    <ul class="catalog__list">
+                        <li><a href="#cotizacion">Coordinación e instalación de letreros</a></li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+
     </div><!-- /container -->
 </section>
 
@@ -496,46 +563,61 @@
             <div class="quote__form-wrap reveal">
                 <form id="quote-form" class="quote-form" novalidate>
 
-                    <div class="form-group">
-                        <label for="q-name">Nombre completo *</label>
-                        <input type="text" id="q-name" name="nombre" placeholder="Juan Pérez" required>
+                    <!-- ── Paso 1: contacto ── -->
+                    <div class="form-step" id="quote-step-1">
+
+                        <div class="form-group">
+                            <label for="q-name">Nombre completo *</label>
+                            <input type="text" id="q-name" name="nombre" placeholder="Juan Pérez" required>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="q-email">Correo electrónico *</label>
+                                <input type="email" id="q-email" name="email" placeholder="juan@ejemplo.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="q-phone">Teléfono / WhatsApp</label>
+                                <input type="tel" id="q-phone" name="telefono" placeholder="+56 9 XXXX XXXX">
+                            </div>
+                        </div>
+
+                        <button type="button" id="quote-next" class="btn btn--primary btn--full">
+                            Siguiente <span class="btn__arrow">→</span>
+                        </button>
+
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="q-email">Correo electrónico *</label>
-                            <input type="email" id="q-email" name="email" placeholder="juan@ejemplo.com" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="q-phone">Teléfono / WhatsApp</label>
-                            <input type="tel" id="q-phone" name="telefono" placeholder="+56 9 XXXX XXXX">
-                        </div>
-                    </div>
+                    <!-- ── Paso 2: proyecto ── -->
+                    <div class="form-step" id="quote-step-2" hidden>
+
+                        <button type="button" id="quote-back" class="form-step__back">← Atrás</button>
 
                     <div class="form-group">
-                        <label>Tipo de letrero *</label>
-                        <div class="form-options" id="service-options">
-                            <label class="form-option">
-                                <input type="radio" name="tipo" value="Letras Corpóreas" required>
-                                <span>Letras Corpóreas</span>
-                            </label>
-                            <label class="form-option">
-                                <input type="radio" name="tipo" value="Bastidor">
-                                <span>Bastidor</span>
-                            </label>
-                            <label class="form-option">
-                                <input type="radio" name="tipo" value="Cajétín Luminoso">
-                                <span>Cajétín Luminoso</span>
-                            </label>
-                            <label class="form-option">
-                                <input type="radio" name="tipo" value="Página Web">
-                                <span>Página Web</span>
-                            </label>
-                            <label class="form-option">
-                                <input type="radio" name="tipo" value="Palomas / Pósteres">
-                                <span>Palomas / Pósteres</span>
-                            </label>
-                        </div>
+                        <label for="q-tipo">Tipo de letrero *</label>
+                        <select id="q-tipo" name="tipo" required>
+                            <option value="" disabled selected>Selecciona un servicio</option>
+                            <optgroup label="Señalética / Letreros">
+                                <option value="Letras Corpóreas">Letras Corpóreas</option>
+                                <option value="Bastidor">Bastidor</option>
+                                <option value="Cajétín Luminoso">Cajétín Luminoso</option>
+                                <option value="Letreros de acrílico">Letreros de acrílico</option>
+                                <option value="Acrílicos 360°">Acrílicos 360°</option>
+                            </optgroup>
+                            <optgroup label="Impresión y Gráfica">
+                                <option value="Vinilos">Vinilos</option>
+                                <option value="Neón flex">Neón flex</option>
+                                <option value="Banners / Lonas">Banners / Lonas</option>
+                                <option value="Palomas / Pósteres">Palomas / Pósteres</option>
+                            </optgroup>
+                            <optgroup label="Diseño y Digital">
+                                <option value="Página Web">Página Web</option>
+                                <option value="Diseño gráfico y vectorización">Diseño gráfico y vectorización</option>
+                            </optgroup>
+                            <optgroup label="Servicio">
+                                <option value="Coordinación e instalación">Coordinación e instalación</option>
+                            </optgroup>
+                        </select>
                     </div>
 
                     <!-- Fachada (visible para Bastidor o Letras Corpóreas) -->
@@ -594,16 +676,23 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="q-notes">Descripción / Detalles adicionales</label>
-                        <textarea id="q-notes" name="descripcion" rows="4" placeholder="Cuéntanos más sobre tu proyecto, ubicación, colores, etc."></textarea>
-                    </div>
+                    <details class="form-optional">
+                        <summary>+ Agregar detalles del proyecto (opcional)</summary>
+                        <div class="form-optional__body">
+                            <div class="form-group">
+                                <label for="q-notes">Descripción / Detalles adicionales</label>
+                                <textarea id="q-notes" name="descripcion" rows="3" placeholder="Ubicación, colores, referencias..."></textarea>
+                            </div>
+                        </div>
+                    </details>
 
                     <button type="submit" class="btn btn--primary btn--full">
                         Enviar solicitud <span class="btn__arrow">→</span>
                     </button>
 
                     <p class="form-note">Te responderemos a la brevedad por correo o WhatsApp.</p>
+
+                    </div><!-- /quote-step-2 -->
 
                 </form>
             </div>
@@ -684,21 +773,26 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Hora preferida *</label>
-                        <div class="time-slots" id="time-slots">
-                            <!-- Generado por form.js -->
+                        <label for="s-time">Hora preferida *</label>
+                        <select id="s-time" name="hora" required>
+                            <option value="" disabled selected>Selecciona una hora</option>
+                            <!-- Opciones generadas por form.js -->
+                        </select>
+                    </div>
+
+                    <details class="form-optional">
+                        <summary>+ Agregar dirección o comentarios (opcional)</summary>
+                        <div class="form-optional__body">
+                            <div class="form-group">
+                                <label for="s-address">Tu dirección</label>
+                                <input type="text" id="s-address" name="direccion" placeholder="Av. Principal 123, Talca">
+                            </div>
+                            <div class="form-group">
+                                <label for="s-notes">Comentarios adicionales</label>
+                                <textarea id="s-notes" name="notas" rows="3" placeholder="Tipo de letrero que tienes en mente, referencia de colores, etc."></textarea>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="s-address">Tu dirección (opcional)</label>
-                        <input type="text" id="s-address" name="direccion" placeholder="Av. Principal 123, Talca">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="s-notes">Comentarios adicionales</label>
-                        <textarea id="s-notes" name="notas" rows="3" placeholder="Tipo de letrero que tienes en mente, referencia de colores, etc."></textarea>
-                    </div>
+                    </details>
 
                     <button type="submit" class="btn btn--primary btn--full">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
@@ -906,6 +1000,7 @@
 <script src="js/animations.js"></script>
 <script src="js/main.js"></script>
 <script src="js/form.js"></script>
+<script type="module" src="js/galeria.js"></script>
 
 </body>
 </html>

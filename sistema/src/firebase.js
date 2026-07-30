@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { initializeFirestore, persistentLocalCache } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
+import { getAuth } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDeidi9JsSnGUsODCV2rj1VwZ1ATd2_Apc',
@@ -19,3 +20,7 @@ export const db = initializeFirestore(app, {
 })
 
 export const storage = getStorage(app)
+
+// Sesión anónima — usada solo para que las Firestore/Storage rules puedan
+// exigir `request.auth != null` en escrituras (ej. galería), sin login real.
+export const auth = getAuth(app)

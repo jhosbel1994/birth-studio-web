@@ -52,3 +52,11 @@ export const CATEGORIAS_GASTO = [
   'Publicidad',
   'Otros',
 ]
+
+export const CATEGORIAS_GALERIA = [
+  'Señalética/Letreros',
+  'Impresión y Gráfica',
+  'Diseño y Digital',
+  'Servicio',
+  'Promoción',
+]

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, Calculator, Users, FileText, ScrollText, Wallet,
+  LayoutDashboard, Calculator, Users, FileText, ScrollText, Wallet, Image,
   Menu, X, LogOut, KeyRound,
 } from 'lucide-react'
 import { doLogout, ModalCambiarPin } from '../pages/Login'
@@ -13,6 +13,7 @@ const NAV = [
   { to: '/cotizaciones', icon: FileText, label: 'Cotizaciones' },
   { to: '/contratos', icon: ScrollText, label: 'Contratos' },
   { to: '/gastos', icon: Wallet, label: 'Finanzas' },
+  { to: '/galeria', icon: Image, label: 'Galería' },
 ]
 
 export default function MobileHeader() {

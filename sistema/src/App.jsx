@@ -8,6 +8,7 @@ import Clientes from './pages/Clientes'
 import Cotizaciones from './pages/Cotizaciones'
 import Contratos from './pages/Contratos'
 import Gastos from './pages/Gastos'
+import Galeria from './pages/Galeria'
 
 export default function App() {
   const [logged, setLogged] = useState(isLoggedIn)
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="cotizaciones" element={<Cotizaciones />} />
         <Route path="contratos" element={<Contratos />} />
         <Route path="gastos" element={<Gastos />} />
+        <Route path="galeria" element={<Galeria />} />
       </Route>
     </Routes>
   )

@@ -25,10 +25,10 @@ function initQuoteForm() {
     var medidasNo     = document.getElementById('medidas-no');
 
     /* ── Mostrar campo Fachada solo si aplica ── */
-    var tipoRadios = form.querySelectorAll('input[name="tipo"]');
+    var tipoSelect = document.getElementById('q-tipo');
 
-    tipoRadios.forEach(function(radio) {
-        radio.addEventListener('change', function() {
+    if (tipoSelect) {
+        tipoSelect.addEventListener('change', function() {
             var val = this.value;
             var showFachada = (val === 'Letras Corpóreas' || val === 'Bastidor');
 
@@ -36,7 +36,7 @@ function initQuoteForm() {
                 fachadaGroup.hidden = !showFachada;
             }
         });
-    });
+    }
 
     /* ── Mostrar/ocultar campos de medidas ── */
     if (medidasSi) {
@@ -51,6 +51,59 @@ function initQuoteForm() {
             if (medidasInputs) medidasInputs.hidden = true;
             if (visitaHint)    visitaHint.hidden    = false;
         });
+    }
+
+    /* ── Paso 1 → Paso 2: solo pide nombre y correo antes de avanzar,
+       el resto del formulario aparece recién en el paso 2 ── */
+    var step1   = document.getElementById('quote-step-1');
+    var step2   = document.getElementById('quote-step-2');
+    var nextBtn = document.getElementById('quote-next');
+    var backBtn = document.getElementById('quote-back');
+    var qName   = document.getElementById('q-name');
+    var qEmail  = document.getElementById('q-email');
+
+    function goToStep2() {
+        if (step1) step1.hidden = true;
+        if (step2) step2.hidden = false;
+        if (step2) step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function goToStep1() {
+        if (step2) step2.hidden = true;
+        if (step1) step1.hidden = false;
+        if (step1) step1.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+            var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            var ok = true;
+
+            [qName, qEmail].forEach(function(field) {
+                if (!field) return;
+                field.classList.remove('is-invalid');
+                if (!field.value.trim()) { field.classList.add('is-invalid'); ok = false; }
+            });
+            if (qEmail && qEmail.value && !emailPattern.test(qEmail.value.trim())) {
+                qEmail.classList.add('is-invalid');
+                ok = false;
+            }
+
+            if (!ok) {
+                var firstInvalid = step1.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalid.focus();
+                }
+                return;
+            }
+
+            goToStep2();
+        });
+    }
+
+    if (backBtn) {
+        backBtn.addEventListener('click', goToStep1);
     }
 
     /* ── Submit → EmailJS ── */
@@ -94,6 +147,7 @@ function initQuoteForm() {
                     resetBtn();
                     showSuccess(form, '¡Cotización enviada! Te contactaremos pronto.');
                     form.reset();
+                    goToStep1();
                 })
                 .catch(function(error) {
                     resetBtn();
@@ -111,11 +165,11 @@ function initQuoteForm() {
 
 /* ══════════════════════════════════════════
    2. SLOTS DE HORARIO
-   Genera botones de hora (8:00 – 18:00)
+   Llena el selector de hora (9:00 – 17:30)
 ══════════════════════════════════════════ */
 function initTimeSlots() {
-    var container = document.getElementById('time-slots');
-    if (!container) return;
+    var select = document.getElementById('s-time');
+    if (!select) return;
 
     // Horarios disponibles: de 9:00 a 17:30, cada 30 min
     var slots = [];
@@ -124,24 +178,11 @@ function initTimeSlots() {
         if (h < 17) slots.push(pad(h) + ':30');
     }
 
-    var selected = null;
-
     slots.forEach(function(time) {
-        var btn = document.createElement('button');
-        btn.type       = 'button';
-        btn.className  = 'time-slot';
-        btn.textContent = time;
-        btn.dataset.time = time;
-
-        btn.addEventListener('click', function() {
-            // Deselecciona anterior
-            if (selected) selected.classList.remove('is-selected');
-
-            btn.classList.add('is-selected');
-            selected = btn;
-        });
-
-        container.appendChild(btn);
+        var option = document.createElement('option');
+        option.value = time;
+        option.textContent = time;
+        select.appendChild(option);
     });
 }
 
@@ -167,15 +208,7 @@ function initScheduleForm() {
         var fecha     = document.getElementById('s-date')    ? document.getElementById('s-date').value           : '';
         var direccion = document.getElementById('s-address') ? document.getElementById('s-address').value.trim() : '';
         var notas     = document.getElementById('s-notes')   ? document.getElementById('s-notes').value.trim()   : '';
-
-        // Hora seleccionada (botón .is-selected)
-        var selectedSlot = form.querySelector('.time-slot.is-selected');
-        var hora = selectedSlot ? selectedSlot.dataset.time : '';
-
-        if (!hora) {
-            alert('Por favor selecciona una hora preferida.');
-            return;
-        }
+        var hora      = document.getElementById('s-time')    ? document.getElementById('s-time').value           : '';
 
         // Formatea la fecha
         var fechaFormateada = fecha
