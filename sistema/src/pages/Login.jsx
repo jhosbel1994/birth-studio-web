@@ -6,6 +6,15 @@ import { getPin, setPin as setPinDB, migrarDesdeLocalStorage } from '../utils/st
 
 const SESSION_KEY = 'BIRTH_LOGGED_IN'
 
+// Únicas cuentas de Google que pueden entrar al sistema. Debe coincidir
+// con la lista en las Firestore/Storage rules — si se agrega o quita un
+// correo acá, hay que actualizar las reglas también.
+const ALLOWED_EMAILS = ['jhosbelevilla@gmail.com', 'bstudio.designe@gmail.com']
+
+function isAllowedEmail(email) {
+  return !!email && ALLOWED_EMAILS.includes(email.toLowerCase())
+}
+
 export function isLoggedIn() {
   return sessionStorage.getItem(SESSION_KEY) === '1'
 }
@@ -110,10 +119,14 @@ export default function Login({ onLogin }) {
       await migrarDesdeLocalStorage()
       const pinGuardado = await getPin()
       if (pin === pinGuardado) {
-        if (auth.currentUser) {
+        if (auth.currentUser && isAllowedEmail(auth.currentUser.email)) {
           doLogin()
           onLogin()
         } else {
+          // Sesión de Firebase inexistente, o de una cuenta no autorizada
+          // (ej. quedó guardada de otro Google en este navegador) — hay
+          // que volver a pasar por el selector de cuenta de Google.
+          if (auth.currentUser) await signOut(auth)
           setPaso('google')
         }
       } else {
@@ -134,7 +147,16 @@ export default function Login({ onLogin }) {
     setCargando(true)
     setErrorGoogle('')
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider())
+      const provider = new GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: 'select_account' })
+      const result = await signInWithPopup(auth, provider)
+
+      if (!isAllowedEmail(result.user.email)) {
+        await signOut(auth)
+        setErrorGoogle('Esta cuenta no tiene acceso al sistema. Usa una cuenta autorizada.')
+        return
+      }
+
       doLogin()
       onLogin()
     } catch {
