@@ -43,7 +43,14 @@ export const MATERIALES_SEED = [
 
 // Accesos rápidos del multiplicador de venta (botones) + valor de referencia
 // usado en otras cotizaciones Birth Studio cuando no hay un default guardado.
-export const MULTIPLICADORES_MATERIALES = [2.0, 2.1, 2.3]
+// ×1 = "Costo": vende exactamente al costo directo, sin margen (útil para
+// ver cuánto cuesta el proyecto antes de decidir el margen real).
+export const MULTIPLICADORES_MATERIALES = [
+  { valor: 1, label: 'Costo' },
+  { valor: 2.0, label: '×2.0' },
+  { valor: 2.1, label: '×2.1' },
+  { valor: 2.3, label: '×2.3' },
+]
 export const MULTIPLICADOR_MATERIALES_DEFAULT = 2.5
 
 // Sugerencias para el datalist de unidades al crear/editar un material.

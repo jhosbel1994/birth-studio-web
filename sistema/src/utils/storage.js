@@ -197,14 +197,39 @@ export async function deleteMaterial(id) {
   await deleteDoc(doc(db, 'materiales', id))
 }
 
-// Inserta el seed inicial solo si la colección está vacía (primera vez).
+// Inserta el seed inicial una sola vez. El chequeo "¿ya se sembró?" se hace
+// dentro de una transacción sobre settings/app para que sea atómico — así
+// dos cargas de página casi simultáneas (dos pestañas, primera visita en
+// dos dispositivos) no alcanzan a duplicar los 34 materiales.
 export async function seedMaterialesSiVacio(seed) {
-  const snap = await getDocs(collection(db, 'materiales'))
-  if (!snap.empty) return
+  const yaSembrado = await runTransaction(db, async (tx) => {
+    const ref = doc(db, 'settings', SETTINGS_ID)
+    const snap = await tx.get(ref)
+    if (snap.exists() && snap.data().materialesSeeded) return true
+    tx.set(ref, { materialesSeeded: true }, { merge: true })
+    return false
+  })
+  if (yaSembrado) return
   for (const m of seed) {
     const id = crypto.randomUUID()
     await setDoc(doc(db, 'materiales', id), { ...m, id })
   }
+}
+
+// Limpieza de materiales duplicados (mismo nombre+unidad+precio) — se corre
+// automáticamente al abrir el panel para autocorregir cualquier duplicación
+// que haya quedado de una siembra anterior a la versión atómica de arriba.
+export async function limpiarMaterialesDuplicados() {
+  const materiales = await getMateriales()
+  const vistos = new Set()
+  const idsABorrar = []
+  for (const m of materiales) {
+    const clave = `${m.nombre}|${m.unidad}|${m.precio}`
+    if (vistos.has(clave)) idsABorrar.push(m.id)
+    else vistos.add(clave)
+  }
+  for (const id of idsABorrar) await deleteDoc(doc(db, 'materiales', id))
+  return idsABorrar.length
 }
 
 // Multiplicador de venta por defecto del módulo de Materiales.

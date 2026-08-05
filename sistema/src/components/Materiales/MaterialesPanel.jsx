@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Plus, Trash2, Pencil } from 'lucide-react'
 import { clp } from '../../utils/formatters'
 import {
-  subscribeMateriales, saveMaterial, deleteMaterial, seedMaterialesSiVacio,
+  subscribeMateriales, saveMaterial, deleteMaterial, seedMaterialesSiVacio, limpiarMaterialesDuplicados,
   getMultiplicadorMateriales, setMultiplicadorMateriales,
 } from '../../utils/storage'
 import { calcularCostoMaterial, calcularMateriales } from '../../utils/materialesCalc'
@@ -112,9 +112,12 @@ export default function MaterialesPanel() {
 
   useEffect(() => {
     let unsub = () => {}
-    seedMaterialesSiVacio(MATERIALES_SEED).finally(() => {
-      unsub = subscribeMateriales(list => { setMateriales(list); setCargando(false) })
-    })
+    seedMaterialesSiVacio(MATERIALES_SEED)
+      .then(() => limpiarMaterialesDuplicados())
+      .catch(() => {})
+      .finally(() => {
+        unsub = subscribeMateriales(list => { setMateriales(list); setCargando(false) })
+      })
     getMultiplicadorMateriales().then(setMultiplicadorState)
     return () => unsub()
   }, [])
@@ -224,10 +227,10 @@ export default function MaterialesPanel() {
         <div className="p-4 space-y-3">
           <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Multiplicador de venta</p>
           <div className="flex gap-1.5">
-            {MULTIPLICADORES_MATERIALES.map(v => (
-              <button key={v} onClick={() => setMultiplicadorState(v)}
-                className={`flex-1 py-1.5 rounded text-xs font-dm border transition-colors ${multiplicador === v ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
-                ×{v}
+            {MULTIPLICADORES_MATERIALES.map(m => (
+              <button key={m.valor} onClick={() => setMultiplicadorState(m.valor)}
+                className={`flex-1 py-1.5 rounded text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+                {m.label}
               </button>
             ))}
             <input
@@ -237,7 +240,7 @@ export default function MaterialesPanel() {
             />
           </div>
           <button onClick={handleMultiplicadorDefault} className="text-[11px] font-dm text-birth-red hover:underline">
-            {guardadoOk ? 'Guardado ✓' : `Guardar ×${multiplicador} como predeterminado`}
+            {guardadoOk ? 'Guardado ✓' : `Guardar ${multiplicador === 1 ? 'Costo' : `×${multiplicador}`} como predeterminado`}
           </button>
         </div>
 
