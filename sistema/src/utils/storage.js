@@ -176,6 +176,47 @@ export async function saveCosteoLetrasPrecios(precios) {
   await setDoc(doc(db, 'settings', COSTEO_LETRAS_ID), { precios }, { merge: true })
 }
 
+// ─── MATERIALES (base de datos de materiales para cotizaciones) ──────────────
+export async function getMateriales() {
+  const snap = await getDocs(query(collection(db, 'materiales'), orderBy('nombre', 'asc')))
+  return snapsToArr(snap)
+}
+
+export function subscribeMateriales(cb) {
+  return onSnapshot(query(collection(db, 'materiales'), orderBy('nombre', 'asc')), snap => cb(snapsToArr(snap)))
+}
+
+export async function saveMaterial(material) {
+  const id = material.id || crypto.randomUUID()
+  const data = { ...material, id }
+  await setDoc(doc(db, 'materiales', id), data)
+  return data
+}
+
+export async function deleteMaterial(id) {
+  await deleteDoc(doc(db, 'materiales', id))
+}
+
+// Inserta el seed inicial solo si la colección está vacía (primera vez).
+export async function seedMaterialesSiVacio(seed) {
+  const snap = await getDocs(collection(db, 'materiales'))
+  if (!snap.empty) return
+  for (const m of seed) {
+    const id = crypto.randomUUID()
+    await setDoc(doc(db, 'materiales', id), { ...m, id })
+  }
+}
+
+// Multiplicador de venta por defecto del módulo de Materiales.
+export async function getMultiplicadorMateriales() {
+  const snap = await getDoc(doc(db, 'settings', SETTINGS_ID))
+  return snap.exists() && snap.data().multiplicadorMateriales != null ? snap.data().multiplicadorMateriales : 2.5
+}
+
+export async function setMultiplicadorMateriales(valor) {
+  await setDoc(doc(db, 'settings', SETTINGS_ID), { multiplicadorMateriales: valor }, { merge: true })
+}
+
 // ─── GALERÍA (fotos del sitio público: banner + catálogo) ────────────────────
 export async function getGaleria() {
   const snap = await getDocs(query(collection(db, 'galeria'), orderBy('orden', 'asc')))
