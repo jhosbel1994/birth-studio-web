@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext, createContext } from 'react'
 import {
   CATEGORIAS, PRODUCTOS, MULTIPLICADORES,
   TARJETAS, BANDERAS_VELA, VOLANTES,
   BASTIDORES_PROVEEDOR, BASTIDORES_BIRTH, PALOMAS, PENDONES,
 } from '../data/productos'
-import { getClientes, saveCliente, saveCotizacion, getClienteById, getMiscelaneos, saveMiscelaneo, deleteMiscelaneo } from '../utils/storage'
+import {
+  getClientes, saveCliente, saveCotizacion, getClienteById, getMiscelaneos, saveMiscelaneo, deleteMiscelaneo,
+  getPreciosProductos, savePreciosProductos, getMultiplicadoresInstalacion, saveMultiplicadoresInstalacion,
+} from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose } from '../utils/email'
 import { clp, hoy, sumarDias } from '../utils/formatters'
@@ -15,6 +18,59 @@ import {
   User, UserPlus, X, Download, Save, Mail, Eye, Pencil,
   LayoutGrid, List, Search,
 } from 'lucide-react'
+
+// ─── CONTEXTOS: precios del catálogo y multiplicadores de instalación ──────
+// Ambos son editables por el usuario y persisten en Firestore (settings/).
+// Se proveen una sola vez en <Cotizador> y cualquier panel anidado los
+// consume sin necesidad de pasarlos por props en cada nivel.
+const PreciosContext = createContext({ precios: {}, setPrecio: () => {} })
+const MultiplicadoresContext = createContext({ multiplicadores: MULTIPLICADORES, setValorMultiplicador: () => {} })
+
+// Fila de instalación reutilizable: botones ×valor (clic = seleccionar,
+// doble clic = editar el valor guardado). Reemplaza los bloques repetidos
+// de "MULTIPLICADORES.map(...)" en cada panel.
+function MultiplicadorButtons({ multiplicador, setMultiplicador, label = 'Instalación' }) {
+  const { multiplicadores, setValorMultiplicador } = useContext(MultiplicadoresContext)
+  const [editando, setEditando] = useState(null)
+  const [valorInput, setValorInput] = useState('')
+
+  const guardarEdicion = () => {
+    const v = parseFloat(valorInput)
+    if (editando && !isNaN(v) && v > 0) {
+      const anterior = multiplicadores.find(m => m.id === editando)?.valor
+      setValorMultiplicador(editando, v)
+      if (multiplicador === anterior) setMultiplicador(v)
+    }
+    setEditando(null)
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {label && <span className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider shrink-0">{label}:</span>}
+      <div className="flex gap-1 flex-wrap">
+        {multiplicadores.map(m => editando === m.id ? (
+          <input key={m.id} type="number" min="0" step="0.1" autoFocus value={valorInput}
+            onChange={e => setValorInput(e.target.value)}
+            onBlur={guardarEdicion}
+            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+            className="w-14 text-center border-2 border-birth-red rounded px-1 py-1 text-xs font-dm focus:outline-none"
+          />
+        ) : (
+          <button key={m.id}
+            onClick={() => setMultiplicador(m.valor)}
+            onDoubleClick={() => { setEditando(m.id); setValorInput(String(m.valor)) }}
+            title={`${m.label} — doble clic para editar el valor`}
+            className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+            ×{m.valor}
+          </button>
+        ))}
+      </div>
+      <span className="text-xs text-birth-gray-3 font-dm">
+        {multiplicadores.find(m => m.valor === multiplicador)?.label}
+      </span>
+    </div>
+  )
+}
 
 // ─── BARRA DE CLIENTE (top) ────────────────────────────────────────────────
 function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, clientes, onClienteGuardado }) {
@@ -107,34 +163,42 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
 function ProductoFila({ producto, multiplicador }) {
   const [d1, setD1] = useState('')
   const [d2, setD2] = useState('')
-  const [agValue, setAgValue] = useState(null) // último precio calculado
   const [added, setAdded] = useState(false)
+  const [editandoPrecio, setEditandoPrecio] = useState(false)
+  const [precioInput, setPrecioInput] = useState('')
+  const { precios, setPrecio } = useContext(PreciosContext)
 
-  // Esta fila reporta al padre vía callback — usamos ref approach
-  // Para simplificar, emitimos un evento custom
   const u = producto.unidad
+  const precioBase = precios[producto.id] ?? producto.precio
+  const tieneOverride = precios[producto.id] != null && precios[producto.id] !== producto.precio
 
   let total = 0
   if (u === 'm2') {
     const area = parseFloat(d1 || 0) * parseFloat(d2 || 0)
     if (area > 0) total = producto.aplicaMultiplicador
-      ? Math.round(area * producto.precio * multiplicador)
-      : Math.round(area * producto.precio)
+      ? Math.round(area * precioBase * multiplicador)
+      : Math.round(area * precioBase)
   } else if (u === 'ml') {
     const ml = parseFloat(d1 || 0)
     if (ml > 0) total = producto.aplicaMultiplicador
-      ? Math.round(ml * producto.precio * multiplicador)
-      : Math.round(ml * producto.precio)
+      ? Math.round(ml * precioBase * multiplicador)
+      : Math.round(ml * precioBase)
   } else if (u === 'libre') {
     total = parseFloat(d1 || 0)
   } else {
     const qty = parseFloat(d1 || 0) || 1
-    if (producto.precio > 0) total = producto.aplicaMultiplicador
-      ? Math.round(qty * producto.precio * multiplicador)
-      : Math.round(qty * producto.precio)
+    if (precioBase > 0) total = producto.aplicaMultiplicador
+      ? Math.round(qty * precioBase * multiplicador)
+      : Math.round(qty * precioBase)
   }
 
   const canAdd = total > 0
+
+  const guardarPrecio = () => {
+    const v = parseFloat(precioInput)
+    if (!isNaN(v) && v >= 0) setPrecio(producto.id, v)
+    setEditandoPrecio(false)
+  }
 
   const handleAdd = () => {
     if (!canAdd) return
@@ -157,11 +221,31 @@ function ProductoFila({ producto, multiplicador }) {
       {/* Nombre + precio unitario — fila completa en móvil */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-dm font-medium leading-snug text-birth-black">{producto.nombre}</p>
-        {producto.precio > 0 && (
-          <p className="text-[11px] text-birth-gray-3 font-dm">
-            {clp(producto.precio)}/{u === 'libre' ? 'libre' : u}
-            {producto.aplicaMultiplicador && <span className="ml-1 text-birth-red">×{multiplicador}</span>}
-          </p>
+        {precioBase > 0 && (
+          editandoPrecio ? (
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="text-birth-gray-3 text-[11px]">$</span>
+              <input
+                type="number" min="0" autoFocus value={precioInput}
+                onChange={e => setPrecioInput(e.target.value)}
+                onBlur={guardarPrecio}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                onClick={e => e.stopPropagation()}
+                className="w-20 border border-birth-black rounded px-1 py-0.5 text-[11px] font-dm focus:outline-none"
+              />
+              <span className="text-birth-gray-3 text-[11px]">/{u === 'libre' ? 'libre' : u}</span>
+            </div>
+          ) : (
+            <p className="text-[11px] text-birth-gray-3 font-dm">
+              <button type="button"
+                onClick={() => { setPrecioInput(String(precioBase)); setEditandoPrecio(true) }}
+                className="hover:text-birth-black hover:underline">
+                {clp(precioBase)}/{u === 'libre' ? 'libre' : u}
+              </button>
+              {tieneOverride && <span className="ml-1 text-birth-red" title="Precio modificado">●</span>}
+              {producto.aplicaMultiplicador && <span className="ml-1 text-birth-red">×{multiplicador}</span>}
+            </p>
+          )
         )}
       </div>
 
@@ -190,7 +274,7 @@ function ProductoFila({ producto, multiplicador }) {
             placeholder="$" className="w-20 text-right border border-birth-gray-2 rounded px-1 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
         )}
         {['proyecto', 'año'].includes(u) && (
-          <span className="text-xs text-birth-gray-3 font-dm w-14 text-right">{clp(producto.precio)}</span>
+          <span className="text-xs text-birth-gray-3 font-dm w-14 text-right">{clp(precioBase)}</span>
         )}
 
         {/* Total preview */}
@@ -605,18 +689,7 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
     <div>
       {tieneMultiplicador && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-birth-gray border-b border-birth-gray-2">
-          <span className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Instalación:</span>
-          <div className="flex gap-1">
-            {MULTIPLICADORES.map(m => (
-              <button key={m.id} onClick={() => setMultiplicador(m.valor)}
-                className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
-                ×{m.valor}
-              </button>
-            ))}
-          </div>
-          <span className="text-xs text-birth-gray-3 font-dm ml-1">
-            {MULTIPLICADORES.find(m => m.valor === multiplicador)?.label}
-          </span>
+          <MultiplicadorButtons multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
         </div>
       )}
       <div className="px-4 py-2 bg-white border-b border-birth-gray-2">
@@ -744,18 +817,7 @@ function AcrilicoPanel({ multiplicador, setMultiplicador }) {
     <div>
       {/* Selector instalación */}
       <div className="flex items-center gap-2 px-4 py-2.5 bg-birth-gray border-b border-birth-gray-2">
-        <span className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Instalación:</span>
-        <div className="flex gap-1">
-          {MULTIPLICADORES.map(m => (
-            <button key={m.id} onClick={() => setMultiplicador(m.valor)}
-              className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
-              ×{m.valor}
-            </button>
-          ))}
-        </div>
-        <span className="text-xs text-birth-gray-3 font-dm ml-1">
-          {MULTIPLICADORES.find(m => m.valor === multiplicador)?.label}
-        </span>
+        <MultiplicadorButtons multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
       </div>
 
       {/* Buscador */}
@@ -848,14 +910,7 @@ function TarjetasPanel({ multiplicador }) {
         </div>
       </div>
       {!usarBirth && (
-        <div className="flex gap-2">
-          {MULTIPLICADORES.map(m => (
-            <button key={m.id} onClick={() => setMult(m.valor)}
-              className={`flex-1 py-1.5 rounded text-xs font-dm border ${mult === m.valor ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2'}`}>
-              ×{m.valor}
-            </button>
-          ))}
-        </div>
+        <MultiplicadorButtons multiplicador={mult} setMultiplicador={setMult} label={null} />
       )}
       {precBirth && (
         <label className="flex items-center gap-2 text-sm font-dm cursor-pointer">
@@ -921,6 +976,7 @@ function VolantesPanel() {
 }
 
 function BastidoresPanel({ multiplicador }) {
+  const { multiplicadores } = useContext(MultiplicadoresContext)
   const [tipo, setTipo] = useState('proveedor')
   const [selProv, setSelProv] = useState(BASTIDORES_PROVEEDOR[0].id)
   const [selBirth, setSelBirth] = useState(BASTIDORES_BIRTH[0].id)
@@ -968,8 +1024,8 @@ function BastidoresPanel({ multiplicador }) {
               <option value="una">1 cara</option>
               <option value="doble">Doble cara</option>
             </select>
-            <select value={mult} onChange={e => setMult(parseInt(e.target.value))} className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
-              {MULTIPLICADORES.map(m => <option key={m.id} value={m.valor}>×{m.valor}</option>)}
+            <select value={mult} onChange={e => setMult(parseFloat(e.target.value))} className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
+              {multiplicadores.map(m => <option key={m.id} value={m.valor}>×{m.valor}</option>)}
             </select>
           </div>
         </>
@@ -1038,6 +1094,7 @@ function PendonesPanel() {
 }
 
 function BanderaVelaPanel({ multiplicador }) {
+  const { multiplicadores } = useContext(MultiplicadoresContext)
   const [sel, setSel] = useState(BANDERAS_VELA[0].id)
   const [qty, setQty] = useState(1)
   const [mult, setMult] = useState(multiplicador)
@@ -1055,8 +1112,8 @@ function BanderaVelaPanel({ multiplicador }) {
       <div className="grid grid-cols-2 gap-3">
         <input type="number" min="1" value={qty} onChange={e => setQty(parseInt(e.target.value) || 1)} className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none" placeholder="Cantidad" />
         {p?.aplicaMultiplicador && (
-          <select value={mult} onChange={e => setMult(parseInt(e.target.value))} className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
-            {MULTIPLICADORES.map(m => <option key={m.id} value={m.valor}>×{m.valor}</option>)}
+          <select value={mult} onChange={e => setMult(parseFloat(e.target.value))} className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
+            {multiplicadores.map(m => <option key={m.id} value={m.valor}>×{m.valor}</option>)}
           </select>
         )}
       </div>
@@ -1254,16 +1311,7 @@ function FachadaPanel({ multiplicador, setMultiplicador }) {
 
       {/* Multiplicador instalación */}
       <div className="flex items-center gap-2 px-4 py-2.5 bg-birth-gray">
-        <span className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider shrink-0">Instalación:</span>
-        <div className="flex gap-1">
-          {MULTIPLICADORES.map(m => (
-            <button key={m.id} onClick={() => setMultiplicador(m.valor)}
-              className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
-              ×{m.valor}
-            </button>
-          ))}
-        </div>
-        <span className="text-xs text-birth-gray-3 font-dm">{MULTIPLICADORES.find(m => m.valor === multiplicador)?.label}</span>
+        <MultiplicadorButtons multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
       </div>
 
       {/* ── ACM NORMAL / BRILLANTE ── */}
@@ -1529,11 +1577,11 @@ function PreviewPDF({ url, filename, onClose, onDownload }) {
 }
 
 // ─── MODAL CREAR COTIZACIÓN ────────────────────────────────────────────────
-function ModalCrearCotizacion({ items, clienteId, clienteNombre, onClose, onGuardado }) {
+function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial = true, onClose, onGuardado }) {
   const [descripcion, setDescripcion] = useState('')
   const [formaPago, setFormaPago] = useState('Transferencia bancaria — 50% anticipo, 50% contra entrega')
   const [plazo, setPlazo] = useState('')
-  const [conIva, setConIva] = useState(true)
+  const [conIva, setConIva] = useState(conIvaInicial)
   const [descuento, setDescuento] = useState('')
   const [traslado, setTraslado] = useState('')
   const [emailCliente, setEmailCliente] = useState('')
@@ -1838,6 +1886,33 @@ export default function Cotizador() {
   const [tabMovil, setTabMovil] = useState('calcular')
   const [vistaMode, setVistaMode] = useState('lista')
   const [globalQuery, setGlobalQuery] = useState('')
+  const [precios, setPreciosState] = useState({})
+  const [multiplicadoresOverride, setMultiplicadoresOverride] = useState({})
+
+  useEffect(() => {
+    getPreciosProductos().then(setPreciosState)
+    getMultiplicadoresInstalacion().then(setMultiplicadoresOverride)
+  }, [])
+
+  const setPrecio = (id, valor) => {
+    setPreciosState(prev => {
+      const next = { ...prev, [id]: valor }
+      savePreciosProductos(next).catch(() => {})
+      return next
+    })
+  }
+
+  const setValorMultiplicador = (id, valor) => {
+    setMultiplicadoresOverride(prev => {
+      const next = { ...prev, [id]: valor }
+      saveMultiplicadoresInstalacion(next).catch(() => {})
+      return next
+    })
+  }
+
+  const multiplicadoresEfectivos = MULTIPLICADORES.map(m => ({
+    ...m, valor: multiplicadoresOverride[m.id] ?? m.valor,
+  }))
 
   const busquedaGlobal = globalQuery.trim()
     ? Object.entries(PRODUCTOS).flatMap(([catId, prods]) => {
@@ -1864,12 +1939,15 @@ export default function Cotizador() {
   const total = subtotal + iva
 
   return (
+    <PreciosContext.Provider value={{ precios, setPrecio }}>
+    <MultiplicadoresContext.Provider value={{ multiplicadores: multiplicadoresEfectivos, setValorMultiplicador }}>
     <div className="h-[100dvh] flex flex-col overflow-hidden">
       {modal && (
         <ModalCrearCotizacion
           items={items.map(({ _id, ...r }) => r)}
           clienteId={clienteId}
           clienteNombre={clienteNombre}
+          conIvaInicial={conIva}
           onClose={() => setModal(false)}
           onGuardado={() => setItems([])}
         />
@@ -2066,5 +2144,7 @@ export default function Cotizador() {
         </div>
       </div>
     </div>
+    </MultiplicadoresContext.Provider>
+    </PreciosContext.Provider>
   )
 }

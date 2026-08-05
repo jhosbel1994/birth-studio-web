@@ -176,6 +176,33 @@ export async function saveCosteoLetrasPrecios(precios) {
   await setDoc(doc(db, 'settings', COSTEO_LETRAS_ID), { precios }, { merge: true })
 }
 
+// ─── PRECIOS DEL CATÁLOGO DEL COTIZADOR (overrides editables persistentes) ───
+// `data/productos.js` define los precios base (seed). Un override guardado
+// acá pisa ese valor — mismo patrón que costeoLetras: `precios[id] ?? seed`.
+const PRECIOS_PRODUCTOS_ID = 'preciosProductos'
+
+export async function getPreciosProductos() {
+  const snap = await getDoc(doc(db, 'settings', PRECIOS_PRODUCTOS_ID))
+  return snap.exists() ? (snap.data().precios || {}) : {}
+}
+
+export async function savePreciosProductos(precios) {
+  await setDoc(doc(db, 'settings', PRECIOS_PRODUCTOS_ID), { precios }, { merge: true })
+}
+
+// ─── MULTIPLICADORES DE INSTALACIÓN (editables persistentes) ─────────────────
+// Reemplaza los valores fijos ×2/×3/×4 de data/productos.js `MULTIPLICADORES`.
+const MULTIPLICADORES_ID = 'multiplicadoresInstalacion'
+
+export async function getMultiplicadoresInstalacion() {
+  const snap = await getDoc(doc(db, 'settings', MULTIPLICADORES_ID))
+  return snap.exists() ? (snap.data().valores || {}) : {}
+}
+
+export async function saveMultiplicadoresInstalacion(valores) {
+  await setDoc(doc(db, 'settings', MULTIPLICADORES_ID), { valores }, { merge: true })
+}
+
 // ─── MATERIALES (base de datos de materiales para cotizaciones) ──────────────
 export async function getMateriales() {
   const snap = await getDocs(query(collection(db, 'materiales'), orderBy('nombre', 'asc')))
