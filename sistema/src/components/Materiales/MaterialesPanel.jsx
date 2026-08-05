@@ -109,6 +109,7 @@ export default function MaterialesPanel() {
   const [form, setForm] = useState(null)
   const [multiplicador, setMultiplicadorState] = useState(MULTIPLICADOR_MATERIALES_DEFAULT)
   const [guardadoOk, setGuardadoOk] = useState(false)
+  const [precioAAgregar, setPrecioAAgregar] = useState('venta') // 'venta' | 'costo'
 
   useEffect(() => {
     let unsub = () => {}
@@ -166,18 +167,21 @@ export default function MaterialesPanel() {
         return `${m.nombre}${cant && cant !== '1' ? ` ×${cant}` : ''}`
       })
     const base = activos.length ? `Materiales: ${activos.join(', ')}` : 'Materiales'
-    return `${base} | Multiplicador ×${multiplicador}`
+    const sufijo = precioAAgregar === 'costo' ? 'Precio de costo (sin margen)' : `Multiplicador ×${multiplicador}`
+    return `${base} | ${sufijo}`
   }
 
+  const montoAAgregar = precioAAgregar === 'costo' ? resultado.costoTotal : resultado.ventaNeta
+
   const handleAgregar = () => {
-    if (!resultado.ventaNeta) return
+    if (!montoAAgregar) return
     window.dispatchEvent(new CustomEvent('cotizador:agregar', {
       detail: {
         descripcion: construirDescripcion(),
         cantidad: 1,
-        precioUnitario: resultado.ventaNeta,
-        total: resultado.ventaNeta,
-        materialesSnapshot: { itemsState, multiplicador, resultado },
+        precioUnitario: montoAAgregar,
+        total: montoAAgregar,
+        materialesSnapshot: { itemsState, multiplicador, precioAAgregar, resultado },
       },
     }))
   }
@@ -222,10 +226,20 @@ export default function MaterialesPanel() {
         )}
       </div>
 
-      {/* ── Multiplicador + resumen ── */}
+      {/* ── Costo interno → multiplicador → agregar ── */}
       <div className="mt-4 lg:mt-0 lg:sticky lg:top-0 lg:self-start bg-white border border-birth-gray-2 rounded divide-y divide-birth-gray-2">
+        {/* 1. Costo total — referencia interna, no depende del multiplicador */}
+        <div className="p-4 space-y-1.5">
+          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider mb-1">Costo total de materiales (interno)</p>
+          <div className="bg-birth-gray rounded px-4 py-3 flex items-center justify-between">
+            <span className="text-xs font-dm text-birth-gray-4">Lo que me cuesta a mí</span>
+            <span className="font-barlow font-bold text-xl text-birth-black">{clp(resultado.costoTotal)}</span>
+          </div>
+        </div>
+
+        {/* 2. Multiplicador — a partir del costo, decidir cuánto cobrar */}
         <div className="p-4 space-y-3">
-          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Multiplicador de venta</p>
+          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Multiplicador — ¿cuánto cobrar?</p>
           <div className="flex gap-1.5">
             {MULTIPLICADORES_MATERIALES.map(m => (
               <button key={m.valor} onClick={() => setMultiplicadorState(m.valor)}
@@ -242,35 +256,48 @@ export default function MaterialesPanel() {
           <button onClick={handleMultiplicadorDefault} className="text-[11px] font-dm text-birth-red hover:underline">
             {guardadoOk ? 'Guardado ✓' : `Guardar ${multiplicador === 1 ? 'Costo' : `×${multiplicador}`} como predeterminado`}
           </button>
-        </div>
 
-        <div className="p-4 space-y-1.5">
-          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider mb-1">Resumen</p>
-          <div className="flex justify-between text-sm font-dm text-birth-gray-4">
-            <span>Costo directo</span><span>{clp(resultado.costoTotal)}</span>
-          </div>
-          <div className="flex justify-between text-sm font-dm text-birth-gray-4">
+          <div className="flex justify-between text-sm font-dm text-birth-gray-4 pt-1">
             <span>Utilidad</span><span>{clp(resultado.utilidad)}</span>
           </div>
         </div>
 
-        <div className="p-4 space-y-3">
+        {/* 3. Resultado de venta */}
+        <div className="p-4 space-y-1.5">
           <div className="bg-birth-black rounded px-4 py-3 space-y-1.5">
             <div className="flex justify-between items-center">
               <span className="text-xs font-dm text-white/60">Precio de venta (neto)</span>
               <span className="font-barlow font-bold text-xl text-white">{clp(resultado.ventaNeta)}</span>
             </div>
             <div className="flex justify-between text-xs font-dm text-white/60">
-              <span>+ IVA 19%</span><span className="text-white/80">{clp(resultado.ventaIva)}</span>
+              <span>IVA 19%</span><span className="text-white/80">{clp(resultado.iva)}</span>
+            </div>
+            <div className="flex justify-between text-xs font-dm text-white/60 border-t border-white/10 pt-1.5">
+              <span>Total con IVA</span><span className="text-white/80">{clp(resultado.totalConIva)}</span>
             </div>
             <div className="flex justify-between text-xs font-dm text-white/60">
               <span>Anticipo 50%</span><span className="text-white/80">{clp(resultado.anticipo)}</span>
             </div>
           </div>
+        </div>
 
-          <button onClick={handleAgregar} disabled={!resultado.ventaNeta}
+        {/* 4. Elegir qué monto pasa a la cotización + agregar */}
+        <div className="p-4 space-y-3">
+          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Agregar a la cotización como</p>
+          <div className="flex gap-1.5">
+            <button onClick={() => setPrecioAAgregar('venta')}
+              className={`flex-1 py-1.5 rounded text-xs font-dm border transition-colors ${precioAAgregar === 'venta' ? 'bg-birth-red text-white border-birth-red' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+              Precio de venta ({clp(resultado.ventaNeta)})
+            </button>
+            <button onClick={() => setPrecioAAgregar('costo')}
+              className={`flex-1 py-1.5 rounded text-xs font-dm border transition-colors ${precioAAgregar === 'costo' ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+              Precio de costo ({clp(resultado.costoTotal)})
+            </button>
+          </div>
+
+          <button onClick={handleAgregar} disabled={!montoAAgregar}
             className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-3 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <Plus size={15} /> Agregar a cotización
+            <Plus size={15} /> Agregar {clp(montoAAgregar)} a cotización
           </button>
         </div>
       </div>

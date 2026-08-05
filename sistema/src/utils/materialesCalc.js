@@ -17,9 +17,10 @@ export function calcularMateriales(materiales, itemsState, multiplicador) {
   )
   const mult = parseFloat(multiplicador) || 0
   const ventaNeta = Math.round(costoTotal * mult)
-  const ventaIva = Math.round(ventaNeta * 1.19)
-  const anticipo = Math.round(ventaIva * 0.5)
+  const iva = Math.round(ventaNeta * 0.19)
+  const totalConIva = ventaNeta + iva
+  const anticipo = Math.round(totalConIva * 0.5)
   const utilidad = ventaNeta - costoTotal
 
-  return { costoTotal, ventaNeta, ventaIva, anticipo, utilidad }
+  return { costoTotal, ventaNeta, iva, totalConIva, anticipo, utilidad }
 }
