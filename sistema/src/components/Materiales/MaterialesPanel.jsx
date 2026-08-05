@@ -159,31 +159,41 @@ export default function MaterialesPanel() {
     [materiales, itemsState, multiplicador]
   )
 
-  const construirDescripcion = () => {
-    const activos = materiales
+  // Una fila por material activo — cada uno con su costo unitario y su
+  // precio de venta unitario (costo × multiplicador), para poder agregar
+  // la cotización como lista itemizada en vez de una sola línea resumen.
+  const filas = useMemo(() => {
+    return materiales
       .filter(m => itemsState[m.id]?.activo)
       .map(m => {
-        const cant = itemsState[m.id]?.cantidad
-        return `${m.nombre}${cant && cant !== '1' ? ` ×${cant}` : ''}`
+        const { precioBase, cantidad } = calcularCostoMaterial(m, itemsState[m.id])
+        const costoUnit = Math.round(precioBase)
+        const costoTotalFila = Math.round(cantidad * costoUnit)
+        const ventaUnit = Math.round(precioBase * (parseFloat(multiplicador) || 0))
+        const ventaTotalFila = Math.round(cantidad * ventaUnit)
+        return { material: m, cantidad, costoUnit, costoTotalFila, ventaUnit, ventaTotalFila }
       })
-    const base = activos.length ? `Materiales: ${activos.join(', ')}` : 'Materiales'
-    const sufijo = precioAAgregar === 'costo' ? 'Precio de costo (sin margen)' : `Multiplicador ×${multiplicador}`
-    return `${base} | ${sufijo}`
-  }
+      .filter(f => f.costoTotalFila > 0)
+  }, [materiales, itemsState, multiplicador])
 
-  const montoAAgregar = precioAAgregar === 'costo' ? resultado.costoTotal : resultado.ventaNeta
+  const montoCostoItemizado = filas.reduce((acc, f) => acc + f.costoTotalFila, 0)
+  const montoVentaItemizado = filas.reduce((acc, f) => acc + f.ventaTotalFila, 0)
+  const montoAAgregar = precioAAgregar === 'costo' ? montoCostoItemizado : montoVentaItemizado
 
   const handleAgregar = () => {
-    if (!montoAAgregar) return
-    window.dispatchEvent(new CustomEvent('cotizador:agregar', {
-      detail: {
-        descripcion: construirDescripcion(),
-        cantidad: 1,
-        precioUnitario: montoAAgregar,
-        total: montoAAgregar,
-        materialesSnapshot: { itemsState, multiplicador, precioAAgregar, resultado },
-      },
-    }))
+    if (filas.length === 0) return
+    for (const f of filas) {
+      const precioUnitario = precioAAgregar === 'costo' ? f.costoUnit : f.ventaUnit
+      const total = precioAAgregar === 'costo' ? f.costoTotalFila : f.ventaTotalFila
+      window.dispatchEvent(new CustomEvent('cotizador:agregar', {
+        detail: {
+          descripcion: `${f.material.nombre}${f.material.unidad ? ` (${f.material.unidad})` : ''}`,
+          cantidad: f.cantidad,
+          precioUnitario,
+          total,
+        },
+      }))
+    }
   }
 
   return (
@@ -281,23 +291,26 @@ export default function MaterialesPanel() {
           </div>
         </div>
 
-        {/* 4. Elegir qué monto pasa a la cotización + agregar */}
+        {/* 4. Elegir qué precio unitario llevan las filas + agregar itemizado */}
         <div className="p-4 space-y-3">
-          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Agregar a la cotización como</p>
+          <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Agregar a la cotización con precio de</p>
           <div className="flex gap-1.5">
             <button onClick={() => setPrecioAAgregar('venta')}
               className={`flex-1 py-1.5 rounded text-xs font-dm border transition-colors ${precioAAgregar === 'venta' ? 'bg-birth-red text-white border-birth-red' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
-              Precio de venta ({clp(resultado.ventaNeta)})
+              Venta ({clp(montoVentaItemizado)})
             </button>
             <button onClick={() => setPrecioAAgregar('costo')}
               className={`flex-1 py-1.5 rounded text-xs font-dm border transition-colors ${precioAAgregar === 'costo' ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
-              Precio de costo ({clp(resultado.costoTotal)})
+              Costo ({clp(montoCostoItemizado)})
             </button>
           </div>
+          <p className="text-[11px] font-dm text-birth-gray-3">
+            Cada material seleccionado se agrega como su propia fila (descripción, cantidad y precio unitario) — no como una sola línea resumen.
+          </p>
 
-          <button onClick={handleAgregar} disabled={!montoAAgregar}
+          <button onClick={handleAgregar} disabled={filas.length === 0}
             className="w-full flex items-center justify-center gap-2 bg-birth-red text-white py-3 rounded text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <Plus size={15} /> Agregar {clp(montoAAgregar)} a cotización
+            <Plus size={15} /> Agregar {filas.length} ítem{filas.length !== 1 ? 's' : ''} ({clp(montoAAgregar)}) a cotización
           </button>
         </div>
       </div>
