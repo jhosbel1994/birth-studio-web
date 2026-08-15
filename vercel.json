@@ -6,6 +6,12 @@
       "source": "/cotizador.html",
       "destination": "/cotizador/",
       "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "bspublicidad.cl" }],
+      "destination": "https://www.bspublicidad.cl/:path*",
+      "permanent": true
     }
   ],
   "headers": [
@@ -17,6 +23,18 @@
     },
     {
       "source": "/cotizador/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    },
+    {
+      "source": "/sistema",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    },
+    {
+      "source": "/sistema/(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
       ]
