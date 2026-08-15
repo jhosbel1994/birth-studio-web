@@ -307,6 +307,17 @@ export async function deleteGaleriaImagen(storagePath) {
   }
 }
 
+// ─── ESTADÍSTICAS PÚBLICAS (leídas por el sitio bspublicidad.cl) ─────────────
+// Colección separada de `settings` a propósito: `settings` guarda el PIN de
+// acceso, así que su lectura debe quedar restringida. `publicStats` es la
+// única colección con `allow read: if true` en las reglas de Firestore.
+export async function syncPublicStats(aceptadas) {
+  await setDoc(doc(db, 'publicStats', 'main'), {
+    aceptadas,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true })
+}
+
 // ─── SUSCRIPCIONES TIEMPO REAL ────────────────────────────────────────────────
 export function subscribeClientes(cb) {
   return onSnapshot(query(collection(db, 'clientes'), orderBy('createdAt', 'asc')), snap => cb(snapsToArr(snap)))

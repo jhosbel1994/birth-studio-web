@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { subscribeCotizaciones, subscribeGastos } from '../utils/storage'
+import { subscribeCotizaciones, subscribeGastos, syncPublicStats } from '../utils/storage'
 import { clp, fechaCorta, ESTADOS } from '../utils/formatters'
 import {
   TrendingUp, FileText, Clock, CheckCircle, XCircle, DollarSign,
@@ -60,9 +60,10 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [cotizaciones, setCotizaciones] = useState([])
   const [gastos, setGastos] = useState([])
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    const u1 = subscribeCotizaciones(setCotizaciones)
+    const u1 = subscribeCotizaciones((data) => { setCotizaciones(data); setLoaded(true) })
     const u2 = subscribeGastos(setGastos)
     return () => { u1(); u2() }
   }, [])
@@ -74,6 +75,14 @@ export default function Dashboard() {
   const porAceptar = cotizaciones.filter(c => c.estado === 'por_aceptar').length
   const aceptadas = cotizaciones.filter(c => c.estado === 'aceptada').length
   const rechazadas = cotizaciones.filter(c => c.estado === 'rechazada').length
+
+  // Sincroniza el contador público que lee bspublicidad.cl ("+180 Proyectos
+  // realizados" = 180 histórico + esta cifra). Se omite hasta que la
+  // suscripción trae datos reales, para no pisar el contador con un 0
+  // transitorio del primer render.
+  useEffect(() => {
+    if (loaded) syncPublicStats(aceptadas).catch(() => {})
+  }, [loaded, aceptadas])
 
   const ingresosMes = cotizaciones
     .filter(c => c.estado === 'aceptada' && enMes(c.createdAt))
