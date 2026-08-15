@@ -2,3 +2,6 @@ sistema/node_modules
 sistema/dist
 sistema/.env
 sistema/.env.local
+
+# Fotos originales sin comprimir (20MB) — el sitio usa assets/fotos-web/
+assets/fotos/

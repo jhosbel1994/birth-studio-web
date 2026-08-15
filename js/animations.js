@@ -83,14 +83,33 @@ function initMosaic() {
     var ROWS  = 3;
     var TOTAL = COLS * ROWS;
 
-    // ── Pool de imágenes (Unsplash — reemplaza por tus fotos reales)
-    // Para usar tus fotos: agrega rutas como 'assets/foto1.jpg'
+    // ── Pool de imágenes: fotos reales de proyectos de Birth Studio
+    // (versiones optimizadas para web — originales en assets/fotos/)
     var IMAGES = [
-        'https://images.unsplash.com/photo-1706466614967-f4f14a3d9d08?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1750839990929-d4505ede9df2?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1759936802353-a4999ad4e0d1?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1706466614967-f4f14a3d9d08?w=400&h=300&fit=crop',
+        'assets/fotos-web/2DEAZUCAR.jpg',
+        'assets/fotos-web/ADHESIVO.jpg',
+        'assets/fotos-web/ADHESIVO1.jpg',
+        'assets/fotos-web/BARBERIA.jpg',
+        'assets/fotos-web/CAJETIN-LUMINOSO.jpg',
+        'assets/fotos-web/CIRCULO-LUMINOSO.jpg',
+        'assets/fotos-web/CUADRO.jpg',
+        'assets/fotos-web/CUADROP19.jpg',
+        'assets/fotos-web/DRAGON.jpg',
+        'assets/fotos-web/FW.jpg',
+        'assets/fotos-web/FYWACRILICO.jpg',
+        'assets/fotos-web/LACUMBRE.jpg',
+        'assets/fotos-web/LETRACORPOREA.jpg',
+        'assets/fotos-web/LIVER.jpg',
+        'assets/fotos-web/LIVERPOOL.jpg',
+        'assets/fotos-web/LIVERPOOL1.jpg',
+        'assets/fotos-web/OPEN.jpg',
+        'assets/fotos-web/P19.jpg',
+        'assets/fotos-web/PANAS.jpg',
+        'assets/fotos-web/PEDRAGON.jpg',
+        'assets/fotos-web/SOS.jpg',
+        'assets/fotos-web/TOSTADURIA.jpg',
+        'assets/fotos-web/TOTTEM.jpg',
+        'assets/fotos-web/TRABAJANDO.jpg',
     ];
 
     // Mezcla el pool para variedad inicial
