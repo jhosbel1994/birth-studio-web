@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { saveCotizacion, deleteCotizacion, saveCliente, getClienteById, subscribeCotizaciones, subscribeClientes } from '../utils/storage'
+import { saveCotizacion, deleteCotizacion, saveCliente, getClienteById, subscribeCotizaciones, subscribeClientes, syncPublicStats } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl } from '../utils/email'
@@ -680,17 +680,27 @@ export default function Cotizaciones() {
   const [filtroEstado, setFiltroEstado] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [cotizacionesCargadas, setCotizacionesCargadas] = useState(false)
 
   const clienteLocal = (id) => clientes.find(c => c.id === id) || null
 
   useEffect(() => {
-    const u1 = subscribeCotizaciones(setCotizaciones)
+    const u1 = subscribeCotizaciones((data) => { setCotizaciones(data); setCotizacionesCargadas(true) })
     const u2 = subscribeClientes(setClientes)
     if (location.state?.items) {
       setModal({ items: location.state.items, clienteId: location.state.cliente?.id || '', clienteNombre: location.state.cliente?.nombre || '' })
     }
     return () => { u1(); u2() }
   }, [])
+
+  // Sincroniza el contador público en el momento exacto en que una
+  // cotización pasa a "aceptada" (o cambia de estado) — no depende de que
+  // alguien abra el Dashboard después.
+  useEffect(() => {
+    if (!cotizacionesCargadas) return
+    const aceptadas = cotizaciones.filter(c => c.estado === 'aceptada').length
+    syncPublicStats(aceptadas).catch(() => {})
+  }, [cotizacionesCargadas, cotizaciones])
 
   const handleSave = async (data) => { await saveCotizacion(data); setModal(null) }
   const handleDelete = (cot) => { setMenuAbierto(null); setConfirmDelete(cot) }
