@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import { clp, fechaCorta } from './formatters'
 import logoBirthUrl from '../assets/logo-birth.png'
+import logoTensionUrl from '../assets/logo-tension.png'
 
 const EMPRESA = {
   nombre: 'Birth Studio SpA',
@@ -11,6 +12,25 @@ const EMPRESA = {
   ciudad: 'Talca, Chile',
 }
 
+// Misma SpA (mismo RUT), marca distinta para proyectos de obras y
+// estructuras — no debe aparecer nada de Birth en este PDF.
+const EMPRESA_TENSION = {
+  nombre: 'Tensión Obras y Estructuras',
+  rut: EMPRESA.rut,
+  correo: EMPRESA.correo,
+  web: EMPRESA.web,
+  whatsapp: EMPRESA.whatsapp,
+  ciudad: EMPRESA.ciudad,
+}
+
+function empresaDe(cotizacion) {
+  return cotizacion?.tipoProyecto === 'estructuras' ? EMPRESA_TENSION : EMPRESA
+}
+
+function logoUrlDe(cotizacion) {
+  return cotizacion?.tipoProyecto === 'estructuras' ? logoTensionUrl : logoBirthUrl
+}
+
 const ROJO = [232, 0, 13]
 const NEGRO = [10, 10, 10]
 const GRIS = [100, 100, 100]
@@ -18,7 +38,7 @@ const GRIS_CLARO = [220, 220, 220]
 const BLANCO = [255, 255, 255]
 
 // logoImg puede ser HTMLImageElement o base64 string
-function addHeader(doc, etiqueta, numero, logoImg) {
+function addHeader(doc, etiqueta, numero, logoImg, marcaFallback = 'BIRTH') {
   doc.setFillColor(...NEGRO)
   doc.rect(0, 0, 210, 32, 'F')
 
@@ -30,13 +50,13 @@ function addHeader(doc, etiqueta, numero, logoImg) {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(20)
       doc.setTextColor(...BLANCO)
-      doc.text('BIRTH', 14, 20)
+      doc.text(marcaFallback, 14, 20)
     }
   } else {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(20)
     doc.setTextColor(...BLANCO)
-    doc.text('BIRTH', 14, 20)
+    doc.text(marcaFallback, 14, 20)
   }
 
   // Etiqueta arriba derecha (COTIZACIÓN / CONTRATO DE LETRAS...)
@@ -54,7 +74,7 @@ function addHeader(doc, etiqueta, numero, logoImg) {
   }
 }
 
-function cargarLogo() {
+function cargarLogo(logoUrl = logoBirthUrl) {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
@@ -69,19 +89,19 @@ function cargarLogo() {
       resolve(canvas.toDataURL('image/png'))
     }
     img.onerror = () => resolve(null)
-    img.src = logoBirthUrl
+    img.src = logoUrl
   })
 }
 
-function addEmpresaInfo(doc, y) {
+function addEmpresaInfo(doc, y, empresa = EMPRESA) {
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(...GRIS)
-  doc.text(EMPRESA.nombre, 14, y)
-  doc.text(`RUT ${EMPRESA.rut}`, 14, y + 4)
-  doc.text(EMPRESA.correo, 14, y + 8)
-  doc.text(`${EMPRESA.web}  ·  ${EMPRESA.whatsapp}`, 14, y + 12)
-  doc.text(EMPRESA.ciudad, 14, y + 16)
+  doc.text(empresa.nombre, 14, y)
+  doc.text(`RUT ${empresa.rut}`, 14, y + 4)
+  doc.text(empresa.correo, 14, y + 8)
+  doc.text(`${empresa.web}  ·  ${empresa.whatsapp}`, 14, y + 12)
+  doc.text(empresa.ciudad, 14, y + 16)
 }
 
 function linea(doc, y) {
@@ -92,13 +112,14 @@ function linea(doc, y) {
 
 // modo: 'download' | 'preview' | 'blob'
 export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download') {
-  const logo = await cargarLogo()
+  const empresa = empresaDe(cotizacion)
+  const logo = await cargarLogo(logoUrlDe(cotizacion))
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
-  addHeader(doc, 'COTIZACIÓN', cotizacion.numero, logo)
+  addHeader(doc, 'COTIZACIÓN', cotizacion.numero, logo, empresa === EMPRESA_TENSION ? 'TENSIÓN' : 'BIRTH')
 
   let y = 40
-  addEmpresaInfo(doc, y)
+  addEmpresaInfo(doc, y, empresa)
 
   linea(doc, y + 21)
   y += 26
@@ -314,7 +335,7 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   doc.setFontSize(7)
   doc.setTextColor(...GRIS)
   doc.text(
-    `${EMPRESA.nombre}  ·  RUT ${EMPRESA.rut}  ·  ${EMPRESA.correo}  ·  ${EMPRESA.whatsapp}  ·  ${EMPRESA.web}`,
+    `${empresa.nombre}  ·  RUT ${empresa.rut}  ·  ${empresa.correo}  ·  ${empresa.whatsapp}  ·  ${empresa.web}`,
     105,
     footerY,
     { align: 'center' }

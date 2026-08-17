@@ -103,6 +103,7 @@ const EMPTY_COT = {
   plazoEntrega: '', incluye: '', noIncluye: '',
   conIva: true, estado: 'por_aceptar',
   fechaInicio: '', fechaEntrega: '',
+  tipoProyecto: 'publicidad', // 'publicidad' (Birth Studio) | 'estructuras' (Tensión)
 }
 
 function calcularTotales(items, conIva) {
@@ -418,7 +419,7 @@ function ItemRow({ item, idx, onChange, onDelete }) {
 }
 
 function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
-  const [form, setForm] = useState(cotizacion?.id ? { ...cotizacion } : { ...EMPTY_COT })
+  const [form, setForm] = useState(cotizacion?.id ? { ...EMPTY_COT, ...cotizacion } : { ...EMPTY_COT })
   const [nuevoCliente, setNuevoCliente] = useState(false)
   const [ncForm, setNcForm] = useState({ nombre: '', empresa: '', rut: '', ciudad: '', correo: '', telefono: '' })
   const [showCatalog, setShowCatalog] = useState(false)
@@ -456,6 +457,29 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {/* Tipo de proyecto — define que marca sale en el PDF */}
+          <div>
+            <label className="block text-xs text-birth-gray-4 mb-1.5 font-dm uppercase tracking-wider">¿Qué tipo de proyecto quieres realizar? *</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => set('tipoProyecto', 'publicidad')}
+                className={`px-3 py-2.5 rounded border text-sm font-dm font-medium transition-colors ${
+                  form.tipoProyecto === 'publicidad'
+                    ? 'border-birth-black bg-birth-black text-white'
+                    : 'border-birth-gray-2 text-birth-gray-4 hover:border-birth-black'
+                }`}>
+                Publicidad — Birth Studio
+              </button>
+              <button type="button" onClick={() => set('tipoProyecto', 'estructuras')}
+                className={`px-3 py-2.5 rounded border text-sm font-dm font-medium transition-colors ${
+                  form.tipoProyecto === 'estructuras'
+                    ? 'border-birth-black bg-birth-black text-white'
+                    : 'border-birth-gray-2 text-birth-gray-4 hover:border-birth-black'
+                }`}>
+                Estructuras — Tensión
+              </button>
+            </div>
+          </div>
+
           {/* Cliente */}
           <div>
             <label className="block text-xs text-birth-gray-4 mb-1.5 font-dm uppercase tracking-wider">Cliente *</label>
