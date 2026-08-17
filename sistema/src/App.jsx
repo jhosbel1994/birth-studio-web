@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Login, { isLoggedIn } from './pages/Login'
 import Layout from './components/Layout'
@@ -9,6 +9,17 @@ import Cotizaciones from './pages/Cotizaciones'
 import Contratos from './pages/Contratos'
 import Gastos from './pages/Gastos'
 import Galeria from './pages/Galeria'
+
+// three.js es pesado: la página de Prototipo se carga solo cuando se abre.
+const Prototipo = lazy(() => import('./pages/Prototipo'))
+
+function CargandoPagina() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh] text-birth-gray-3 font-dm text-sm">
+      Cargando prototipo 3D…
+    </div>
+  )
+}
 
 export default function App() {
   const [logged, setLogged] = useState(isLoggedIn)
@@ -28,6 +39,11 @@ export default function App() {
         <Route path="contratos" element={<Contratos />} />
         <Route path="gastos" element={<Gastos />} />
         <Route path="galeria" element={<Galeria />} />
+        <Route path="prototipo" element={
+          <Suspense fallback={<CargandoPagina />}>
+            <Prototipo />
+          </Suspense>
+        } />
       </Route>
     </Routes>
   )

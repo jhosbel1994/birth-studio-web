@@ -74,6 +74,34 @@ function addHeader(doc, etiqueta, numero, logoImg, marcaFallback = 'BIRTH') {
   }
 }
 
+// Página extra con el render del prototipo (generado en la sección
+// "Prototipo Logo"). Solo se agrega si la cotización trae `prototipoImg`.
+function addPrototipoPage(doc, empresa, logoImg, imgDataUrl, numero, marcaFallback) {
+  doc.addPage()
+  addHeader(doc, 'PROTOTIPO DEL LETRERO', numero, logoImg, marcaFallback)
+
+  let props
+  try { props = doc.getImageProperties(imgDataUrl) } catch { return }
+  const fmt = /^data:image\/png/i.test(imgDataUrl) ? 'PNG' : 'JPEG'
+
+  const maxW = 182, maxH = 225, topY = 42
+  const ratio = props.width / props.height
+  let w = maxW, h = w / ratio
+  if (h > maxH) { h = maxH; w = h * ratio }
+  const x = (210 - w) / 2
+  const y = topY + (maxH - h) / 2
+
+  doc.addImage(imgDataUrl, fmt, x, y, w, h)
+
+  doc.setFont('helvetica', 'italic')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...GRIS)
+  doc.text(
+    'Imagen referencial del letrero. El resultado final puede variar según materiales y condiciones de instalación.',
+    105, 285, { align: 'center' }
+  )
+}
+
 function cargarLogo(logoUrl = logoBirthUrl) {
   return new Promise((resolve) => {
     const img = new Image()
@@ -340,6 +368,12 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
     footerY,
     { align: 'center' }
   )
+
+  // Página extra con el prototipo 3D, si la cotización lo trae adjunto
+  if (cotizacion.prototipoImg) {
+    addPrototipoPage(doc, empresa, logo, cotizacion.prototipoImg, cotizacion.numero,
+      empresa === EMPRESA_TENSION ? 'TENSIÓN' : 'BIRTH')
+  }
 
   const filename = `Cotizacion_${cotizacion.numero}_${(cliente?.nombre || 'cliente').replace(/\s+/g, '_')}.pdf`
   if (modo === 'preview') {

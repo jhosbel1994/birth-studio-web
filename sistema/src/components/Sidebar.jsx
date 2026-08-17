@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Calculator, Users,
-  FileText, ScrollText, Wallet, Image,
+  FileText, ScrollText, Wallet, Image, Box,
   LogOut, KeyRound,
 } from 'lucide-react'
 import { doLogout, ModalCambiarPin } from '../pages/Login'
@@ -15,6 +15,7 @@ const NAV = [
   { to: '/contratos', icon: ScrollText, label: 'Contratos' },
   { to: '/gastos', icon: Wallet, label: 'Gastos & Finanzas' },
   { to: '/galeria', icon: Image, label: 'Galería' },
+  { to: '/prototipo', icon: Box, label: 'Prototipo Logo' },
 ]
 
 export default function Sidebar() {

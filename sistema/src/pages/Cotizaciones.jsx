@@ -5,6 +5,7 @@ import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl } from '../utils/email'
 import { CATEGORIAS, PRODUCTOS } from '../data/productos'
 import { useLocation } from 'react-router-dom'
+import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
 import {
   Plus, Download, Trash2, Edit2, X, Search,
   Eye, Mail, MessageCircle, FileText, MoreHorizontal, CheckCircle, AlertCircle, Loader2,
@@ -536,6 +537,9 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
             <textarea value={form.descripcion} onChange={e => set('descripcion', e.target.value)} rows={2}
               className="w-full border border-birth-gray-2 rounded px-3 py-2.5 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
           </div>
+
+          {/* Prototipo del letrero (opcional) */}
+          <AdjuntarPrototipo value={form.prototipoImg || null} onChange={(v) => set('prototipoImg', v)} />
 
           {/* Ítems */}
           <div>

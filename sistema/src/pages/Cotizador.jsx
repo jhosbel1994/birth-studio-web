@@ -13,6 +13,7 @@ import { enviarCotizacionEmailJS, abrirGmailCompose } from '../utils/email'
 import { clp, hoy, sumarDias } from '../utils/formatters'
 import CosteoLetrasPanel from '../components/CosteoLetras/CosteoLetrasPanel'
 import MaterialesPanel from '../components/Materiales/MaterialesPanel'
+import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
 import {
   Plus, Trash2, RotateCcw, ArrowRight,
   User, UserPlus, X, Download, Save, Mail, Eye, Pencil,
@@ -1591,6 +1592,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
   const [loading, setLoading] = useState(false)
   const [msgEmail, setMsgEmail] = useState(null)
   const [preview, setPreview] = useState(null)
+  const [prototipoImg, setPrototipoImg] = useState(null)
 
   const subtotalBruto   = items.reduce((s, i) => s + (i.total || 0), 0)
   const pctDesc         = Math.min(Math.max(parseFloat(descuento) || 0, 0), 100)
@@ -1612,6 +1614,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
     montoDescuento,
     traslado: montoTraslado,
     estado: 'por_aceptar',
+    ...(prototipoImg ? { prototipoImg } : {}),
   })
 
   const guardar = async (conPdf = false) => {
@@ -1792,6 +1795,9 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
                 </div>
               </div>
             </div>
+
+            {/* Prototipo del letrero (opcional) */}
+            <AdjuntarPrototipo value={prototipoImg} onChange={setPrototipoImg} />
 
             {/* Botones — 2 filas */}
             <div className="space-y-2 pt-1">
