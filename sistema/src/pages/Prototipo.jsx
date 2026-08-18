@@ -387,7 +387,7 @@ function shade(hex, amount) {
   return "#" + c.lerp(t, Math.abs(amount)).getHexString();
 }
 
-function facadeTexture(material, hex) {
+function facadeTexture(material, hex, dir = "h") {
   const W = 1024, H = 1024;
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
@@ -415,14 +415,26 @@ function facadeTexture(material, hex) {
     for (let x = p - 5; x < W; x += p) g.fillRect(x, 0, 5, H);
   } else if (material === "wallpanel") {
     const slat = 102;
-    for (let y = 0; y < H; y += slat) {
-      const grad = g.createLinearGradient(0, y, 0, y + slat);
-      grad.addColorStop(0, shade(hex, 0.14));
-      grad.addColorStop(0.75, shade(hex, -0.05));
-      grad.addColorStop(1, shade(hex, -0.22));
-      g.fillStyle = grad; g.fillRect(0, y, W, slat - 7);
-      g.fillStyle = shade(hex, -0.62);
-      g.fillRect(0, y + slat - 7, W, 7);
+    if (dir === "v") {
+      for (let x = 0; x < W; x += slat) {
+        const grad = g.createLinearGradient(x, 0, x + slat, 0);
+        grad.addColorStop(0, shade(hex, 0.14));
+        grad.addColorStop(0.75, shade(hex, -0.05));
+        grad.addColorStop(1, shade(hex, -0.22));
+        g.fillStyle = grad; g.fillRect(x, 0, slat - 7, H);
+        g.fillStyle = shade(hex, -0.62);
+        g.fillRect(x + slat - 7, 0, 7, H);
+      }
+    } else {
+      for (let y = 0; y < H; y += slat) {
+        const grad = g.createLinearGradient(0, y, 0, y + slat);
+        grad.addColorStop(0, shade(hex, 0.14));
+        grad.addColorStop(0.75, shade(hex, -0.05));
+        grad.addColorStop(1, shade(hex, -0.22));
+        g.fillStyle = grad; g.fillRect(0, y, W, slat - 7);
+        g.fillStyle = shade(hex, -0.62);
+        g.fillRect(0, y + slat - 7, W, 7);
+      }
     }
   } else if (material === "internit") {
     const p = 256;
@@ -456,7 +468,7 @@ function facadeTexture(material, hex) {
 /* Mapa de relieve en escala de grises. Sin esto la chapa acanalada se ve
    como rayas pintadas y la madera como lineas dibujadas: el color solo no
    alcanza, hace falta que la luz reaccione al volumen. */
-function facadeBump(material) {
+function facadeBump(material, dir = "h") {
   const W = 1024, H = 1024;
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
@@ -482,13 +494,24 @@ function facadeBump(material) {
     for (let x = p - 5; x < W; x += p) g.fillRect(x, 0, 5, H);
   } else if (material === "wallpanel") {
     const slat = 102;
-    for (let y = 0; y < H; y += slat) {
-      const grad = g.createLinearGradient(0, y, 0, y + slat);
-      grad.addColorStop(0, "#f0f0f0");
-      grad.addColorStop(0.8, "#9c9c9c");
-      grad.addColorStop(1, "#2a2a2a");
-      g.fillStyle = grad; g.fillRect(0, y, W, slat - 7);
-      g.fillStyle = "#080808"; g.fillRect(0, y + slat - 7, W, 7);
+    if (dir === "v") {
+      for (let x = 0; x < W; x += slat) {
+        const grad = g.createLinearGradient(x, 0, x + slat, 0);
+        grad.addColorStop(0, "#f0f0f0");
+        grad.addColorStop(0.8, "#9c9c9c");
+        grad.addColorStop(1, "#2a2a2a");
+        g.fillStyle = grad; g.fillRect(x, 0, slat - 7, H);
+        g.fillStyle = "#080808"; g.fillRect(x + slat - 7, 0, 7, H);
+      }
+    } else {
+      for (let y = 0; y < H; y += slat) {
+        const grad = g.createLinearGradient(0, y, 0, y + slat);
+        grad.addColorStop(0, "#f0f0f0");
+        grad.addColorStop(0.8, "#9c9c9c");
+        grad.addColorStop(1, "#2a2a2a");
+        g.fillStyle = grad; g.fillRect(0, y, W, slat - 7);
+        g.fillStyle = "#080808"; g.fillRect(0, y + slat - 7, W, 7);
+      }
     }
   } else if (material === "internit") {
     for (let i = 0; i < 30000; i++) {
@@ -522,11 +545,11 @@ function facadeBump(material) {
 
 const BUMP_SCALE = { acanalada: 0.06, acm: 0.02, wallpanel: 0.045, internit: 0.012, madera: 0.02, lisa: 0 };
 
-function makeFacadeMaterial(material, hex, rough, metal, spanM) {
+function makeFacadeMaterial(material, hex, rough, metal, spanM, dir = "h") {
   const tile = 2.2; // metros por baldosa de textura
   const reps = Math.max(1, (spanM * 6) / tile);
 
-  const tex = new THREE.CanvasTexture(facadeTexture(material, hex));
+  const tex = new THREE.CanvasTexture(facadeTexture(material, hex, dir));
   tex.colorSpace = SRGB;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 8;
@@ -537,7 +560,7 @@ function makeFacadeMaterial(material, hex, rough, metal, spanM) {
   });
 
   if (material !== "lisa") {
-    const bump = new THREE.CanvasTexture(facadeBump(material));
+    const bump = new THREE.CanvasTexture(facadeBump(material, dir));
     bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
     bump.anisotropy = 8;
     bump.repeat.set(reps, reps);
@@ -752,7 +775,155 @@ function buildStorefront(style, o) {
       addBox(facW * 0.2, shopH * 0.5, 0.05, glass, sx * facW * 0.35, platY + shopH * 0.4, zWall + 0.03, g);
     }
   }
-  return g;
+  return { group: g, facW, bandH, shopH, upperH, yGround, zWall };
+}
+
+/* ================================================================
+   ENTORNO DE CALLE
+   Cielo con montañas y ciudad al fondo, edificios vecinos a los lados
+   y calzada al frente, para que el local se lea como parte de una
+   calle real y no como una pieza flotando en el vacío.
+   ================================================================ */
+function skyTexture(night) {
+  const W = 2048, H = 1024;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const horizon = H * 0.72;
+
+  const sky = g.createLinearGradient(0, 0, 0, horizon);
+  if (night) {
+    sky.addColorStop(0, "#070b1e");
+    sky.addColorStop(0.55, "#101838");
+    sky.addColorStop(1, "#243056");
+  } else {
+    sky.addColorStop(0, "#7fb4e6");
+    sky.addColorStop(0.55, "#a9cdec");
+    sky.addColorStop(1, "#e4eef6");
+  }
+  g.fillStyle = sky; g.fillRect(0, 0, W, horizon);
+  // suelo lejano bajo el horizonte
+  g.fillStyle = night ? "#171b26" : "#c7ccd2";
+  g.fillRect(0, horizon, W, H - horizon);
+
+  if (night) {
+    g.fillStyle = "rgba(255,255,255,0.85)";
+    for (let i = 0; i < 160; i++) g.fillRect(Math.random() * W, Math.random() * horizon * 0.7, 1.6, 1.6);
+    g.beginPath(); g.arc(W * 0.82, H * 0.16, 42, 0, Math.PI * 2);
+    g.fillStyle = "rgba(240,238,214,0.92)"; g.fill();
+  } else {
+    // nubes suaves
+    g.fillStyle = "rgba(255,255,255,0.55)";
+    for (let i = 0; i < 5; i++) {
+      const cxp = Math.random() * W, cyp = Math.random() * horizon * 0.5;
+      for (let k = 0; k < 6; k++) {
+        g.beginPath();
+        g.ellipse(cxp + k * 34 - 90, cyp, 60 - Math.abs(k - 3) * 8, 22, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+  }
+
+  // cordillera en dos capas
+  const range = (baseY, amp, color) => {
+    g.fillStyle = color;
+    g.beginPath(); g.moveTo(0, baseY);
+    for (let x = 0; x <= W; x += 32) {
+      const y = baseY - Math.abs(Math.sin(x * 0.0032 + baseY * 0.5)) * amp
+        - Math.abs(Math.sin(x * 0.011 + 2)) * amp * 0.35;
+      g.lineTo(x, y);
+    }
+    g.lineTo(W, horizon); g.lineTo(0, horizon); g.closePath(); g.fill();
+  };
+  range(horizon - 30, 190, night ? "#141d3c" : "#9aafc6");
+  range(horizon - 6, 120, night ? "#0e152e" : "#8298b2");
+
+  // ciudad a lo lejos, contra el horizonte
+  let x = 0;
+  while (x < W) {
+    const bw = 26 + Math.random() * 66;
+    const bh = 46 + Math.random() * 150;
+    const by = horizon - bh;
+    g.fillStyle = night ? "#0c1226" : "#7c8ba0";
+    g.fillRect(x, by, bw - 3, bh);
+    if (night) {
+      for (let wy = by + 7; wy < horizon - 5; wy += 11)
+        for (let wx = x + 4; wx < x + bw - 7; wx += 9)
+          if (Math.random() > 0.5) { g.fillStyle = "rgba(255,208,128,0.85)"; g.fillRect(wx, wy, 4, 5); }
+    }
+    x += bw;
+  }
+
+  // neblina sobre el horizonte
+  const haze = g.createLinearGradient(0, horizon - 60, 0, horizon + 10);
+  haze.addColorStop(0, night ? "rgba(20,26,50,0)" : "rgba(232,238,244,0)");
+  haze.addColorStop(1, night ? "rgba(20,26,50,0.85)" : "rgba(232,238,244,0.9)");
+  g.fillStyle = haze; g.fillRect(0, horizon - 60, W, 70);
+  return c;
+}
+
+function buildStreetEnv(envGroup, m, opts) {
+  const { night, standoff } = opts;
+  const { facW, yGround, zWall } = m;
+  const span = Math.max(facW, 4);
+
+  // Telón de fondo: cielo + montañas + ciudad, bien atrás
+  const tex = new THREE.CanvasTexture(skyTexture(night));
+  tex.colorSpace = SRGB;
+  const bw = span * 9, bh = span * 5;
+  const back = new THREE.Mesh(
+    new THREE.PlaneGeometry(bw, bh),
+    new THREE.MeshBasicMaterial({ map: tex, depthWrite: false, fog: false })
+  );
+  back.position.set(0, yGround + bh * 0.34, zWall - span * 3.2);
+  envGroup.add(back);
+
+  // Calzada frente a la vereda
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(bw, span * 6),
+    new THREE.MeshStandardMaterial({ color: night ? 0x111318 : 0x33353b, roughness: 0.95 })
+  );
+  road.rotation.x = -Math.PI / 2;
+  road.position.set(0, yGround - 0.01, zWall + span * 3.4);
+  road.receiveShadow = true;
+  envGroup.add(road);
+  // línea central de la calzada
+  const linMat = new THREE.MeshStandardMaterial({
+    color: 0xd9c760, roughness: 0.7,
+    emissive: night ? new THREE.Color(0x3a3410) : new THREE.Color(0x000000), emissiveIntensity: night ? 0.4 : 0,
+  });
+  for (let i = 0; i < 6; i++) {
+    const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.16, span * 0.5), linMat);
+    dash.rotation.x = -Math.PI / 2;
+    dash.position.set(0, yGround + 0.005, zWall + span * 1.6 + i * span * 0.75);
+    envGroup.add(dash);
+  }
+
+  // Edificios vecinos a ambos lados
+  const litMat = new THREE.MeshStandardMaterial({
+    color: 0x3a3222, emissive: new THREE.Color(0xffcf87), emissiveIntensity: night ? 0.75 : 0, roughness: 0.4,
+  });
+  const darkWin = new THREE.MeshStandardMaterial({ color: night ? 0x1a1f2a : 0x2f3946, roughness: 0.5, metalness: 0.2 });
+  for (const side of [-1, 1]) {
+    const w = facW * (0.75 + Math.random() * 0.25);
+    const h = m.shopH + m.bandH + m.upperH + 1.4 + Math.random() * 2.2;
+    const depth = 1.4;
+    const cx = side * (facW / 2 + w / 2 + 0.12);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth),
+      new THREE.MeshStandardMaterial({ color: night ? 0x191c24 : 0x9198a2, roughness: 0.88 }));
+    body.position.set(cx, yGround + h / 2, zWall - depth / 2 + 0.02);
+    body.castShadow = true; body.receiveShadow = true;
+    envGroup.add(body);
+    const cols = Math.max(2, Math.round(w / 0.95));
+    const rows = Math.max(3, Math.round(h / 1.15));
+    const gx = w / (cols + 1), gy = h / (rows + 1);
+    for (let r = 1; r <= rows; r++) for (let cc = 1; cc <= cols; cc++) {
+      const on = night && Math.random() > 0.55;
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(gx * 0.58, gy * 0.62), on ? litMat : darkWin);
+      win.position.set(cx - w / 2 + gx * cc, yGround + gy * r, zWall + 0.03);
+      envGroup.add(win);
+    }
+  }
 }
 
 function frameObject(camera, object, fill = 0.82) {
@@ -871,6 +1042,7 @@ export default function Prototipo() {
   const [facadeStyle, setFacadeStyle] = useState("calle");
   const [showFacade, setShowFacade] = useState(true);
   const [material, setMaterial] = useState("acanalada");
+  const [wallPanelDir, setWallPanelDir] = useState("h");
   const [finish, setFinish] = useState("negro");
   const [wallColor, setWallColor] = useState("#191a1d");
   const [mode, setMode] = useState("front");
@@ -1193,7 +1365,7 @@ export default function Prototipo() {
     if (!showFacade) {
       wallWash.intensity = 0;
     } else {
-      const wallMat = makeFacadeMaterial(material, wallColor, fin.rough, fin.metal, span);
+      const wallMat = makeFacadeMaterial(material, wallColor, fin.rough, fin.metal, span, wallPanelDir);
 
       if (scene === "totem") {
         const bodyW = realW + 0.5, bodyH = realH + 1.9, bodyD = 0.36;
@@ -1240,11 +1412,14 @@ export default function Prototipo() {
         envGroup.add(skirt);
         sign.position.y += wallH * 0.12;
       } else {
-        // Fachada externa: local completo con banda, acceso y vereda
+        // Fachada externa: local completo + entorno de calle (cielo,
+        // montañas, ciudad, vecinos y calzada) para que se lea como una
+        // calle real.
         const store = buildStorefront(facadeStyle, {
           signW: realW, signH: realH, standoff, wallMat, night,
         });
-        envGroup.add(store);
+        envGroup.add(store.group);
+        buildStreetEnv(envGroup, store, { night, standoff });
       }
 
       wallWash.color.set(night ? 0xfff0d8 : 0xffffff);
@@ -1291,7 +1466,7 @@ export default function Prototipo() {
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
-  }, [product, form, scene, facadeStyle, showFacade, material, finish, wallColor, mode, night, ledColor,
+  }, [product, form, scene, facadeStyle, showFacade, material, wallPanelDir, finish, wallColor, mode, night, ledColor,
       useArt, artScale, edgeColor, edgeMetal, anchoM, altoM, depthCm, standoffCm, threshold, invert, detect]);
 
   // Micro-retardo: al arrastrar un slider no se reconstruye la escena en
@@ -1604,6 +1779,13 @@ export default function Prototipo() {
             )}
             <div style={s.pLabel}>Material de la banda</div>
             <Seg items={MATERIALS} value={material} onPick={(m) => pickMaterial(m.id)} cols={2} />
+            {material === "wallpanel" && (
+              <>
+                <div style={s.pLabel}>Orientación del panel</div>
+                <Seg items={[{ id: "h", label: "Horizontal" }, { id: "v", label: "Vertical" }]}
+                  value={wallPanelDir} onPick={(o) => setWallPanelDir(o.id)} />
+              </>
+            )}
             <div style={s.pLabel}>Acabado</div>
             <Seg items={FINISHES.map((f) => ({ ...f, dot: f.hex }))} value={finish} onPick={pickFinish} cols={2} />
             <label style={s.colorRow}>
