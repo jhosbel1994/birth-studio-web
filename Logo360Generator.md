@@ -74,12 +74,14 @@ negro sobre fondo blanco).
 
 ## Fachadas y entorno de calle
 
-`FACADE_STYLES` (5 hoy: `calle`, `vitrina`, `esquina`, `marquesina`,
-`portal`) + `buildStorefront(style, { signW, signH, standoff, wallMat,
-night })` que arma el local completo y devuelve `{ group, facW, bandH,
-shopH, upperH, yGround, zWall }` (estas medidas las usa el caller para
-alinear el fondo/vecinos/calzada y reposicionar el letrero según el tipo
-de escenario — totem/interior/fachada).
+`FACADE_STYLES` (6 hoy: `calle`, `vitrina`, `esquina`, `marquesina`,
+`portal`, `mall`) + `buildStorefront(style, { signW, signH, standoff,
+wallMat, night, buildingFloors })` que arma el local completo y devuelve
+`{ group, facW, bandH, shopH, upperH, yGround, zWall, isMall }` (estas
+medidas las usa el caller para alinear el fondo/vecinos/calzada y
+reposicionar el letrero según el tipo de escenario —
+totem/interior/fachada—, y `isMall` decide si el entorno es
+`buildMallEnv` o `buildStreetEnv`).
 
 Reglas de diseño ya corregidas, no repetir el error:
 - La banda del letrero **siempre** va plana y al ras del muro
@@ -90,6 +92,22 @@ Reglas de diseño ya corregidas, no repetir el error:
   con montañas/ciudad (`skyTexture`), edificios vecinos, calzada, y de
   noche postes de alumbrado **visibles** (poste + brazo + cabezal
   emisivo, no una luz flotando sin geometría).
+- `mall` no usa `buildStreetEnv`: usa `buildMallEnv` (pasillo interior,
+  sin cielo ni calle) porque `isMall` cambia `shopH`/`upperH`/vereda en
+  el preámbulo compartido de `buildStorefront`.
+
+**Esquina como edificio en altura (`buildingFloors`, 0-14, solo estilo
+`esquina`):** agrega pisos con ventanas (misma grilla `rows×cols` con
+`litMat`/`darkWin` que ya usan los edificios vecinos) entre el local y
+un suelo real más bajo. El local + banda del letrero **no se mueven**;
+lo que baja es `yGroundOut` (el `yGround` que se devuelve), así que la
+vereda/calzada/vecinos/faroles de `buildStreetEnv` nacen del suelo real
+y no del nivel del local. Con `buildingFloors = 0` (default) el
+resultado es idéntico al esquina original — no es una rama nueva, es una
+extensión retrocompatible de la misma. Si se agrega altura a otro estilo
+en el futuro, replicar este mismo patrón (calcular `yGroundOut` ANTES de
+la vereda del preámbulo compartido, no solo dentro del branch del
+estilo).
 
 **Cache del entorno (importante para cualquier tarea que toque fachadas):**
 en `build()`, el entorno se reconstruye solo si cambia su "firma"
@@ -107,11 +125,17 @@ parpadean. `resetRng()` se llama al inicio de cada armado de entorno.
 
 ## Materiales
 
-- `makeFacadeMaterial(material, hex, rough, metal, spanM, dir)` — arma
-  `MeshStandardMaterial` con textura (`facadeTexture`) + bump
+- `makeFacadeMaterial(material, hex, rough, metal, spanM, dir, slatM)` —
+  arma `MeshStandardMaterial` con textura (`facadeTexture`) + bump
   (`facadeBump`) generados en canvas 2D (no son imágenes, son patrones
   dibujados: acanalada, ACM, wall panel —horizontal o vertical, `dir`—,
   internit, madera). `BUMP_SCALE` por material controla cuánto relieve.
+- Wall panel: `slatM` es el ancho real de cada tabla en metros (UI:
+  slider "Ancho de tabla", 10-40cm, estado `wallPanelSize`). Se convierte
+  a píxeles de textura dentro de `makeFacadeMaterial`
+  (`slatPx = (slatM/tile)*1024`, `tile = 2.2m` por baldosa) y se pasa a
+  `facadeTexture`/`facadeBump`, que ya no tienen el `slat` fijo en 102px
+  — el ancho de costura (`seam`) también es proporcional al slat, no fijo.
 - `FINISHES` (madera/metal/negro mate/blanco brillante) definen
   `rough`/`metal` que se le pasan a `makeFacadeMaterial`.
 
@@ -138,16 +162,27 @@ parpadean. `resetRng()` se llama al inicio de cada armado de entorno.
 Setup en el primer `useEffect` del componente: `WebGLRenderer` (con
 `preserveDrawingBuffer` para poder exportar imagen), un `PMREMGenerator`
 con un env map mínimo pintado a mano (no HDRI externo), luces
-`ambient/key/fill/rim/spill/wallWash`, arrastre con puntero para girar,
-zoom con rueda/pellizco (`setZoom`, clamp 0.45-5), giro automático con
-curva seno. `frameObject()`/`applyZoom()` encuadran la cámara según el
-bounding box del `sign` actual.
+`ambient/key/fill/rim/spill/wallWash`, arrastre con puntero para girar
+(o mover el letrero, ver más abajo), zoom con rueda/pellizco/botones
+(`setZoom`, clamp 0.45-5), giro automático con curva seno. Materiales
+`MeshStandardMaterial` + sombras PCF suaves + líneas de borde tipo
+SketchUp (`EdgesGeometry`/`LineSegments` en `addBox`) + sombra de
+contacto — esto ya está hecho, no pendiente.
 
-**Pendiente conocido (tarea `render-calidad`):** todo esto es
-`MeshStandardMaterial` + sombras PCF suaves, sin líneas de borde, sin
-oclusión ambiental/sombra de contacto, y el zoom/inercia son instantáneos
-(sin `lerp`). No toca el trazador ni el UV — es una capa puramente visual
-sobre lo que ya existe.
+**Zoom: aplicación directa, no interpolada.** `frameObject()` calcula
+`center`/`baseDist` (se guardan en `S.current`) y `applyZoom(camera,
+center, baseDist, zoom)` mueve la cámara. Se llama en 3 lugares —
+`build()` al reconstruir, `resize()` al cambiar tamaño, y el `useEffect`
+que espeja el estado `zoom` de React a `S.current.zoom` — cada uno de
+forma **síncrona e inmediata**, sin interpolar por cuadro en el render
+loop. Hubo una versión con `lerp` por cuadro (`zoomCurrent`) que el
+usuario reportó rota; se sacó por completo en vez de perseguir el bug
+exacto, porque interpolar en el loop dependía de que `S.current.center`/
+`baseDist` estuvieran correctos en el momento justo — más piezas
+moviéndose de las necesarias para lo que pedía la tarea. Si se quiere
+reintroducir suavizado, hacerlo con una animación de vida corta
+(tween con su propio `requestAnimationFrame`, tiempo de fin explícito),
+no un lerp permanente corriendo en cada cuadro del loop principal.
 
 ---
 
@@ -174,5 +209,9 @@ no infla el bundle principal del sistema.
 - `buildMask`, `traceLoops`, `traceContours`, `simplify`, `buildLetters`
   (trazador y cálculo de escala en metros — probado, no reescribir).
 - El cálculo de UV (`applyUV`).
-- Las 5 ramas existentes de `buildStorefront` (agregar, no modificar).
+- Las 6 ramas existentes de `buildStorefront` (agregar, no modificar el
+  diseño base de cada una). Excepción ya aplicada: `esquina` gana un
+  parámetro opcional (`buildingFloors`) retrocompatible en 0 — extender
+  con parámetros opcionales con default neutro está bien, cambiar el
+  diseño default de una rama existente no.
 - El patrón `envSig`/`resetRng()` — romperlo reintroduce el parpadeo.
