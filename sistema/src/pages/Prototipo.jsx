@@ -424,7 +424,7 @@ function shade(hex, amount) {
   return "#" + c.lerp(t, Math.abs(amount)).getHexString();
 }
 
-function facadeTexture(material, hex, dir = "h") {
+function facadeTexture(material, hex, dir = "h", slatPx = 102) {
   const W = 1024, H = 1024;
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
@@ -451,16 +451,17 @@ function facadeTexture(material, hex, dir = "h") {
     for (let y = p - 5; y < H; y += p) g.fillRect(0, y, W, 5);
     for (let x = p - 5; x < W; x += p) g.fillRect(x, 0, 5, H);
   } else if (material === "wallpanel") {
-    const slat = 102;
+    const slat = slatPx;
+    const seam = Math.max(3, Math.round(slat * 0.07));
     if (dir === "v") {
       for (let x = 0; x < W; x += slat) {
         const grad = g.createLinearGradient(x, 0, x + slat, 0);
         grad.addColorStop(0, shade(hex, 0.14));
         grad.addColorStop(0.75, shade(hex, -0.05));
         grad.addColorStop(1, shade(hex, -0.22));
-        g.fillStyle = grad; g.fillRect(x, 0, slat - 7, H);
+        g.fillStyle = grad; g.fillRect(x, 0, slat - seam, H);
         g.fillStyle = shade(hex, -0.62);
-        g.fillRect(x + slat - 7, 0, 7, H);
+        g.fillRect(x + slat - seam, 0, seam, H);
       }
     } else {
       for (let y = 0; y < H; y += slat) {
@@ -468,9 +469,9 @@ function facadeTexture(material, hex, dir = "h") {
         grad.addColorStop(0, shade(hex, 0.14));
         grad.addColorStop(0.75, shade(hex, -0.05));
         grad.addColorStop(1, shade(hex, -0.22));
-        g.fillStyle = grad; g.fillRect(0, y, W, slat - 7);
+        g.fillStyle = grad; g.fillRect(0, y, W, slat - seam);
         g.fillStyle = shade(hex, -0.62);
-        g.fillRect(0, y + slat - 7, W, 7);
+        g.fillRect(0, y + slat - seam, W, seam);
       }
     }
   } else if (material === "internit") {
@@ -505,7 +506,7 @@ function facadeTexture(material, hex, dir = "h") {
 /* Mapa de relieve en escala de grises. Sin esto la chapa acanalada se ve
    como rayas pintadas y la madera como lineas dibujadas: el color solo no
    alcanza, hace falta que la luz reaccione al volumen. */
-function facadeBump(material, dir = "h") {
+function facadeBump(material, dir = "h", slatPx = 102) {
   const W = 1024, H = 1024;
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
@@ -530,15 +531,16 @@ function facadeBump(material, dir = "h") {
     for (let y = p - 5; y < H; y += p) g.fillRect(0, y, W, 5);
     for (let x = p - 5; x < W; x += p) g.fillRect(x, 0, 5, H);
   } else if (material === "wallpanel") {
-    const slat = 102;
+    const slat = slatPx;
+    const seam = Math.max(3, Math.round(slat * 0.07));
     if (dir === "v") {
       for (let x = 0; x < W; x += slat) {
         const grad = g.createLinearGradient(x, 0, x + slat, 0);
         grad.addColorStop(0, "#f0f0f0");
         grad.addColorStop(0.8, "#9c9c9c");
         grad.addColorStop(1, "#2a2a2a");
-        g.fillStyle = grad; g.fillRect(x, 0, slat - 7, H);
-        g.fillStyle = "#080808"; g.fillRect(x + slat - 7, 0, 7, H);
+        g.fillStyle = grad; g.fillRect(x, 0, slat - seam, H);
+        g.fillStyle = "#080808"; g.fillRect(x + slat - seam, 0, seam, H);
       }
     } else {
       for (let y = 0; y < H; y += slat) {
@@ -546,8 +548,8 @@ function facadeBump(material, dir = "h") {
         grad.addColorStop(0, "#f0f0f0");
         grad.addColorStop(0.8, "#9c9c9c");
         grad.addColorStop(1, "#2a2a2a");
-        g.fillStyle = grad; g.fillRect(0, y, W, slat - 7);
-        g.fillStyle = "#080808"; g.fillRect(0, y + slat - 7, W, 7);
+        g.fillStyle = grad; g.fillRect(0, y, W, slat - seam);
+        g.fillStyle = "#080808"; g.fillRect(0, y + slat - seam, W, seam);
       }
     }
   } else if (material === "internit") {
@@ -582,11 +584,14 @@ function facadeBump(material, dir = "h") {
 
 const BUMP_SCALE = { acanalada: 0.06, acm: 0.02, wallpanel: 0.045, internit: 0.012, madera: 0.02, lisa: 0 };
 
-function makeFacadeMaterial(material, hex, rough, metal, spanM, dir = "h") {
+function makeFacadeMaterial(material, hex, rough, metal, spanM, dir = "h", slatM = 0.22) {
   const tile = 2.2; // metros por baldosa de textura
   const reps = Math.max(1, (spanM * 6) / tile);
+  // Ancho real de cada tabla de wall panel -> px dentro del canvas de
+  // textura (1024px representan "tile" metros reales, siempre).
+  const slatPx = Math.round(THREE.MathUtils.clamp((slatM / tile) * 1024, 24, 512));
 
-  const tex = new THREE.CanvasTexture(facadeTexture(material, hex, dir));
+  const tex = new THREE.CanvasTexture(facadeTexture(material, hex, dir, slatPx));
   tex.colorSpace = SRGB;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 8;
@@ -597,7 +602,7 @@ function makeFacadeMaterial(material, hex, rough, metal, spanM, dir = "h") {
   });
 
   if (material !== "lisa") {
-    const bump = new THREE.CanvasTexture(facadeBump(material, dir));
+    const bump = new THREE.CanvasTexture(facadeBump(material, dir, slatPx));
     bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
     bump.anisotropy = 8;
     bump.repeat.set(reps, reps);
@@ -1397,6 +1402,7 @@ export default function Prototipo() {
   const [showFacade, setShowFacade] = useState(true);
   const [material, setMaterial] = useState("acanalada");
   const [wallPanelDir, setWallPanelDir] = useState("h");
+  const [wallPanelSize, setWallPanelSize] = useState(22); // ancho real de cada tabla, en cm
   const [finish, setFinish] = useState("negro");
   const [wallColor, setWallColor] = useState("#191a1d");
   const [mode, setMode] = useState("front");
@@ -1657,15 +1663,6 @@ export default function Prototipo() {
       if (S.current.haloMat) {
         S.current.haloMat.opacity = S.current.haloBase * (0.95 + Math.sin(clock.getElapsedTime() * 1.5) * 0.05);
       }
-      // Zoom con interpolacion: no salta de golpe al tocar los botones
-      // o la rueda, se desliza hacia el valor objetivo cada cuadro.
-      if (S.current.center) {
-        const cur = S.current.zoomCurrent ?? S.current.zoom ?? 1;
-        const target = S.current.zoom ?? 1;
-        const diff = target - cur;
-        S.current.zoomCurrent = Math.abs(diff) < 0.0015 ? target : cur + diff * 0.2;
-        applyZoom(camera, S.current.center, S.current.baseDist, S.current.zoomCurrent);
-      }
       renderer.render(sc, camera);
     };
     loop();
@@ -1680,8 +1677,7 @@ export default function Prototipo() {
         const f = frameObject(camera, S.current.frameTarget, S.current.fill || 0.6);
         if (f) {
           S.current.center = f.center; S.current.baseDist = f.dist;
-          S.current.zoomCurrent = S.current.zoom || 1; // reencuadre instantaneo, sin arrastrar interpolacion vieja
-          applyZoom(camera, f.center, f.dist, S.current.zoomCurrent);
+          applyZoom(camera, f.center, f.dist, S.current.zoom || 1);
         }
       }
     };
@@ -1718,9 +1714,13 @@ export default function Prototipo() {
   useEffect(() => { S.current.calibrating = calibrating; }, [calibrating]);
 
   useEffect(() => {
-    // Solo fija el objetivo — el loop de render interpola hacia el cada
-    // cuadro (asi el zoom no salta de golpe al tocar botones o rueda).
+    // Aplicacion directa e inmediata: nada de interpolar por cuadro en el
+    // loop (eso dependia de que el render loop leyera el valor correcto
+    // en el momento correcto). Cada cambio de zoom mueve la camara ya.
     S.current.zoom = zoom;
+    if (S.current.center && S.current.camera) {
+      applyZoom(S.current.camera, S.current.center, S.current.baseDist, zoom);
+    }
   }, [zoom]);
 
   /* -- Construccion de la escena -- */
@@ -1898,7 +1898,7 @@ export default function Prototipo() {
     // la foto real, en photoGroup (grupo aparte que no gira). Nos
     // aseguramos de que envGroup quede vacio si se viene de otra escena.
     const envSig = scene === "foto" ? "foto" : !showFacade ? "none" : [
-      scene, facadeStyle, material, wallPanelDir, finish, wallColor, night,
+      scene, facadeStyle, material, wallPanelDir, wallPanelSize, finish, wallColor, night,
       Math.round(realW * 4), Math.round(realH * 4), Math.round(standoff * 50),
     ].join("|");
 
@@ -1908,7 +1908,7 @@ export default function Prototipo() {
       if (showFacade && scene !== "foto") {
         resetRng();
         const fin = FINISHES.find((f) => f.id === finish) || FINISHES[2];
-        const wallMat = makeFacadeMaterial(material, wallColor, fin.rough, fin.metal, span, wallPanelDir);
+        const wallMat = makeFacadeMaterial(material, wallColor, fin.rough, fin.metal, span, wallPanelDir, wallPanelSize / 100);
         if (scene === "totem") {
           const bodyW = realW + 0.5, bodyH = realH + 1.9, bodyD = 0.36;
           const body = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyD), wallMat);
@@ -2142,13 +2142,12 @@ export default function Prototipo() {
     const f = frameObject(camera, sign, fill);
     if (f) {
       S.current.center = f.center; S.current.baseDist = f.dist;
-      S.current.zoomCurrent = S.current.zoom || 1; // reencuadre instantaneo tras reconstruir
-      applyZoom(camera, f.center, f.dist, S.current.zoomCurrent);
+      applyZoom(camera, f.center, f.dist, S.current.zoom || 1);
     }
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
-  }, [product, form, scene, facadeStyle, showFacade, material, wallPanelDir, finish, wallColor, mode, night, ledColor,
+  }, [product, form, scene, facadeStyle, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, edgeColor, edgeMetal,
       anchoM, altoM, depthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
@@ -2881,6 +2880,8 @@ export default function Prototipo() {
                 <div style={s.pLabel}>Orientación del panel</div>
                 <Seg items={[{ id: "h", label: "Horizontal" }, { id: "v", label: "Vertical" }]}
                   value={wallPanelDir} onPick={(o) => setWallPanelDir(o.id)} />
+                <Slider label="Ancho de tabla" value={wallPanelSize} unit=" cm" min={10} max={40} step={1}
+                  onChange={setWallPanelSize} />
               </>
             )}
             <div style={s.pLabel}>Acabado</div>
@@ -3000,7 +3001,6 @@ export default function Prototipo() {
           <main style={s.viewport}>
             <div ref={mountRef} style={{ ...s.canvasHost, ...(narrow ? { height: 360 } : {}) }} />
 
-            {busy && <div style={{ ...s.overlay, ...(narrow ? { height: 360 } : {}) }}>Generando…</div>}
             {!fileName && !busy && (
               <div style={{ ...s.overlay, ...(narrow ? { height: 360 } : {}) }}>
                 <div style={s.emptyTitle}>Sube tu logo</div>
