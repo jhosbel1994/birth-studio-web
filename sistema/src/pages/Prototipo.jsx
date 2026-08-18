@@ -950,6 +950,158 @@ function applyZoom(camera, center, baseDist, zoom) {
 }
 
 /* ================================================================
+   MODULO DE TEXTO
+   Convierte un nombre escrito en letras corporeas, reutilizando el
+   mismo pipeline del logo: solo produce un canvas negro-sobre-blanco
+   y lo entrega a loadCanvas().
+   ================================================================ */
+
+// Fraccion del alto de la letra que ocupa el trazo, por paso de grosor.
+const STROKE_PCT = { 1: 0.04, 2: 0.07, 3: 0.11, 4: 0.16, 5: 0.22 };
+const GROSOR_LABEL = { 1: "Muy fina", 2: "Fina", 3: "Media", 4: "Gruesa", 5: "Muy gruesa" };
+
+// El cliente elige grosor (5 pasos) y estilo (3). Por dentro, cada
+// combinacion resuelve una familia open-license y un peso concreto.
+// Manuscrita no tiene pesos muy gruesos: el paso 5 cae al mas cercano.
+const FONT_MATRIX = {
+  sans:   { family: "Barlow",         weights: { 1: 100, 2: 300, 3: 500, 4: 700, 5: 900 } },
+  serif:  { family: "Roboto Serif",   weights: { 1: 100, 2: 300, 3: 500, 4: 700, 5: 900 } },
+  script: { family: "Dancing Script", weights: { 1: 400, 2: 500, 3: 600, 4: 700 } },
+};
+const ESTILOS = [
+  { id: "sans", label: "Sin serifa" },
+  { id: "serif", label: "Con serifa" },
+  { id: "script", label: "Manuscrita" },
+];
+
+function resolverFuente(step, style, custom) {
+  if (custom && custom.family) {
+    return { family: custom.family, weight: 400, usedStep: custom.step, fell: false, custom: true };
+  }
+  const fam = FONT_MATRIX[style] || FONT_MATRIX.sans;
+  if (fam.weights[step]) return { family: fam.family, weight: fam.weights[step], usedStep: step, fell: false };
+  const avail = Object.keys(fam.weights).map(Number);
+  let best = avail[0];
+  for (const sp of avail) if (Math.abs(sp - step) < Math.abs(best - step)) best = sp;
+  return { family: fam.family, weight: fam.weights[best], usedStep: best, fell: true };
+}
+
+// Carga diferida de las fuentes web: solo se piden al abrir la
+// herramienta Texto, no en el arranque del sistema.
+const FONT_LINK_ID = "birth-fuentes-texto";
+let fuentesBasePromise = null;
+function cargarFuentesBase() {
+  if (fuentesBasePromise) return fuentesBasePromise;
+  fuentesBasePromise = new Promise((resolve) => {
+    const listo = () => {
+      const probes = [
+        '100 40px "Barlow"', '900 40px "Barlow"',
+        '100 40px "Roboto Serif"', '900 40px "Roboto Serif"',
+        '400 40px "Dancing Script"', '700 40px "Dancing Script"',
+      ];
+      Promise.all(probes.map((p) => document.fonts.load(p).catch(() => null)))
+        .then(() => resolve()).catch(() => resolve());
+    };
+    if (document.getElementById(FONT_LINK_ID)) { listo(); return; }
+    const link = document.createElement("link");
+    link.id = FONT_LINK_ID;
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Barlow:wght@100;300;500;700;900&family=Roboto+Serif:wght@100;300;500;700;900&family=Dancing+Script:wght@400;500;600;700&display=swap";
+    link.onload = listo;
+    link.onerror = () => resolve();
+    document.head.appendChild(link);
+  });
+  return fuentesBasePromise;
+}
+
+// Dibuja el texto en negro sobre blanco, a >=1400px de lado largo para
+// que el trazado no coma detalle en las serifas finas.
+function dibujarTextoCanvas(o) {
+  const { lineas, family, weight, align, lineHeight, letterSpacing, upper } = o;
+  const txt = lineas.map((l) => (upper ? l.toUpperCase() : l)).filter((l) => l.length);
+  if (!txt.length) return null;
+
+  const CAP = 400;
+  const fuente = `${weight} ${CAP}px "${family}", sans-serif`;
+  const espaciado = `${letterSpacing}em`;
+
+  const meas = document.createElement("canvas").getContext("2d");
+  meas.font = fuente;
+  try { meas.letterSpacing = espaciado; } catch { /* navegador sin soporte */ }
+  let maxW = 1;
+  for (const l of txt) maxW = Math.max(maxW, meas.measureText(l).width);
+
+  const lineH = CAP * lineHeight;
+  const padX = CAP * 0.18, padY = CAP * 0.16;
+  let cw = Math.ceil(maxW + padX * 2);
+  let ch = Math.ceil(lineH * txt.length + padY * 2);
+  const largo = Math.max(cw, ch);
+  const escala = largo < 1400 ? 1400 / largo : 1;
+  cw = Math.round(cw * escala); ch = Math.round(ch * escala);
+
+  const c = document.createElement("canvas");
+  c.width = cw; c.height = ch;
+  const g = c.getContext("2d");
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, cw, ch);
+  g.fillStyle = "#000000";
+  g.textBaseline = "alphabetic";
+  g.textAlign = align;
+  g.font = `${weight} ${Math.round(CAP * escala)}px "${family}", sans-serif`;
+  try { g.letterSpacing = espaciado; } catch { /* sin soporte */ }
+
+  const sLineH = lineH * escala;
+  const ascent = Math.round(CAP * escala) * 0.8;
+  const x = align === "left" ? padX * escala : align === "right" ? cw - padX * escala : cw / 2;
+  for (let i = 0; i < txt.length; i++) {
+    g.fillText(txt[i], x, padY * escala + sLineH * i + ascent);
+  }
+  return c;
+}
+
+// Mide el grosor real de una fuente (trazo / alto de letra) para ubicar
+// una fuente propia en la escala de cinco pasos.
+function medirTrazo(family, weight) {
+  const SZ = 300;
+  const c = document.createElement("canvas");
+  c.width = SZ; c.height = SZ;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.fillStyle = "#fff"; g.fillRect(0, 0, SZ, SZ);
+  g.fillStyle = "#000"; g.textBaseline = "alphabetic"; g.textAlign = "left";
+  g.font = `${weight} ${Math.round(SZ * 0.7)}px "${family}"`;
+  g.fillText("l", SZ * 0.4, SZ * 0.82);
+  const d = g.getImageData(0, 0, SZ, SZ).data;
+
+  let minY = SZ, maxY = -1;
+  for (let y = 0; y < SZ; y++) {
+    for (let x = 0; x < SZ; x++) {
+      if (d[(y * SZ + x) * 4] < 128) { if (y < minY) minY = y; if (y > maxY) maxY = y; break; }
+    }
+  }
+  const capH = Math.max(1, maxY - minY);
+  const midY = Math.round((minY + maxY) / 2);
+  let run = 0, best = 0;
+  for (let x = 0; x < SZ; x++) {
+    if (d[(midY * SZ + x) * 4] < 128) { run++; if (run > best) best = run; } else run = 0;
+  }
+  const frac = best / capH;
+  let step = 3, dmin = Infinity;
+  for (const sp of [1, 2, 3, 4, 5]) {
+    const dd = Math.abs(STROKE_PCT[sp] - frac);
+    if (dd < dmin) { dmin = dd; step = sp; }
+  }
+  return { frac, step };
+}
+
+// Color de la cara (acrilico), independiente del canto.
+const FACE_COLORS = [
+  { hex: "#F1F2F4", name: "Blanco opal" },
+  { hex: "#202024", name: "Negro" },
+  { hex: "#C0392B", name: "Rojo Birth" },
+  { hex: "#2F6FED", name: "Azul" },
+  { hex: "#C9A24B", name: "Dorado" },
+];
+
+/* ================================================================
    MARCA E ICONOS DE INTERFAZ
    ================================================================ */
 const RED = "#C0392B";
@@ -968,6 +1120,7 @@ function Icon({ name, size = 16 }) {
   const paths = {
     upload: <><path {...p} d="M12 16V4" /><path {...p} d="m7 9 5-5 5 5" /><path {...p} d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" /></>,
     product: <><path {...p} d="M4 7V5h16v2" /><path {...p} d="M12 5v14" /><path {...p} d="M9 19h6" /></>,
+    text: <><path {...p} d="M3 18 8 6l5 12" /><path {...p} d="M4.7 14h6.6" /><path {...p} d="M20 9.5V18" /><circle {...p} cx="17.5" cy="15" r="2.5" /></>,
     size: <><rect {...p} x="3" y="7" width="18" height="10" rx="1" /><path {...p} d="M7 10v4M11 10v4M15 10v4" /></>,
     wall: <><rect {...p} x="3" y="4" width="18" height="16" rx="1" /><path {...p} d="M3 10h18M3 15h18M9 4v6M15 10v5M9 15v5" /></>,
     light: <><path {...p} d="M9 18h6" /><path {...p} d="M10 21h4" /><path {...p} d="M12 3a6 6 0 0 0-3 11v1h6v-1a6 6 0 0 0-3-11z" /></>,
@@ -1022,6 +1175,7 @@ const LED_COLORS = [
 ];
 const TOOLS = [
   { id: "producto", icon: "product", label: "Producto" },
+  { id: "texto", icon: "text", label: "Texto" },
   { id: "medidas", icon: "size", label: "Medidas" },
   { id: "fachada", icon: "wall", label: "Fachada" },
   { id: "luz", icon: "light", label: "Luz" },
@@ -1049,8 +1203,22 @@ export default function Prototipo() {
   const [night, setNight] = useState(true);
   const [ledColor, setLedColor] = useState("#ffffff");
   const [useArt, setUseArt] = useState(true);
+  const [faceColor, setFaceColor] = useState("#F1F2F4");
   const [edgeColor, setEdgeColor] = useState("#202024");
   const [edgeMetal, setEdgeMetal] = useState(false);
+  // origen del arte actual: logo subido o texto escrito
+  const [sourceType, setSourceType] = useState(null);
+  const [genSeq, setGenSeq] = useState(0);
+  // modulo de texto
+  const [texto, setTexto] = useState("");
+  const [textAlign, setTextAlign] = useState("center");
+  const [lineHeightTx, setLineHeightTx] = useState(1.1);
+  const [letterSpacing, setLetterSpacing] = useState(0);
+  const [upper, setUpper] = useState(true);
+  const [weightStep, setWeightStep] = useState(4);
+  const [fontStyle, setFontStyle] = useState("sans");
+  const [customFont, setCustomFont] = useState(null); // { family, step }
+  const [fontMsg, setFontMsg] = useState(null);
   const [unit, setUnit] = useState("cm");
   const [artScale, setArtScale] = useState(0.95);
   const [anchoM, setAnchoM] = useState(3);
@@ -1294,7 +1462,11 @@ export default function Prototipo() {
       color: 0xffffff, roughness: product === "lightbox" ? 0.5 : 0.42,
       metalness: 0, envMapIntensity: 0.4,
     });
-    if (useArt && tex) {
+    // El texto no lleva mapa (es monocromo): usa color de cara solido.
+    // El logo puede ir "con color" (mapa) o "acrilico liso" (color de cara).
+    const faceCol = new THREE.Color(faceColor);
+    const usarMapa = useArt && tex && sourceType !== "texto";
+    if (usarMapa) {
       face.map = tex;
       if (litFront) {
         face.emissiveMap = tex;
@@ -1302,8 +1474,13 @@ export default function Prototipo() {
         face.emissiveIntensity = mode === "both" ? 0.75 : 1.0;
       }
     } else {
-      face.color = new THREE.Color(litFront ? 0xf4f4f6 : 0x2a2a2f);
-      if (litFront) { face.emissive = new THREE.Color(ledColor); face.emissiveIntensity = mode === "both" ? 0.85 : 1.15; }
+      face.color = faceCol.clone();
+      if (litFront) {
+        // Acrilico opal de color: la cara emite en su propio color,
+        // tenido por el color del LED.
+        face.emissive = faceCol.clone().multiply(new THREE.Color(ledColor));
+        face.emissiveIntensity = mode === "both" ? 0.85 : 1.15;
+      }
     }
     if (mode === "back") { face.emissive = new THREE.Color(0x000000); face.emissiveIntensity = 0; face.color.multiplyScalar(0.45); }
 
@@ -1467,7 +1644,7 @@ export default function Prototipo() {
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
   }, [product, form, scene, facadeStyle, showFacade, material, wallPanelDir, finish, wallColor, mode, night, ledColor,
-      useArt, artScale, edgeColor, edgeMetal, anchoM, altoM, depthCm, standoffCm, threshold, invert, detect]);
+      useArt, faceColor, sourceType, genSeq, artScale, edgeColor, edgeMetal, anchoM, altoM, depthCm, standoffCm, threshold, invert, detect]);
 
   // Micro-retardo: al arrastrar un slider no se reconstruye la escena en
   // cada tick, solo cuando el valor se estabiliza. Evita que se congele.
@@ -1508,7 +1685,7 @@ export default function Prototipo() {
   }, []);
 
   /* -- Carga del logo -- */
-  const loadCanvas = useCallback((canvas, name) => {
+  const loadCanvas = useCallback((canvas, name, forceDetect) => {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     S.current.imageData = imageData;
@@ -1518,6 +1695,20 @@ export default function Prototipo() {
     tex.colorSpace = SRGB; tex.anisotropy = 8;
     S.current.logoTex = tex;
 
+    // Texto: forzamos el modo "tonos oscuros" en vez de dejarlo a la
+    // heuristica, porque el canvas es negro sobre blanco. El rebuild lo
+    // dispara genSeq (el efecto de build), no una llamada directa.
+    if (forceDetect) {
+      setSuggested(null);
+      setProduct("letters");
+      setDetect(forceDetect);
+      setZoom(1);
+      setFileName(name);
+      setGenSeq((n) => n + 1);
+      return;
+    }
+
+    setSourceType("logo");
     let best = null;
     for (const d of ["alpha", "dark", "light"]) {
       const { coverage } = buildMask(imageData, threshold, false, d);
@@ -1594,6 +1785,50 @@ export default function Prototipo() {
     x.fillText("EJEMPLO", 500, 290);
     loadCanvas(c, "Logo de ejemplo");
   }, [loadCanvas]);
+
+  // -- Modulo de texto --
+  const regenerarTexto = useCallback(async () => {
+    const lineas = texto.split("\n").slice(0, 3).map((l) => l.slice(0, 40));
+    if (!lineas.join("").trim()) return;
+    const res = resolverFuente(weightStep, fontStyle, customFont);
+    await cargarFuentesBase();
+    try { await document.fonts.load(`${res.weight} 40px "${res.family}"`); } catch { /* ya cargada o de reemplazo */ }
+    const c = dibujarTextoCanvas({
+      lineas, family: res.family, weight: res.weight,
+      align: textAlign, lineHeight: lineHeightTx, letterSpacing, upper,
+    });
+    if (!c) return;
+    setSourceType("texto");
+    loadCanvas(c, "Texto: " + lineas.join(" ").trim().slice(0, 24), "dark");
+  }, [texto, weightStep, fontStyle, customFont, textAlign, lineHeightTx, letterSpacing, upper, loadCanvas]);
+
+  const cargarFuentePropia = useCallback(async (file) => {
+    if (!file) return;
+    setFontMsg(null);
+    try {
+      const buf = await file.arrayBuffer();
+      const fam = "Propia-" + Date.now();
+      const ff = new FontFace(fam, buf);
+      await ff.load();
+      document.fonts.add(ff);
+      const { step, frac } = medirTrazo(fam, 400);
+      setCustomFont({ family: fam, step });
+      setWeightStep(step);
+      setFontMsg(`Fuente propia cargada. Grosor medido: ${GROSOR_LABEL[step]} (${Math.round(frac * 100)}% del alto).`);
+    } catch {
+      setFontMsg("No se pudo cargar la fuente. Usa .ttf, .otf o .woff2.");
+    }
+  }, []);
+
+  // Carga diferida de las fuentes al abrir la herramienta Texto.
+  useEffect(() => { if (tool === "texto") cargarFuentesBase(); }, [tool]);
+
+  // Regenera el texto en vivo (con micro-retardo) cuando cambia algo.
+  useEffect(() => {
+    if (tool !== "texto" || !texto.trim()) return;
+    const t = setTimeout(() => { regenerarTexto(); }, 200);
+    return () => clearTimeout(t);
+  }, [tool, texto, weightStep, fontStyle, textAlign, lineHeightTx, letterSpacing, upper, customFont, regenerarTexto]);
 
   const download = useCallback(() => {
     const url = captureOriented("image/png", 0.95, 1800);
@@ -1711,6 +1946,25 @@ export default function Prototipo() {
             </div>
           </>
         )}
+        {(product !== "lightbox") && (
+          <>
+            <div style={s.pLabel}>Color de la cara</div>
+            <div style={s.swatches}>
+              {FACE_COLORS.map((c) => (
+                <button key={c.hex} title={c.name} onClick={() => setFaceColor(c.hex)}
+                  style={{ ...s.swatch, background: c.hex,
+                    outline: faceColor.toLowerCase() === c.hex.toLowerCase() ? `2px solid ${RED}` : "1px solid #2E2E32",
+                    outlineOffset: 2 }} />
+              ))}
+            </div>
+            <label style={s.colorRow}>
+              <span style={s.fieldLabel}>Color libre</span>
+              <input type="color" value={faceColor} style={s.colorInput}
+                onChange={(e) => setFaceColor(e.target.value)} />
+              <span style={s.fieldUnit}>{faceColor}</span>
+            </label>
+          </>
+        )}
         <div style={s.pLabel}>Color del canto</div>
         <div style={s.swatches}>
           {EDGE_COLORS.map((c) => (
@@ -1728,11 +1982,102 @@ export default function Prototipo() {
         </label>
         <Seg items={[{ id: "mate", label: "Mate" }, { id: "metal", label: "Metalico" }]}
           value={edgeMetal ? "metal" : "mate"} onPick={(o) => setEdgeMetal(o.id === "metal")} />
-        <div style={s.pLabel}>Color del logo</div>
-        <Seg items={[{ id: "si", label: "Con color" }, { id: "no", label: "Acrilico liso" }]}
-          value={useArt ? "si" : "no"} onPick={(o) => setUseArt(o.id === "si")} />
+        {sourceType !== "texto" && product !== "lightbox" && (
+          <>
+            <div style={s.pLabel}>Color del logo</div>
+            <Seg items={[{ id: "si", label: "Con color" }, { id: "no", label: "Acrilico liso" }]}
+              value={useArt ? "si" : "no"} onPick={(o) => setUseArt(o.id === "si")} />
+          </>
+        )}
       </>
     ),
+    texto: (() => {
+      const nLines = Math.max(1, texto.split("\n").filter((l) => l.trim()).length);
+      const resSel = resolverFuente(weightStep, fontStyle, customFont);
+      const pctUsed = STROKE_PCT[resSel.usedStep] || STROKE_PCT[weightStep];
+      const letterHmm = (altoM / nLines) * 1000;
+      const trazoMm = Math.round(pctUsed * letterHmm);
+      const trazoColor = trazoMm < 20 ? "#e8000d" : trazoMm < 30 ? "#d99320" : "#8CE0A6";
+      return (
+        <>
+          <div style={s.pTitle}>Texto</div>
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            rows={3}
+            maxLength={124}
+            placeholder="Escribe el nombre&#10;hasta 3 líneas"
+            style={s.textarea}
+          />
+          <div style={s.pHint}>Hasta 40 caracteres por línea, 3 líneas (Enter para separar).</div>
+
+          <div style={s.pLabel}>Alineación</div>
+          <Seg items={[{ id: "left", label: "Izq." }, { id: "center", label: "Centro" }, { id: "right", label: "Der." }]}
+            value={textAlign} onPick={(o) => setTextAlign(o.id)} />
+          <Seg items={[{ id: "si", label: "MAYÚSCULAS" }, { id: "no", label: "Normal" }]}
+            value={upper ? "si" : "no"} onPick={(o) => setUpper(o.id === "si")} />
+          <Slider label="Interlineado" value={lineHeightTx} unit="" min={0.8} max={1.6} step={0.05} onChange={setLineHeightTx} />
+          <Slider label="Espaciado" value={Math.round(letterSpacing * 100)} unit=" %" min={-5} max={25} step={1}
+            onChange={(v) => setLetterSpacing(v / 100)} />
+
+          <div style={s.pLabel}>Grosor de la letra</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 3 }}>
+            {[1, 2, 3, 4, 5].map((st) => {
+              const r = resolverFuente(st, fontStyle, null);
+              const on = weightStep === st && !customFont;
+              return (
+                <button key={st} onClick={() => { setCustomFont(null); setWeightStep(st); }}
+                  title={GROSOR_LABEL[st]}
+                  style={{ ...s.segBtn, ...(on ? s.segOn : {}), flexDirection: "column", padding: "5px 2px", gap: 2 }}>
+                  <span style={{ fontFamily: `"${r.family}", sans-serif`, fontWeight: r.weight, fontSize: 20, lineHeight: 1 }}>A</span>
+                  <span style={{ fontSize: 6.5, letterSpacing: 0 }}>{GROSOR_LABEL[st].split(" ")[0]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={s.pLabel}>Estilo</div>
+          <Seg items={ESTILOS} value={fontStyle} onPick={(o) => { setCustomFont(null); setFontStyle(o.id); }} />
+
+          {resSel.fell && !customFont && (
+            <div style={s.note}>
+              No hay ese grosor en {ESTILOS.find((e) => e.id === fontStyle)?.label}; se usó el más
+              cercano ({GROSOR_LABEL[resSel.usedStep]}).
+            </div>
+          )}
+
+          <div style={{ ...s.readout, marginTop: 10 }}>
+            <div style={s.readLine}>
+              <span>Trazo real</span>
+              <b style={{ color: trazoColor }}>{trazoMm} mm</b>
+            </div>
+          </div>
+          {trazoMm < 20 ? (
+            <div style={{ ...s.note, borderColor: "#5a1a1a", color: "#F0A79C" }}>
+              Trazo menor a 20 mm: no es fabricable como letra corpórea a esta medida.
+              Sube el grosor o agranda el letrero.
+            </div>
+          ) : trazoMm < 30 ? (
+            <div style={{ ...s.note, borderColor: "#5a4418", color: "#e0c88c" }}>
+              Trazo bajo 30 mm: fabricable, pero encarece el armado.
+            </div>
+          ) : null}
+
+          <div style={s.pLabel}>Fuente propia</div>
+          <label style={{ ...s.segBtn, cursor: "pointer", justifyContent: "center", gap: 6 }}>
+            <Icon name="upload" size={13} /> Cargar .ttf / .otf / .woff2
+            <input type="file" accept=".ttf,.otf,.woff2,font/*" style={{ display: "none" }}
+              onChange={(e) => cargarFuentePropia(e.target.files?.[0])} />
+          </label>
+          {customFont && (
+            <button onClick={() => setCustomFont(null)} style={{ ...s.flatBtn, marginTop: 6, width: "100%" }}>
+              Quitar fuente propia
+            </button>
+          )}
+          {fontMsg && <div style={s.pHint}>{fontMsg}</div>}
+        </>
+      );
+    })(),
     medidas: (
       <>
         <div style={s.pTitle}>Medidas</div>
@@ -2067,6 +2412,11 @@ const s = {
   },
   fieldLabel: { fontSize: 8.5, color: "#7D7D86", whiteSpace: "nowrap" },
   fieldInput: { flex: 1, width: "100%", minWidth: 0, background: "transparent", border: "none", color: "#fff", fontSize: 11, fontWeight: 600, outline: "none" },
+  textarea: {
+    width: "100%", boxSizing: "border-box", background: "#1A1A1E", border: `1px solid ${LINE}`,
+    borderRadius: 6, padding: "8px 9px", color: "#fff", fontSize: 12, fontWeight: 600,
+    fontFamily: "inherit", resize: "vertical", outline: "none", lineHeight: 1.35,
+  },
   fieldUnit: { fontSize: 8.5, color: "#6E6E76" },
   colorRow: {
     display: "flex", alignItems: "center", gap: 8, marginTop: 8, background: "#1A1A1E",
