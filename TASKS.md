@@ -17,7 +17,7 @@ avisá acá mismo.
 | # | Tarea | Agente | Depende de | Estado | Nota |
 |---|---|---|---|---|---|
 | 1 | Tamaño de texto por defecto + aviso de ancho | `texto-escala` | — | `listo` | Ver Registro de cambios |
-| 2 | Fachada mall / centro comercial | `fachada-mall` | — | `pendiente` | |
+| 2 | Fachada mall / centro comercial | `fachada-mall` | — | `listo` | Ver Registro de cambios |
 | 3 | Calidad visual tipo SketchUp | `render-calidad` | 1, 2 | `pendiente` | |
 | 4 | Foto real + perspectiva + posicionamiento | `foto-perspectiva` | 3 | `pendiente` | Falta `prompt-foto-y-posicion.md` — evaluar alcance antes de construir |
 
@@ -47,13 +47,13 @@ texto y su panel.
 ## Detalle tarea 2 — `fachada-mall`
 
 **Qué hacer:**
-- [ ] Nuevo id en `FACADE_STYLES`
-- [ ] Rama nueva en `buildStorefront`, sin tocar las 5 existentes
-- [ ] Altura de local 4.0–4.5 m
-- [ ] Vidriera piso a techo, sin cortina metálica
-- [ ] Banda de letrero elevada sobre la vidriera
-- [ ] Piso porcelanato pulido, distinto al exterior (`roughness` bajo)
-- [ ] Sin cielo/vereda — contexto de pasillo de mall, iluminación cenital
+- [x] Nuevo id en `FACADE_STYLES`
+- [x] Rama nueva en `buildStorefront`, sin tocar las 5 existentes
+- [x] Altura de local 4.0–4.5 m (4.2 m)
+- [x] Vidriera piso a techo, sin cortina metálica
+- [x] Banda de letrero elevada sobre la vidriera
+- [x] Piso porcelanato pulido, distinto al exterior (`roughness` bajo)
+- [x] Sin cielo/vereda — contexto de pasillo de mall, iluminación cenital
       difusa en vez de direccional
 
 **Archivos que toca:** `FACADE_STYLES`, `buildStorefront`, texturas de
@@ -127,3 +127,11 @@ qué tocó)*
   escribe texto (flag `S.current.textSizedOnce`, se resetea al borrar el
   campo); nuevo aviso ámbar en el panel Texto cuando `altoM × aspecto`
   del texto supera `anchoM`, con el % que sí entra.
+- 2026-08-18 — `fachada-mall` — `Prototipo.jsx`: nuevo id `"mall"` en
+  `FACADE_STYLES`; `buildStorefront` gana un flag `isMall` que solo
+  cambia `shopH`/`upperH`/vereda/pano-de-ventanas de forma condicional
+  (comportamiento de las 5 fachadas existentes sin cambios) + rama nueva
+  con vidriera piso a techo y montantes; `floorTexture("mall")` (piso
+  pulido, formato grande); `buildMallEnv` nueva (piso continuo +
+  cielorraso + luminarias, sin calle/cielo/vecinos); luz cenital difusa
+  específica para `facadeStyle === "mall"` en `build()`.

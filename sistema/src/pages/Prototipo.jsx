@@ -609,7 +609,16 @@ function floorTexture(kind) {
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
   const g = c.getContext("2d");
-  if (kind === "interior") {
+  if (kind === "mall") {
+    // Porcelanato de formato grande (60cm+), pulido — mas claro y con
+    // menos variacion que el piso de interior comun.
+    g.fillStyle = "#d8d6d0"; g.fillRect(0, 0, W, H);
+    const t = 171;
+    for (let y = 0; y < H; y += t) for (let x = 0; x < W; x += t) {
+      g.fillStyle = shade("#d8d6d0", (rnd() - 0.5) * 0.035);
+      g.fillRect(x + 1, y + 1, t - 2, t - 2);
+    }
+  } else if (kind === "interior") {
     g.fillStyle = "#3c3f45"; g.fillRect(0, 0, W, H);
     const t = 128;
     for (let y = 0; y < H; y += t) for (let x = 0; x < W; x += t) {
@@ -699,6 +708,7 @@ const FACADE_STYLES = [
   { id: "esquina", label: "Local en esquina" },
   { id: "marquesina", label: "Con marquesina" },
   { id: "portal", label: "Portal con escalones" },
+  { id: "mall", label: "Local en mall / strip center" },
 ];
 
 /* Devuelve un grupo con el local completo. El centro del letrero queda
@@ -706,12 +716,15 @@ const FACADE_STYLES = [
 function buildStorefront(style, o) {
   const { signW, signH, standoff, wallMat, night } = o;
   const g = new THREE.Group();
+  const isMall = style === "mall";
 
-  // Tope normal de 1.5 m, pero la banda crece si el letrero es mas alto
-  const bandH = Math.max(signH + 0.35, Math.min(signH * 1.75, 1.5));
-  const shopH = 2.55;
+  // Tope normal de 1.5 m (2.1 m en mall: la banda es mas protagonista
+  // ahi), pero la banda crece si el letrero es mas alto. Local de mall:
+  // cielo alto (4-4.5m) en vez de los 2.55m de un local a la calle.
+  const bandH = Math.max(signH + 0.35, Math.min(signH * 1.75, isMall ? 2.1 : 1.5));
+  const shopH = isMall ? 4.2 : 2.55;
   const facW = Math.max(signW * 1.7, 3.8);
-  const upperH = 1.9;
+  const upperH = isMall ? 0.5 : 1.9; // mall: solo un remate bajo, sin pano de ventanas
   const zWall = -standoff - 0.07;
   const yBandBot = -bandH / 2;
   const yGround = yBandBot - shopH;
@@ -726,21 +739,26 @@ function buildStorefront(style, o) {
      Siempre plana y al ras del muro (ninguna fachada queda hueca). */
   addBox(facW, bandH, 0.14, wallMat, 0, 0, zWall - 0.07, g);
 
-  /* Vereda */
-  const pav = new THREE.Mesh(new THREE.PlaneGeometry(facW * 4, 14), pave);
-  pav.rotation.x = -Math.PI / 2;
-  pav.position.set(0, yGround, zWall + 7);
-  pav.receiveShadow = true;
-  g.add(pav);
-  addBox(facW * 4, 0.14, 0.3, conc, 0, yGround + 0.07, zWall + 5.6, g); // cordon
+  if (!isMall) {
+    /* Vereda — un local de mall no tiene calle ni vereda afuera. */
+    const pav = new THREE.Mesh(new THREE.PlaneGeometry(facW * 4, 14), pave);
+    pav.rotation.x = -Math.PI / 2;
+    pav.position.set(0, yGround, zWall + 7);
+    pav.receiveShadow = true;
+    g.add(pav);
+    addBox(facW * 4, 0.14, 0.3, conc, 0, yGround + 0.07, zWall + 5.6, g); // cordon
+  }
 
-  /* Pano superior con ventanas — muro solido detras de toda fachada,
-     incluida marquesina (antes ahi quedaba abierto y se veia hueco). */
+  /* Pano superior — con ventanas en un local a la calle; en mall es solo
+     un remate solido bajo (arriba sigue el cielo alto del pasillo, sin
+     ventanas punzadas tipo residencial). */
   addBox(facW, upperH, 0.12, conc, 0, bandH / 2 + upperH / 2, zWall - 0.06, g);
-  const wW = facW * 0.2, wH = upperH * 0.55;
-  for (const dx of [-facW * 0.28, facW * 0.28]) {
-    addBox(wW + 0.06, wH + 0.06, 0.05, frame, dx, bandH / 2 + upperH * 0.55, zWall + 0.02, g);
-    addBox(wW, wH, 0.03, glass, dx, bandH / 2 + upperH * 0.55, zWall + 0.05, g);
+  if (!isMall) {
+    const wW = facW * 0.2, wH = upperH * 0.55;
+    for (const dx of [-facW * 0.28, facW * 0.28]) {
+      addBox(wW + 0.06, wH + 0.06, 0.05, frame, dx, bandH / 2 + upperH * 0.55, zWall + 0.02, g);
+      addBox(wW, wH, 0.03, glass, dx, bandH / 2 + upperH * 0.55, zWall + 0.05, g);
+    }
   }
 
   const shopY = yBandBot - shopH / 2;
@@ -807,8 +825,20 @@ function buildStorefront(style, o) {
     for (const sx of [-1, 1]) {
       addBox(facW * 0.2, shopH * 0.5, 0.05, glass, sx * facW * 0.35, platY + shopH * 0.4, zWall + 0.03, g);
     }
+  } else if (style === "mall") {
+    // Vidriera completa de piso a techo, sin cortina metalica — un local
+    // de mall no la tiene. Montantes verticales cada ~90cm.
+    const glassW = facW - 0.3;
+    addBox(glassW, shopH * 0.97, 0.05, glass, 0, shopY, zWall + 0.03, g);
+    const mullions = Math.max(2, Math.round(glassW / 0.9));
+    for (let i = 0; i <= mullions; i++) {
+      const mx = -glassW / 2 + (glassW / mullions) * i;
+      addBox(0.06, shopH * 0.97, 0.09, frame, mx, shopY, zWall + 0.06, g);
+    }
+    addBox(glassW + 0.1, 0.08, 0.12, frame, 0, shopY - shopH / 2, zWall + 0.05, g); // umbral
+    addBox(glassW + 0.1, 0.08, 0.12, frame, 0, shopY + shopH / 2, zWall + 0.05, g); // dintel
   }
-  return { group: g, facW, bandH, shopH, upperH, yGround, zWall };
+  return { group: g, facW, bandH, shopH, upperH, yGround, zWall, isMall };
 }
 
 /* ================================================================
@@ -1001,6 +1031,47 @@ function buildStreetEnv(envGroup, m, opts) {
     );
     vitrina.position.set(0, m.yGround - m.bandH / 2 - m.shopH / 2, zWall - 0.03);
     envGroup.add(vitrina);
+  }
+}
+
+/* ================================================================
+   ENTORNO DE MALL
+   Sin cielo ni vereda: el contexto es un pasillo interior, asi que el
+   "fondo" es simplemente el mismo piso pulido continuando hacia los
+   costados y hacia la camara — sin modelar locales vecinos ni calle.
+   ================================================================ */
+function buildMallEnv(envGroup, m) {
+  const { facW, yGround, zWall, shopH } = m;
+  const span = Math.max(facW, 4);
+
+  const ftex = new THREE.CanvasTexture(floorTexture("mall"));
+  ftex.colorSpace = SRGB;
+  ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping;
+  ftex.repeat.set(span * 2.2, span * 2.2);
+  const floorMat = new THREE.MeshStandardMaterial({ map: ftex, roughness: 0.18, metalness: 0.06, envMapIntensity: 1.1 });
+
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(span * 16, span * 9), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, yGround, zWall + span * 3.2);
+  floor.receiveShadow = true;
+  envGroup.add(floor);
+
+  // Cielorraso bajo y parejo, con la luz cenital difusa del pasillo
+  const ceilMat = new THREE.MeshStandardMaterial({ color: 0xe9e9ec, roughness: 0.9 });
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(span * 16, span * 9), ceilMat);
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.set(0, yGround + shopH + 3.4, zWall + span * 3.2);
+  envGroup.add(ceiling);
+
+  // Franjas de luminarias empotradas, referencia visual del pasillo
+  const lumMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: new THREE.Color(0xf3f6ff), emissiveIntensity: 1.4, roughness: 0.6,
+  });
+  for (let i = -2; i <= 2; i++) {
+    const lum = new THREE.Mesh(new THREE.PlaneGeometry(span * 0.9, 0.14), lumMat);
+    lum.rotation.x = Math.PI / 2;
+    lum.position.set(i * span * 1.5, yGround + shopH + 3.38, zWall + span * 1.2);
+    envGroup.add(lum);
   }
 }
 
@@ -1702,12 +1773,16 @@ export default function Prototipo() {
           envGroup.add(skirt);
           S.current.envMeta = { type: "interior", wallH };
         } else {
-          // Fachada externa: local completo + entorno de calle.
+          // Fachada externa: local completo + su entorno — calle
+          // (cielo/montanas/vecinos) para las 5 fachadas de la vereda,
+          // o pasillo de mall (piso continuo, sin calle ni cielo) para
+          // el local de centro comercial.
           const store = buildStorefront(facadeStyle, {
             signW: realW, signH: realH, standoff, wallMat, night,
           });
           envGroup.add(store.group);
-          buildStreetEnv(envGroup, store, { night, standoff });
+          if (store.isMall) buildMallEnv(envGroup, store);
+          else buildStreetEnv(envGroup, store, { night, standoff });
           S.current.envMeta = { type: "fachada" };
         }
       }
@@ -1748,6 +1823,17 @@ export default function Prototipo() {
       sc.background = new THREE.Color(0xd9dbe0);
       ambient.intensity = 0.9; keyLight.intensity = 2.3;
       fillLight.intensity = 0.75; rimLight.intensity = 0.3;
+    }
+
+    // Mall: luz cenital difusa y pareja, no sol en angulo — se baja el
+    // contraste entre la luz principal y el ambiente, y la key light se
+    // reposiciona casi directo arriba en vez de venir de un costado.
+    if (showFacade && scene === "fachada" && facadeStyle === "mall") {
+      keyLight.position.set(span * 0.15, span * 2.6, span * 0.4);
+      keyLight.intensity *= night ? 1.3 : 0.55;
+      ambient.intensity = night ? 0.55 : 1.05;
+      fillLight.intensity = night ? 0.4 : 0.85;
+      rimLight.intensity *= 0.4;
     }
 
     // Retroiluminado uniforme: en vez de una sola luz puntual al centro
