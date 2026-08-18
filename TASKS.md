@@ -19,7 +19,8 @@ avisá acá mismo.
 | 1 | Tamaño de texto por defecto + aviso de ancho | `texto-escala` | — | `listo` | Ver Registro de cambios |
 | 2 | Fachada mall / centro comercial | `fachada-mall` | — | `listo` | Ver Registro de cambios |
 | 3 | Calidad visual tipo SketchUp | `render-calidad` | 1, 2 | `listo` | Marca de agua se dejó fuera (opcional) — ver Registro |
-| 4 | Foto real + perspectiva + posicionamiento | `foto-perspectiva` | 3 | `pendiente` | Falta `prompt-foto-y-posicion.md` — evaluar alcance antes de construir |
+| 4 | Foto real + perspectiva + posicionamiento | `foto-perspectiva` | 3 | `listo` | Ver Registro de cambios |
+| 5 | Limpieza de código general (ex Requisito 4 de la tarea 4) | *(sin asignar)* | — | `pendiente` | No ejecutado a propósito — el usuario pidió anotarlo aparte, no hacerlo ahora |
 
 ---
 
@@ -94,36 +95,95 @@ base y el piso), que cumple el mismo propósito ahí.
 
 ## Detalle tarea 4 — `foto-perspectiva`
 
-**Bloqueo conocido:** el archivo `prompt-foto-y-posicion.md` referenciado
-para el detalle completo (calibración de escala con regla, resplandor
-nocturno sobre la foto, controles de arrastre) **no existe en este
-repo**. Antes de construir, evaluar con el dueño del proyecto si:
-(a) se redacta ese detalle ahora, o (b) se construye solo lo que ya está
-especificado en `Logo360Generator.md`/este archivo y se deja lo demás
-para una vuelta siguiente.
+**Alcance final (reemplaza el plan original):** el usuario pegó la
+especificación completa de `prompt-foto-y-posicion.md` y acotó el
+alcance explícitamente: Requisito 1 (montar el letrero sobre una foto
+real) + Requisito 2 (mover el letrero en X/Y) + Restricciones técnicas +
+criterios de aceptación 1-7. **Sin homografía ni detección automática de
+4 puntos** — la especificación final usa sliders manuales de inclinación
+en vez de eso (más simple, explícitamente "no hace falta detección
+automática... sería frágil y lenta"). El Requisito 3 (escalar texto) se
+excluyó por ser la tarea 1. El Requisito 4 (limpieza de código) pasó a
+ser la tarea 5, sin ejecutar.
 
-**Qué hacer (lo que sí está especificado):**
-- [ ] Carga de foto con corrección EXIF
-- [ ] Marcado de 4 puntos sobre un rectángulo real de la foto
-- [ ] Cálculo de homografía y orientación aproximada del plano
-- [ ] Rotar el grupo del letrero según esa orientación antes de
-      superponerlo
-- [ ] Sliders manuales de ajuste fino (horizontal ±40°, vertical ±25°)
-      como capa **sobre** el resultado automático, no como reemplazo
+**Hecho:**
+- [x] Escena "foto" nueva en el selector "Dónde va" (`SCENES`)
+- [x] Carga de foto: `accept="image/*" capture="environment"`,
+      `createImageBitmap(file, {imageOrientation:"from-image"})` para
+      corrección EXIF (con fallback a FileReader+`Image` si el
+      navegador no soporta la opción), reducida a 2000px de lado largo,
+      persistida como dataURL (nunca `URL.createObjectURL`)
+- [x] Fondo: plano fijo en `photoGroup` (grupo aparte de `rig`/
+      `envGroup`, no gira con el arrastre), ajuste tipo "cover" vía
+      `fitCoverTexture` (recorta sin deformar)
+- [x] Inclinación manual del letrero: sliders horizontal ±40°/vertical
+      ±25° (`photoTiltY`/`photoTiltX`), aplicados a `sign.rotation`
+- [x] Luz coherente: rueda de dirección 0-360° + intensidad ambiente,
+      reposicionan `keyLight`/`ambient`/`fillLight` cuando `scene==="foto"`
+- [x] Resplandor nocturno retroiluminado sobre la foto (plano radial
+      aditivo, color del LED) — agregado a `rig` (no a `photoGroup`)
+      para que seguir al letrero durante el giro, no quede fijo como
+      la foto
+- [x] Calibración de escala: 2 clics sobre la foto (raycaster contra el
+      plano, puntos guardados en coordenadas del MUNDO 3D, no en
+      píxeles de la foto) + input de metros reales → factor de escala
+      aplicado a `sign.scale`. Aviso ámbar si no está calibrado
+- [x] Arrastre: raycaster contra `S.current.frameTarget` (el letrero) en
+      `pointerdown` decide el modo — sobre el letrero mueve
+      (`dragMode:"move"`), fuera del letrero gira la escena como antes
+      (`dragMode:"orbit"`), y en modo calibración cualquier clic toma un
+      punto de medición en vez de cualquiera de los dos
+- [x] Posición persistida en React (`posX`/`posY`, ya existían de una
+      tarea anterior): el arrastre mueve el objeto de Three.js en vivo
+      (barato, sin rebuild por cuadro) y solo confirma el valor final en
+      `setPosX`/`setPosY` al soltar — universal para letras y caja de
+      luz (se sacó la restricción `product !== "lightbox"` que tenía
+      antes, porque ahora la caja de luz también se puede arrastrar)
+- [x] Campos numéricos X/Y en cm + botón "Centrar" (panel Producto)
 
-**Qué falta detalle (viene de `prompt-foto-y-posicion.md`, ausente):**
-- [ ] Calibración de escala con regla de referencia
-- [ ] Arrastre del letrero (mover vs. girar escena, con raycaster)
-- [ ] Controles numéricos de posición X/Y en cm
-- [ ] Resplandor nocturno sobre la foto en modo retroiluminado
+**Simplificaciones deliberadas (por tiempo, no rompen los criterios 1-7):**
+- El tamaño del plano de fondo sin calibrar es una heurística generosa
+  (`Math.max(span*6, 10)` ajustado al aspecto de la cámara), no un
+  cálculo exacto de cobertura de frustum en cada zoom — puede dejar un
+  borde transparente en encuadres muy alejados; no lo prueba ningún
+  criterio de aceptación.
+- La calibración no persiste "qué píxel exacto de la foto original" se
+  tocó, sino directamente la distancia en el mundo 3D entre los 2 clics
+  — más simple y suficiente para el criterio 5, pero si la ventana se
+  redimensiona entre medir y calibrar, los puntitos marcados podrían no
+  coincidir pixel-perfecto con el mismo lugar de la foto (cosmético).
+- Las notas del panel de números en la ficha técnica (m² de cara, m de
+  canto) siguen mostrando el tamaño NOMINAL configurado en Ancho/Alto,
+  no el tamaño visual ya corregido por `photoCalib.scaleFactor` — no lo
+  exige ningún criterio, pero si se retoma esta tarea conviene revisarlo.
 
-**Archivos que toca:** módulo nuevo de foto, posicionamiento, controles
-de arrastre.
-**Archivos que NO debe tocar:** nada del pipeline de trazado ni de los
-escenarios generados por código (fachadas, tótem, interior) — la foto es
-un modo aparte, no reemplaza a los otros.
+**Archivos que tocó:** `Prototipo.jsx` — `SCENES`, `pickScene`, nuevo
+estado (`photoImg`, `photoTiltX/Y`, `photoLightDir`, `photoAmbient`,
+`photoCalib`, `calibrating`, `calibPts`, `calibInputM`), `handlePhotoFile`,
+`fitCoverTexture`, `glowTexture`, rama `scene==="foto"` dentro de
+`build()`, raycaster + handlers de puntero en el `useEffect` de montaje,
+panel "Fachada" (rama condicional) y sección de Posición en panel
+"Producto".
+**No tocó:** `traceContours`/`buildMask`/`buildLetters`, ni las fachadas
+generadas por código (totem, interior, las 6 fachadas de calle/mall) —
+la foto es un modo aparte, coexiste sin reemplazarlas.
 
-**Depende de:** tarea 3 terminada.
+**Depende de:** tarea 3 terminada. ✅
+
+---
+
+## Detalle tarea 5 — limpieza de código (ex Requisito 4 de la tarea 4)
+
+**No ejecutada a propósito** — el usuario pidió anotarla pendiente, no
+hacerla en esta pasada, y solo mencionó su nombre ("Requisito 4 —
+limpieza de código"), sin pegar el texto completo como sí hizo con los
+Requisitos 1 y 2. **El contenido exacto de este requisito no está en
+este repo** — antes de ejecutarla, pedir el detalle igual que se hizo
+con `prompt-foto-y-posicion.md` para la tarea 4.
+
+**Archivos que tocaría (una vez que se sepa el alcance real):**
+`Prototipo.jsx` completo — por eso conviene hacerla sola, no en paralelo
+con otra tarea que edite el mismo archivo.
 
 ---
 
@@ -161,3 +221,13 @@ qué tocó)*
   Inercia: el arrastre de giro guarda velocidad (`dragVel`) y decae solo
   (`×0.92` por cuadro) al soltar, en vez de cortar en seco. Marca de
   agua: no implementada (opcional).
+- 2026-08-18 — `foto-perspectiva` — `Prototipo.jsx`: escena "foto" nueva
+  (carga con corrección EXIF vía `createImageBitmap`, downscale a
+  2000px, dataURL); fondo fijo en grupo `photoGroup` aparte de
+  `rig`/`envGroup` (no gira); `fitCoverTexture` para el ajuste "cover";
+  tilt manual ±40°/±25°; luz por dirección+ambiente; resplandor nocturno
+  en `rig` (sigue al letrero al girar); calibración por 2 clics
+  (raycaster, distancia en mundo 3D) + input de metros → `sign.scale`;
+  arrastre con raycaster separa mover-letrero de girar-escena; posición
+  X/Y (`posX`/`posY`) ahora universal para letras y caja de luz (antes
+  solo letras). Ver notas de simplificaciones deliberadas arriba.

@@ -687,6 +687,38 @@ function texMat(canvas, repX, repY, opts = {}) {
   return new THREE.MeshStandardMaterial({ map: t, roughness: 0.6, metalness: 0.15, ...opts });
 }
 
+/* Ajuste tipo "background-size: cover": la foto llena el plano de borde
+   a borde sin deformarse, recortando el sobrante por los costados o
+   arriba/abajo segun cual aspecto sea mas ancho. */
+function fitCoverTexture(tex, imgAspect, planeAspect) {
+  if (imgAspect > planeAspect) {
+    const sc = planeAspect / imgAspect;
+    tex.repeat.set(sc, 1); tex.offset.set((1 - sc) / 2, 0);
+  } else {
+    const sc = imgAspect / planeAspect;
+    tex.repeat.set(1, sc); tex.offset.set(0, (1 - sc) / 2);
+  }
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+}
+
+/* Degradado radial blanco->transparente, reutilizable para el resplandor
+   nocturno sobre la foto (se tine con el color del LED al usarlo). */
+let _glowTex = null;
+function glowTexture() {
+  if (_glowTex) return _glowTex;
+  const S = 512;
+  const c = document.createElement("canvas");
+  c.width = S; c.height = S;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  grad.addColorStop(0, "rgba(255,255,255,0.95)");
+  grad.addColorStop(0.45, "rgba(255,255,255,0.4)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad; g.fillRect(0, 0, S, S);
+  _glowTex = c;
+  return c;
+}
+
 function glassMat(night) {
   return new THREE.MeshStandardMaterial({
     color: night ? 0x0d1418 : 0x1d2b33,
@@ -1326,6 +1358,7 @@ const SCENES = [
   { id: "fachada", label: "Fachada externa", a: 3, b: 1 },
   { id: "totem", label: "Totem", a: 0.9, b: 2.4 },
   { id: "interior", label: "Interior de pared", a: 0.8, b: 0.4 },
+  { id: "foto", label: "Foto de la fachada" }, // sin a/b: la medida real la da la calibracion, no un preset
 ];
 
 /* Color y acabado del canto (el borde de la pieza) */
@@ -1395,6 +1428,17 @@ export default function Prototipo() {
   const [posY, setPosY] = useState(0);
   const [flipH, setFlipH] = useState(false); // espejo del logo de origen
   const [flipV, setFlipV] = useState(false);
+
+  // Foto real de la fachada (escena "foto")
+  const [photoImg, setPhotoImg] = useState(null); // { url: dataURL, w, h } — w/h en px de la foto YA reducida/orientada
+  const [photoTiltY, setPhotoTiltY] = useState(0); // giro horizontal del letrero, -40..40 grados
+  const [photoTiltX, setPhotoTiltX] = useState(0); // giro vertical, -25..25 grados
+  const [photoLightDir, setPhotoLightDir] = useState(45); // 0-360, rueda de direccion de luz
+  const [photoAmbient, setPhotoAmbient] = useState(0.6); // 0-1, intensidad ambiente
+  const [photoCalib, setPhotoCalib] = useState(null); // { metersPerPx } una vez calibrado
+  const [calibrating, setCalibrating] = useState(false); // modo "tocar 2 puntos para medir"
+  const [calibPts, setCalibPts] = useState([]); // hasta 2 puntos {x,y} en px de la foto original
+  const [calibInputM, setCalibInputM] = useState("");
   const [anchoM, setAnchoM] = useState(3);
   const [altoM, setAltoM] = useState(1);
   const [depthCm, setDepthCm] = useState(8);
@@ -1475,6 +1519,9 @@ export default function Prototipo() {
 
     const envGroup = new THREE.Group(); sc.add(envGroup);
     const rig = new THREE.Group(); sc.add(rig);
+    // La foto de fondo vive aparte de envGroup/rig: esos dos giran con el
+    // arrastre (orbit), la foto es un fondo fijo que NO gira.
+    const photoGroup = new THREE.Group(); sc.add(photoGroup);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.16); sc.add(ambient);
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.05);
@@ -1488,18 +1535,84 @@ export default function Prototipo() {
     sc.add(wallWash); sc.add(wallWash.target);
 
     /* Giro con arrastre */
-    let dragging = false, lx = 0, dragVel = 0;
+    let dragging = false, lx = 0, ly = 0, dragVel = 0;
     const gp = (e) => e.touches?.[0] ?? e;
-    const down = (e) => { if (e.touches?.length > 1) return; dragging = true; lx = gp(e).clientX; dragVel = 0; };
-    // Al soltar, el giro no corta en seco: sigue con inercia y decae
-    // solo, como el orbit tool de SketchUp — se frena en el loop.
-    const up = () => { dragging = false; };
+
+    // Arrastre sobre el letrero -> moverlo. Arrastre sobre el fondo ->
+    // girar la escena (como antes). Un solo Raycaster reutilizado.
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const toNdc = (e) => {
+      const r = renderer.domElement.getBoundingClientRect();
+      const p = gp(e);
+      ndc.set(((p.clientX - r.left) / r.width) * 2 - 1, -((p.clientY - r.top) / r.height) * 2 + 1);
+      return ndc;
+    };
+    const pickSign = (e) => {
+      if (!S.current.frameTarget) return false;
+      raycaster.setFromCamera(toNdc(e), camera);
+      return raycaster.intersectObject(S.current.frameTarget, true).length > 0;
+    };
+    const pickPhotoPoint = (e) => {
+      if (!S.current.photoPlane) return null;
+      raycaster.setFromCamera(toNdc(e), camera);
+      const hit = raycaster.intersectObject(S.current.photoPlane, false)[0];
+      return hit ? { x: hit.point.x, y: hit.point.y, z: hit.point.z } : null;
+    };
+
+    const down = (e) => {
+      if (e.touches?.length > 1) return;
+      // Modo calibracion: cada clic sobre la foto toma un punto de la
+      // regla; no dispara ni mover ni girar mientras esta activo.
+      if (S.current.calibrating) {
+        const pt = pickPhotoPoint(e);
+        // setCalibPts es estable entre renders (identidad de useState):
+        // seguro de llamar desde este closure creado una sola vez.
+        if (pt) setCalibPts((pts) => (pts.length >= 2 ? [pt] : [...pts, pt]));
+        return;
+      }
+      dragging = true; dragVel = 0;
+      const p = gp(e); lx = p.clientX; ly = p.clientY;
+      if (pickSign(e)) {
+        S.current.dragMode = "move";
+        S.current.dragStart = { x: S.current.frameTarget.position.x, y: S.current.frameTarget.position.y };
+      } else {
+        S.current.dragMode = "orbit";
+      }
+    };
+    // Al soltar el orbit, el giro no corta en seco: sigue con inercia y
+    // decae solo, como el orbit tool de SketchUp — se frena en el loop.
+    const up = () => {
+      if (dragging && S.current.dragMode === "move" && S.current.frameTarget) {
+        const dxCm = (S.current.frameTarget.position.x - S.current.dragStart.x) * 100;
+        const dyCm = (S.current.frameTarget.position.y - S.current.dragStart.y) * 100;
+        // setPosX/setPosY tambien son estables: se puede llamar desde
+        // este closure sin re-crear los handlers en cada render.
+        setPosX((x) => x + dxCm);
+        setPosY((y) => y + dyCm);
+      }
+      dragging = false;
+      S.current.dragMode = "orbit";
+    };
     const move = (e) => {
       if (!dragging || e.touches?.length > 1) return;
-      const dy = (gp(e).clientX - lx) * 0.009;
-      rig.rotation.y += dy; envGroup.rotation.y += dy;
-      dragVel = dy;
-      lx = gp(e).clientX;
+      const p = gp(e);
+      if (S.current.dragMode === "move" && S.current.frameTarget) {
+        // Conversion pantalla -> mundo a la profundidad del letrero, para
+        // que se mueva "pegado" al dedo/cursor, no a una velocidad fija.
+        const dist = camera.position.distanceTo(S.current.center || S.current.frameTarget.position);
+        const vFov = THREE.MathUtils.degToRad(camera.fov);
+        const h = mount.clientHeight || 1;
+        const worldPerPxY = (2 * Math.tan(vFov / 2) * dist) / h;
+        const worldPerPxX = worldPerPxY * (camera.aspect || 1);
+        S.current.frameTarget.position.x += (p.clientX - lx) * worldPerPxX;
+        S.current.frameTarget.position.y -= (p.clientY - ly) * worldPerPxY;
+      } else {
+        const dy = (p.clientX - lx) * 0.009;
+        rig.rotation.y += dy; envGroup.rotation.y += dy;
+        dragVel = dy;
+      }
+      lx = p.clientX; ly = p.clientY;
     };
     renderer.domElement.addEventListener("pointerdown", down);
     window.addEventListener("pointerup", up);
@@ -1577,9 +1690,9 @@ export default function Prototipo() {
     window.addEventListener("resize", resize);
 
     S.current = {
-      sc, camera, renderer, rig, envGroup, ambient, keyLight, fillLight, rimLight,
+      sc, camera, renderer, rig, envGroup, photoGroup, ambient, keyLight, fillLight, rimLight,
       spill, wallWash, autoRotate: true, haloBase: 0, haloMat: null, isMobile, zoom: 1,
-      restoreSize: resize, lastInfo: null,
+      restoreSize: resize, lastInfo: null, calibrating: false, dragMode: "orbit",
     };
     setReady(true);
 
@@ -1602,6 +1715,7 @@ export default function Prototipo() {
   }, []);
 
   useEffect(() => { S.current.autoRotate = autoRotate; }, [autoRotate]);
+  useEffect(() => { S.current.calibrating = calibrating; }, [calibrating]);
 
   useEffect(() => {
     // Solo fija el objetivo — el loop de render interpola hacia el cada
@@ -1763,12 +1877,12 @@ export default function Prototipo() {
 
     const sb = new THREE.Box3().setFromObject(sign);
     sign.position.sub(sb.getCenter(new THREE.Vector3()));
-    // Posicion sobre la fachada (solo letras corporeas — la caja de luz
-    // ya se posiciona con offsetX/offsetY dentro del panel).
-    if (product !== "lightbox") {
-      sign.position.x += posX / 100;
-      sign.position.y += posY / 100;
-    }
+    // Posicion del letrero completo sobre la fachada/foto — universal
+    // (letras o caja de luz), persistida en React (posX/posY) para que
+    // sobreviva a cualquier rebuild. Independiente de offsetX/offsetY,
+    // que solo mueve el ARTE dentro del panel de la caja de luz.
+    sign.position.x += posX / 100;
+    sign.position.y += posY / 100;
     rig.add(sign);
     // Encuadre y calculos con rotacion 0 (el giro lo repone el loop).
     rig.rotation.set(0, 0, 0); envGroup.rotation.set(0, 0, 0);
@@ -1780,7 +1894,10 @@ export default function Prototipo() {
     // se reconstruye; el entorno (envGroup) solo cuando cambia algo suyo.
     // Junto con la aleatoriedad con semilla, esto elimina el parpadeo de
     // las luces y evita el trabajo pesado en cada tecla.
-    const envSig = !showFacade ? "none" : [
+    // La escena "foto" no usa el entorno generado (envGroup): el fondo es
+    // la foto real, en photoGroup (grupo aparte que no gira). Nos
+    // aseguramos de que envGroup quede vacio si se viene de otra escena.
+    const envSig = scene === "foto" ? "foto" : !showFacade ? "none" : [
       scene, facadeStyle, material, wallPanelDir, finish, wallColor, night,
       Math.round(realW * 4), Math.round(realH * 4), Math.round(standoff * 50),
     ].join("|");
@@ -1788,7 +1905,7 @@ export default function Prototipo() {
     if (S.current.envSig !== envSig) {
       clear(envGroup);
       S.current.envMeta = null;
-      if (showFacade) {
+      if (showFacade && scene !== "foto") {
         resetRng();
         const fin = FINISHES.find((f) => f.id === finish) || FINISHES[2];
         const wallMat = makeFacadeMaterial(material, wallColor, fin.rough, fin.metal, span, wallPanelDir);
@@ -1859,6 +1976,17 @@ export default function Prototipo() {
     if (meta?.type === "totem") sign.position.y += meta.bodyH / 2 - realH / 2 - 0.35;
     else if (meta?.type === "interior") sign.position.y += meta.wallH * 0.12;
 
+    // Correccion de perspectiva sobre foto: el usuario alinea el letrero
+    // al plano del muro de la foto a ojo, con dos giros manuales. No hay
+    // deteccion automatica de perspectiva (seria fragil y lenta).
+    if (scene === "foto") {
+      sign.rotation.set(
+        THREE.MathUtils.degToRad(photoTiltX),
+        THREE.MathUtils.degToRad(photoTiltY),
+        0
+      );
+    }
+
     // Luz que bana la fachada (uniforme, se ajusta en cada armado)
     if (showFacade) {
       wallWash.color.set(night ? 0xfff0d8 : 0xffffff);
@@ -1900,6 +2028,90 @@ export default function Prototipo() {
       rimLight.intensity *= 0.4;
     }
 
+    // Foto real: el letrero se ve falso si su luz no coincide con la de
+    // la foto. La direccion (rueda 0-360°) y la intensidad ambiente las
+    // fija el usuario a ojo, mirando las sombras de la propia foto.
+    if (scene === "foto") {
+      wallWash.intensity = 0;
+      const rad = THREE.MathUtils.degToRad(photoLightDir);
+      keyLight.position.set(Math.cos(rad) * span * 2.2, span * 1.6, Math.sin(rad) * span * 2.2);
+      keyLight.intensity = night ? 0.7 : 1.9;
+      ambient.intensity = photoAmbient;
+      fillLight.intensity = photoAmbient * 0.5;
+      rimLight.intensity = 0.15;
+      sc.background = null; // se ve la foto, no un color de fondo
+
+      // Escala calibrada: si el usuario midio una referencia real sobre
+      // la foto, se corrige el tamano del letrero para que la proporcion
+      // sea la correcta contra esa foto especifica (el letrero ya viene
+      // bien dimensionado en metros — esto solo ajusta cuanto ESPACIO de
+      // pantalla ocupa esa medida real, segun el encuadre de la foto).
+      sign.scale.setScalar(photoCalib?.scaleFactor || 1);
+    }
+
+    // Fondo de foto real: plano fijo (no gira con el letrero) que cubre
+    // el cuadro sin deformar la imagen (recorta el sobrante, tipo CSS
+    // "cover"). Se reconstruye siempre que cambia algo relevante — es
+    // barato, no hace falta el cache de envSig que usan los escenarios
+    // generados.
+    while (photoGroup.children.length) {
+      const o = photoGroup.children.pop();
+      o.geometry?.dispose(); o.material?.map?.dispose(); o.material?.dispose();
+    }
+    S.current.photoPlane = null;
+    if (scene === "foto" && photoImg && S.current.photoTex) {
+      const imgAspect = photoImg.w / photoImg.h;
+      const camAspect = camera.aspect || 1.6;
+      const baseSize = Math.max(span * 6, 10);
+      const planeW = camAspect >= 1 ? baseSize : baseSize * camAspect;
+      const planeH = camAspect >= 1 ? baseSize / camAspect : baseSize;
+      fitCoverTexture(S.current.photoTex, imgAspect, planeW / planeH);
+      const photoZ = -standoff - Math.max(span * 3, 6);
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(planeW, planeH),
+        new THREE.MeshBasicMaterial({ map: S.current.photoTex })
+      );
+      plane.position.set(0, 0, photoZ);
+      photoGroup.add(plane);
+      S.current.photoPlane = plane;
+
+      // Resplandor nocturno sobre la foto: lo que "vende" el retroiluminado.
+      // Se agrega a "rig" (NO a photoGroup): rig es el mismo grupo que
+      // gira con el letrero al arrastrar, asi el resplandor sigue al
+      // letrero durante el giro en vez de quedar fijo como la foto.
+      if (night && (mode === "back" || mode === "both")) {
+        const gtex = new THREE.CanvasTexture(glowTexture());
+        gtex.colorSpace = SRGB;
+        const glowSize = Math.max(realW, realH) * (photoCalib?.scaleFactor || 1) * 3.2;
+        const glow = new THREE.Mesh(
+          new THREE.PlaneGeometry(glowSize, glowSize),
+          new THREE.MeshBasicMaterial({
+            map: gtex, color: new THREE.Color(ledColor), transparent: true,
+            opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false,
+          })
+        );
+        glow.position.set(sign.position.x, sign.position.y, photoZ + 0.02);
+        rig.add(glow);
+      }
+
+      // Marcadores de los puntos de calibracion ya tomados (0, 1 o 2).
+      const dotMat = new THREE.MeshBasicMaterial({ color: 0xff5a3c, depthTest: false });
+      for (const pt of calibPts) {
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(Math.max(span * 0.012, 0.02), 10, 8), dotMat);
+        dot.position.set(pt.x, pt.y, pt.z + 0.01);
+        dot.renderOrder = 10;
+        photoGroup.add(dot);
+      }
+      if (calibPts.length === 2) {
+        const line = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(calibPts.map((p) => new THREE.Vector3(p.x, p.y, p.z + 0.01))),
+          new THREE.LineBasicMaterial({ color: 0xff5a3c, depthTest: false })
+        );
+        line.renderOrder = 10;
+        photoGroup.add(line);
+      }
+    }
+
     // Retroiluminado uniforme: en vez de una sola luz puntual al centro
     // (muro fuerte al medio, apagado en las esquinas), se reparten varias
     // luces a lo ancho del letrero.
@@ -1938,7 +2150,8 @@ export default function Prototipo() {
     setBusy(false);
   }, [product, form, scene, facadeStyle, showFacade, material, wallPanelDir, finish, wallColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, edgeColor, edgeMetal,
-      anchoM, altoM, depthCm, standoffCm, threshold, invert, detect]);
+      anchoM, altoM, depthCm, standoffCm, threshold, invert, detect,
+      photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
 
   // Micro-retardo: al arrastrar un slider no se reconstruye la escena en
   // cada tick, solo cuando el valor se estabiliza. Evita que se congele.
@@ -2032,6 +2245,59 @@ export default function Prototipo() {
     setFileName(name);
     build();
   }, [threshold, build]);
+
+  // -- Foto real de la fachada --
+  // Se lee con FileReader/dataURL (no URL.createObjectURL: los blob URL
+  // se bloquean por CSP en algunos contextos embebidos) y se corrige la
+  // orientacion EXIF con createImageBitmap({imageOrientation:'from-image'})
+  // — sin esto, una foto vertical de telefono llega acostada.
+  const handlePhotoFile = useCallback(async (file) => {
+    if (!file) return;
+    setErr(null); setBusy(true);
+    try {
+      let bitmap;
+      try {
+        bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+      } catch {
+        // Fallback (navegadores sin soporte): FileReader + Image, sin
+        // correccion EXIF explicita (el navegador puede o no aplicarla).
+        const dataUrl = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(String(r.result));
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        bitmap = await new Promise((res, rej) => {
+          const img = new Image();
+          img.onload = () => res(img);
+          img.onerror = rej;
+          img.src = dataUrl;
+        });
+      }
+      const iw = bitmap.width, ih = bitmap.height;
+      const longSide = 2000; // una foto de telefono son 12MP, no hace falta mas
+      const scale = Math.min(1, longSide / Math.max(iw, ih));
+      const cw = Math.max(1, Math.round(iw * scale)), ch = Math.max(1, Math.round(ih * scale));
+      const c = document.createElement("canvas");
+      c.width = cw; c.height = ch;
+      c.getContext("2d").drawImage(bitmap, 0, 0, cw, ch);
+      bitmap.close?.();
+      // La textura de Three.js se crea ACA, sincronica, para que ya este
+      // lista en S.current cuando el proximo build() (disparado por el
+      // cambio de estado de abajo) la necesite — evita tener que cargarla
+      // de forma asincrona dentro de build().
+      S.current.photoTex?.dispose();
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = SRGB;
+      S.current.photoTex = tex;
+      setPhotoImg({ url: c.toDataURL("image/jpeg", 0.85), w: cw, h: ch });
+      setPhotoCalib(null); setCalibPts([]); setCalibrating(false);
+    } catch {
+      setErr("No se pudo abrir la foto.");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   const loadFromDataUrl = useCallback((dataUrl, name) => {
     setBusy(true);
@@ -2197,7 +2463,8 @@ export default function Prototipo() {
   }, [product]);
 
   const pickScene = (x) => {
-    setScene(x.id); setAnchoM(x.a); setAltoM(x.b);
+    setScene(x.id);
+    if (x.a != null) { setAnchoM(x.a); setAltoM(x.b); } // "foto" no trae preset: la medida real la da la calibracion
     if (x.id === "interior") { setMaterial("lisa"); setFinish("blanco"); setWallColor("#eceef1"); }
     if (x.id === "totem") { setMaterial("acm"); setFinish("negro"); setWallColor("#191a1d"); }
   };
@@ -2205,6 +2472,23 @@ export default function Prototipo() {
   const pickMaterial = (id) => {
     setMaterial(id);
     if (id === "madera" && finish !== "madera") { setFinish("madera"); setWallColor("#8b5e3c"); }
+  };
+
+  // Toma los 2 puntos de calibracion (ya en metros del mundo 3D, medidos
+  // por raycasting) y la medida real ingresada -> factor de escala.
+  const aplicarCalibracion = () => {
+    if (calibPts.length !== 2) return;
+    const m = parseFloat(String(calibInputM).replace(",", "."));
+    if (!m || m <= 0) return;
+    const [a, b] = calibPts;
+    const worldDist = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    if (worldDist <= 0.0001) return;
+    setPhotoCalib({ scaleFactor: m / worldDist });
+    setCalibrating(false);
+    setCalibInputM("");
+  };
+  const reiniciarCalibracion = () => {
+    setPhotoCalib(null); setCalibPts([]); setCalibInputM(""); setCalibrating(true);
   };
 
   /* -- Piezas de interfaz -- */
@@ -2301,20 +2585,34 @@ export default function Prototipo() {
             </div>
           </>
         )}
-        <div style={s.pLabel}>Posición {product === "lightbox" ? "dentro de la placa" : "en la fachada"}</div>
-        {product === "lightbox" ? (
+        {product === "lightbox" && (
           <>
+            <div style={s.pLabel}>Posición del arte dentro de la placa</div>
             <Slider label="Horizontal" value={Math.round(offsetX * 100)} unit=" %"
               min={-100} max={100} step={5} onChange={(v) => setOffsetX(v / 100)} />
             <Slider label="Vertical" value={Math.round(offsetY * 100)} unit=" %"
               min={-100} max={100} step={5} onChange={(v) => setOffsetY(v / 100)} />
           </>
-        ) : (
-          <>
-            <Slider label="Horizontal" value={posX} unit=" cm" min={-150} max={150} step={5} onChange={setPosX} />
-            <Slider label="Vertical" value={posY} unit=" cm" min={-150} max={150} step={5} onChange={setPosY} />
-          </>
         )}
+        <div style={s.pLabel}>Posición del letrero{scene === "foto" ? " sobre la foto" : " en la fachada"}</div>
+        <div style={s.pHint}>También puedes arrastrar el letrero directo con el mouse o el dedo.</div>
+        <div style={s.fields}>
+          <label style={s.field}>
+            <span style={s.fieldLabel}>X</span>
+            <input type="number" value={Math.round(posX)} step={5} style={s.fieldInput}
+              onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n)) setPosX(n); }} />
+            <span style={s.fieldUnit}>cm</span>
+          </label>
+          <label style={s.field}>
+            <span style={s.fieldLabel}>Y</span>
+            <input type="number" value={Math.round(posY)} step={5} style={s.fieldInput}
+              onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n)) setPosY(n); }} />
+            <span style={s.fieldUnit}>cm</span>
+          </label>
+        </div>
+        <button onClick={() => { setPosX(0); setPosY(0); }} style={{ ...s.flatBtn, width: "100%", marginTop: 6 }}>
+          Centrar
+        </button>
         {(product !== "lightbox") && (
           <>
             <div style={s.pLabel}>Color de la cara</div>
@@ -2497,7 +2795,72 @@ export default function Prototipo() {
         </div>
       </>
     ),
-    fachada: (
+    fachada: scene === "foto" ? (
+      <>
+        <div style={s.pTitle}>Foto de la fachada</div>
+        <label style={{ ...s.segBtn, cursor: "pointer", justifyContent: "center", gap: 6, display: "flex" }}>
+          <Icon name="upload" size={13} /> {photoImg ? "Cambiar foto" : "Subir foto"}
+          <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+            onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
+        </label>
+        {!photoImg && <div style={s.pHint}>Sube una foto de la fachada real (galería o cámara) para montar el letrero encima.</div>}
+
+        {photoImg && (
+          <>
+            <div style={s.pLabel}>Inclinación del letrero</div>
+            <Slider label="Horizontal" value={photoTiltY} unit="°" min={-40} max={40} step={1} onChange={setPhotoTiltY} />
+            <Slider label="Vertical" value={photoTiltX} unit="°" min={-25} max={25} step={1} onChange={setPhotoTiltX} />
+            <div style={s.pHint}>Alinea el letrero al plano del muro de la foto, a ojo — no hay detección automática de perspectiva.</div>
+
+            <div style={s.pLabel}>Escala real</div>
+            {photoCalib ? (
+              <div style={s.note}>
+                Calibrado ✓ — toca "Recalibrar" si quieres medir otra referencia.
+                <div style={{ marginTop: 6 }}>
+                  <button onClick={reiniciarCalibracion} style={{ ...s.flatBtn, width: "100%" }}>Recalibrar</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ ...s.note, borderColor: "#5a4418", color: "#e0c88c" }}>
+                  Sin calibrar: el tamaño del letrero sobre la foto es aproximado.
+                </div>
+                {!calibrating ? (
+                  <button onClick={() => { setCalibPts([]); setCalibrating(true); }}
+                    style={{ ...s.flatBtn, width: "100%", marginTop: 6 }}>
+                    Medir con una referencia real
+                  </button>
+                ) : (
+                  <div style={s.note}>
+                    {calibPts.length < 2
+                      ? `Toca 2 puntos sobre la foto que marquen algo de medida conocida (una puerta, un ladrillo...) — punto ${calibPts.length + 1} de 2.`
+                      : "Listo. ¿Cuánto mide esa distancia real?"}
+                    {calibPts.length === 2 && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <input type="number" step="0.01" min="0.01" value={calibInputM}
+                          onChange={(e) => setCalibInputM(e.target.value)}
+                          placeholder="metros" style={{ ...s.fieldInput, background: "#1A1A1E", border: `1px solid ${LINE}`, borderRadius: 5, padding: "4px 6px", width: 70 }} />
+                        <button onClick={aplicarCalibracion} style={{ ...s.flatBtn, flex: 1 }}>Aplicar</button>
+                      </div>
+                    )}
+                    <button onClick={() => { setCalibrating(false); setCalibPts([]); }}
+                      style={{ ...s.flatBtn, width: "100%", marginTop: 6 }}>
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div style={s.pLabel}>Luz de la foto</div>
+            <Slider label="Dirección" value={photoLightDir} unit="°" min={0} max={360} step={5} onChange={setPhotoLightDir} />
+            <Slider label="Ambiente" value={Math.round(photoAmbient * 100)} unit=" %" min={10} max={150} step={5}
+              onChange={(v) => setPhotoAmbient(v / 100)} />
+            <div style={s.pHint}>Ajusta hasta que la sombra del letrero se parezca a las sombras reales de la foto.</div>
+          </>
+        )}
+      </>
+    ) : (
       <>
         <div style={s.pTitle}>Fachada</div>
         <Seg items={[{ id: "si", label: "Con fachada" }, { id: "no", label: "Solo letrero" }]}
