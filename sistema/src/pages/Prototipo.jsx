@@ -704,9 +704,9 @@ function buildStorefront(style, o) {
   const frame = frameMat();
   const conc = concreteMat();
 
-  /* Banda del letrero: es la que toma el material y color elegidos */
-  const bandZ = style === "marquesina" ? zWall + 0.42 : zWall;
-  addBox(facW, bandH, 0.14, wallMat, 0, 0, bandZ - 0.07, g);
+  /* Banda del letrero: es la que toma el material y color elegidos.
+     Siempre plana y al ras del muro (ninguna fachada queda hueca). */
+  addBox(facW, bandH, 0.14, wallMat, 0, 0, zWall - 0.07, g);
 
   /* Vereda */
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(facW * 4, 14), pave);
@@ -716,14 +716,13 @@ function buildStorefront(style, o) {
   g.add(pav);
   addBox(facW * 4, 0.14, 0.3, conc, 0, yGround + 0.07, zWall + 5.6, g); // cordon
 
-  /* Pano superior con ventanas */
-  if (style !== "marquesina") {
-    addBox(facW, upperH, 0.12, conc, 0, bandH / 2 + upperH / 2, zWall - 0.06, g);
-    const wW = facW * 0.2, wH = upperH * 0.55;
-    for (const dx of [-facW * 0.28, facW * 0.28]) {
-      addBox(wW + 0.06, wH + 0.06, 0.05, frame, dx, bandH / 2 + upperH * 0.55, zWall + 0.02, g);
-      addBox(wW, wH, 0.03, glass, dx, bandH / 2 + upperH * 0.55, zWall + 0.05, g);
-    }
+  /* Pano superior con ventanas — muro solido detras de toda fachada,
+     incluida marquesina (antes ahi quedaba abierto y se veia hueco). */
+  addBox(facW, upperH, 0.12, conc, 0, bandH / 2 + upperH / 2, zWall - 0.06, g);
+  const wW = facW * 0.2, wH = upperH * 0.55;
+  for (const dx of [-facW * 0.28, facW * 0.28]) {
+    addBox(wW + 0.06, wH + 0.06, 0.05, frame, dx, bandH / 2 + upperH * 0.55, zWall + 0.02, g);
+    addBox(wW, wH, 0.03, glass, dx, bandH / 2 + upperH * 0.55, zWall + 0.05, g);
   }
 
   const shopY = yBandBot - shopH / 2;
@@ -760,16 +759,16 @@ function buildStorefront(style, o) {
     addBox(facW - 0.6, shopH * 0.9, 0.04, glass, -0.2, shopY, zWall + 0.04, g);
     addBox(facW, 0.12, 0.16, frame, 0, yBandBot - 0.06, zWall + 0.06, g);
   } else if (style === "marquesina") {
-    // Voladizo con el letrero en el frente
-    const proj = 1.15;
-    addBox(facW, 0.12, proj, conc, 0, -bandH / 2 - 0.06, zWall + proj / 2, g);
-    addBox(facW, 0.1, proj, conc, 0, bandH / 2 + 0.05, zWall + proj / 2, g);
-    for (const dx of [-facW / 2 + 0.12, facW / 2 - 0.12]) {
-      addBox(0.12, bandH, proj * 0.96, conc, dx, 0, zWall + proj / 2, g);
+    // Toldo solido que sobresale sobre una fachada plana y cerrada —
+    // antes era un marco hueco (se veia el vacio por los costados).
+    const proj = 0.85, awningH = 0.12;
+    const awningY = bandH / 2 + 0.16;
+    addBox(facW, awningH, proj, conc, 0, awningY, zWall + proj / 2, g);
+    for (const dx of [-facW / 2 + 0.35, facW / 2 - 0.35]) {
+      addBox(0.05, 0.05, proj * 0.92, frame, dx, awningY - awningH / 2 - 0.07, zWall + proj * 0.46, g);
     }
-    addBox(facW, shopH + bandH + upperH, 0.12, conc, 0, (bandH / 2 + upperH) - (shopH + bandH + upperH) / 2, zWall - 0.5, g);
-    addBox(facW - 0.7, shopH * 0.9, 0.04, glass, 0, shopY, zWall - 0.42, g);
-    for (let i = -1; i <= 1; i++) addBox(0.07, shopH * 0.9, 0.09, frame, (facW / 3.2) * i, shopY, zWall - 0.39, g);
+    addBox(facW - 0.7, shopH * 0.9, 0.04, glass, 0, shopY, zWall + 0.03, g);
+    for (let i = -1; i <= 1; i++) addBox(0.07, shopH * 0.9, 0.09, frame, (facW / 3.2) * i, shopY, zWall + 0.06, g);
   } else if (style === "portal") {
     // Acceso elevado con peldanos y baranda
     const steps = 4, stepH = 0.16, stepD = 0.34;
@@ -941,12 +940,42 @@ function buildStreetEnv(envGroup, m, opts) {
     }
   }
 
-  // De noche: alumbrado publico + brillo interior de la vitrina, para
-  // que el local se entienda y no quede negro contra el fondo iluminado.
+  // De noche: postes de alumbrado publico VISIBLES (poste + brazo +
+  // cabezal encendido, no solo una luz flotando sin geometria) + brillo
+  // interior de la vitrina, para que el local se entienda de noche.
   if (night) {
-    const farol = new THREE.PointLight(0xffe0b0, 2.6, span * 16, 1.8);
-    farol.position.set(-facW * 0.55, m.yGround + m.shopH + m.bandH + m.upperH + 2.4, zWall + span * 1.4);
-    envGroup.add(farol);
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x24262b, roughness: 0.5, metalness: 0.6 });
+    const bulbMat = new THREE.MeshStandardMaterial({
+      color: 0xfff1cf, emissive: new THREE.Color(0xffcf7a), emissiveIntensity: 2.6, roughness: 0.4,
+    });
+    const poleH = 4.2, armLen = 0.55;
+    const streetZ = zWall + 5.0; // sobre la vereda, justo antes del cordon
+    for (const side of [-1, 1]) {
+      const px = side * (facW / 2 + 0.75);
+      const bulbX = px - side * armLen;
+      const bulbY = yGround + poleH - 0.14;
+
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, poleH, 10), poleMat);
+      pole.position.set(px, yGround + poleH / 2, streetZ);
+      pole.castShadow = true;
+      envGroup.add(pole);
+
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.08, 10), poleMat);
+      base.position.set(px, yGround + 0.04, streetZ);
+      envGroup.add(base);
+
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(armLen, 0.05, 0.05), poleMat);
+      arm.position.set((px + bulbX) / 2, yGround + poleH - 0.05, streetZ);
+      envGroup.add(arm);
+
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), bulbMat);
+      bulb.position.set(bulbX, bulbY, streetZ);
+      envGroup.add(bulb);
+
+      const farol = new THREE.PointLight(0xffdba0, 3.2, span * 10, 1.9);
+      farol.position.set(bulbX, bulbY, streetZ);
+      envGroup.add(farol);
+    }
 
     const vitrina = new THREE.Mesh(
       new THREE.PlaneGeometry(facW * 0.92, m.shopH * 0.9),
@@ -1266,6 +1295,15 @@ export default function Prototipo() {
   const [err, setErr] = useState(null);
   const [ready, setReady] = useState(false);
   const [sent, setSent] = useState(false);
+
+  // Layout responsive: en pantallas angostas el panel lateral (208px) y
+  // la barra de herramientas ya no caben junto al visor — se apilan.
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.innerWidth < 860);
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < 860);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const ZMIN = 0.45, ZMAX = 5;
   const clampZoom = (z) => Math.max(ZMIN, Math.min(ZMAX, z));
@@ -1639,7 +1677,7 @@ export default function Prototipo() {
           });
           envGroup.add(store.group);
           buildStreetEnv(envGroup, store, { night, standoff });
-          S.current.envMeta = { type: "fachada", zWall: store.zWall, marquesina: facadeStyle === "marquesina" };
+          S.current.envMeta = { type: "fachada" };
         }
       }
       S.current.envSig = envSig;
@@ -1650,11 +1688,6 @@ export default function Prototipo() {
     const meta = S.current.envMeta;
     if (meta?.type === "totem") sign.position.y += meta.bodyH / 2 - realH / 2 - 0.35;
     else if (meta?.type === "interior") sign.position.y += meta.wallH * 0.12;
-    else if (meta?.marquesina) {
-      // Montado sobre la cara FRONTAL del voladizo, no detras de la banda.
-      const sb2 = new THREE.Box3().setFromObject(sign);
-      sign.position.z += (meta.zWall + 0.42) - sb2.min.z + 0.03;
-    }
 
     // Luz que bana la fachada (uniforme, se ajusta en cada armado)
     if (showFacade) {
@@ -1780,12 +1813,18 @@ export default function Prototipo() {
       setSuggested(null);
       setProduct("letters");
       setDetect(forceDetect);
-      setZoom(1);
+      // El zoom solo se encuadra la PRIMERA vez que se entra a Texto —
+      // antes se reseteaba en cada letra escrita, y el usuario perdia el
+      // zoom que habia puesto (se sentia como un "salto").
+      if (S.current.sourceType !== "texto") setZoom(1);
+      S.current.sourceType = "texto";
+      setSourceType("texto");
       setFileName(name);
       setGenSeq((n) => n + 1);
       return;
     }
 
+    S.current.sourceType = "logo";
     setSourceType("logo");
     let best = null;
     for (const d of ["alpha", "dark", "light"]) {
@@ -2089,6 +2128,13 @@ export default function Prototipo() {
           />
           <div style={s.pHint}>Hasta 40 caracteres por línea, 3 líneas (Enter para separar).</div>
 
+          <div style={s.pLabel}>Tamaño del letrero</div>
+          <div style={s.fields}>
+            <Field label="Ancho" value={anchoM} onChange={setAnchoM} />
+            <Field label="Alto" value={altoM} onChange={setAltoM} />
+          </div>
+          <div style={s.pHint}>Ancho y alto en {unit === "cm" ? "centímetros" : "metros"} — cámbialo aquí si el texto sale muy grande o muy chico.</div>
+
           <div style={s.pLabel}>Alineación</div>
           <Seg items={[{ id: "left", label: "Izq." }, { id: "center", label: "Centro" }, { id: "right", label: "Der." }]}
             value={textAlign} onPick={(o) => setTextAlign(o.id)} />
@@ -2310,12 +2356,12 @@ export default function Prototipo() {
           </div>
         </header>
 
-        <div style={s.body}>
+        <div style={{ ...s.body, ...(narrow ? { flexDirection: "column" } : {}) }}>
           {/* Barra de herramientas */}
-          <nav style={s.rail}>
+          <nav style={{ ...s.rail, ...(narrow ? s.railNarrow : {}) }}>
             {TOOLS.map((t) => (
               <button key={t.id} onClick={() => setTool(t.id)} title={t.label}
-                style={{ ...s.tool, ...(tool === t.id ? s.toolOn : {}) }}>
+                style={{ ...s.tool, ...(narrow ? s.toolNarrow : {}), ...(tool === t.id ? s.toolOn : {}) }}>
                 <Icon name={t.icon} />
                 <span style={s.toolLabel}>{t.label}</span>
               </button>
@@ -2324,11 +2370,11 @@ export default function Prototipo() {
 
           {/* Visor */}
           <main style={s.viewport}>
-            <div ref={mountRef} style={s.canvasHost} />
+            <div ref={mountRef} style={{ ...s.canvasHost, ...(narrow ? { height: 360 } : {}) }} />
 
-            {busy && <div style={s.overlay}>Generando…</div>}
+            {busy && <div style={{ ...s.overlay, ...(narrow ? { height: 360 } : {}) }}>Generando…</div>}
             {!fileName && !busy && (
-              <div style={s.overlay}>
+              <div style={{ ...s.overlay, ...(narrow ? { height: 360 } : {}) }}>
                 <div style={s.emptyTitle}>Sube tu logo</div>
                 <div style={s.emptyText}>Arrastralo aqui o usa el boton de arriba</div>
               </div>
@@ -2356,7 +2402,7 @@ export default function Prototipo() {
           </main>
 
           {/* Panel contextual */}
-          <aside style={s.props}>{panels[tool]}</aside>
+          <aside style={{ ...s.props, ...(narrow ? s.propsNarrow : {}) }}>{panels[tool]}</aside>
         </div>
       </div>
     </div>
@@ -2408,11 +2454,16 @@ const s = {
     display: "flex", flexDirection: "column", gap: 2, padding: 5,
     borderRight: `1px solid ${LINE}`, background: PANEL, flexShrink: 0,
   },
+  railNarrow: {
+    flexDirection: "row", borderRight: "none", borderBottom: `1px solid ${LINE}`,
+    overflowX: "auto", width: "100%",
+  },
   tool: {
     display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
     width: 48, padding: "6px 3px", background: "transparent", border: "1px solid transparent",
     borderRadius: 7, color: DIM, cursor: "pointer",
   },
+  toolNarrow: { flexShrink: 0 },
   toolOn: { background: "#1E1211", borderColor: RED, color: TXT },
   toolLabel: { fontSize: 7.5, letterSpacing: 0.1, fontWeight: 600 },
   viewport: { flex: "1 1 auto", position: "relative", minWidth: 0, display: "flex", flexDirection: "column" },
@@ -2447,6 +2498,9 @@ const s = {
   props: {
     width: 208, flexShrink: 0, borderLeft: `1px solid ${LINE}`, background: PANEL,
     padding: 11, overflowY: "auto", maxHeight: 570,
+  },
+  propsNarrow: {
+    width: "100%", borderLeft: "none", borderTop: `1px solid ${LINE}`, maxHeight: "none",
   },
   pTitle: { fontSize: 11.5, fontWeight: 700, color: TXT, marginBottom: 9 },
   pLabel: {
