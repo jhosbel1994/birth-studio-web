@@ -1297,6 +1297,7 @@ export default function Prototipo() {
   const [fontStyle, setFontStyle] = useState("sans");
   const [customFont, setCustomFont] = useState(null); // { family, step }
   const [fontMsg, setFontMsg] = useState(null);
+  const [textAspect, setTextAspect] = useState(null); // pxW/pxH del ultimo canvas de texto dibujado
   const [unit, setUnit] = useState("cm");
   const [artScale, setArtScale] = useState(0.95);
   const [offsetX, setOffsetX] = useState(0); // caja de luz: -1..1 dentro de la placa
@@ -1948,9 +1949,25 @@ export default function Prototipo() {
       align: textAlign, lineHeight: lineHeightTx, letterSpacing, upper,
     });
     if (!c) return;
+    const aspect = c.width / c.height;
+    setTextAspect(aspect);
+
+    // Tamano por defecto SOLO la primera vez que se escribe texto (de
+    // vacio a algo) — el letrero arranca ocupando ~40% del ancho
+    // disponible en vez de heredar el ultimo anchoM/altoM usado (podia
+    // venir de una escena de fachada de 3x1m y salir gigante). Ediciones
+    // siguientes respetan lo que el usuario haya ajustado a mano, mismo
+    // criterio que ya se uso para no resetear el zoom en cada letra.
+    if (!S.current.textSizedOnce) {
+      const targetFrac = 0.4; // dentro del rango pedido 35%-50%
+      const nuevoAlto = Math.max(0.2, Math.min(anchoM, (targetFrac * anchoM) / aspect));
+      setAltoM(nuevoAlto);
+      S.current.textSizedOnce = true;
+    }
+
     setSourceType("texto");
     loadCanvas(c, "Texto: " + lineas.join(" ").trim().slice(0, 24), "dark");
-  }, [texto, weightStep, fontStyle, customFont, textAlign, lineHeightTx, letterSpacing, upper, loadCanvas]);
+  }, [texto, weightStep, fontStyle, customFont, textAlign, lineHeightTx, letterSpacing, upper, anchoM, loadCanvas]);
 
   const cargarFuentePropia = useCallback(async (file) => {
     if (!file) return;
@@ -1992,7 +2009,14 @@ export default function Prototipo() {
 
   // Regenera el texto en vivo (con micro-retardo) cuando cambia algo.
   useEffect(() => {
-    if (tool !== "texto" || !texto.trim()) return;
+    if (!texto.trim()) {
+      // Al borrar el texto, la proxima vez que se escriba algo se vuelve
+      // a calcular el tamano inteligente (35%-50%) en vez de arrastrar
+      // el ultimo tamano manual de una sesion de texto anterior.
+      S.current.textSizedOnce = false;
+      return;
+    }
+    if (tool !== "texto") return;
     const t = setTimeout(() => { regenerarTexto(); }, 200);
     return () => clearTimeout(t);
   }, [tool, texto, weightStep, fontStyle, textAlign, lineHeightTx, letterSpacing, upper, customFont, regenerarTexto]);
@@ -2211,6 +2235,19 @@ export default function Prototipo() {
             <Field label="Alto" value={altoM} onChange={setAltoM} />
           </div>
           <div style={s.pHint}>Ancho y alto en {unit === "cm" ? "centímetros" : "metros"} — cámbialo aquí si el texto sale muy grande o muy chico.</div>
+          {textAspect && (() => {
+            const neededW = altoM * textAspect;
+            if (neededW <= anchoM * 1.01) return null;
+            const pct = Math.max(1, Math.round((anchoM / neededW) * 100));
+            return (
+              <div style={{ ...s.note, borderColor: "#5a4418", color: "#e0c88c" }}>
+                A esta altura de letra el texto necesita {neededW.toFixed(2)} m de ancho,
+                pero la fachada tiene {anchoM.toFixed(2)} m — se ajustó para que entre
+                (queda al {pct}% del tamaño pedido). Sube el Ancho o baja el Alto si lo
+                quieres completo.
+              </div>
+            );
+          })()}
 
           <div style={s.pLabel}>Alineación</div>
           <Seg items={[{ id: "left", label: "Izq." }, { id: "center", label: "Centro" }, { id: "right", label: "Der." }]}
