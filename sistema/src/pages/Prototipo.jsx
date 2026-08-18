@@ -399,11 +399,14 @@ function haloCanvas(silhouette, radiusPx) {
 /* ================================================================
    MATERIALES DE FACHADA
    ================================================================ */
+// Rango calmo (0.3-0.7) salvo donde el material real lo justifique — el
+// negro mate 0.94 y el blanco brillante 0.14 originales eran extremos
+// que, junto al vidrio, hacian ver todo mas plastico/videojuego.
 const FINISHES = [
-  { id: "madera", label: "Madera", hex: "#8b5e3c", rough: 0.78, metal: 0.0 },
-  { id: "metal", label: "Metal", hex: "#9aa1a9", rough: 0.34, metal: 0.82 },
-  { id: "negro", label: "Negro mate", hex: "#191a1d", rough: 0.94, metal: 0.02 },
-  { id: "blanco", label: "Blanco brillante", hex: "#f1f2f4", rough: 0.14, metal: 0.05 },
+  { id: "madera", label: "Madera", hex: "#8b5e3c", rough: 0.72, metal: 0.0 },
+  { id: "metal", label: "Metal", hex: "#9aa1a9", rough: 0.36, metal: 0.82 },
+  { id: "negro", label: "Negro mate", hex: "#191a1d", rough: 0.82, metal: 0.02 },
+  { id: "blanco", label: "Blanco brillante", hex: "#f1f2f4", rough: 0.22, metal: 0.05 },
 ];
 
 const MATERIALS = [
@@ -692,12 +695,27 @@ function glassMat(night) {
   });
 }
 const frameMat = () => new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.45, metalness: 0.6 });
-const concreteMat = () => new THREE.MeshStandardMaterial({ color: 0x55575c, roughness: 0.92 });
+const concreteMat = () => new THREE.MeshStandardMaterial({ color: 0x55575c, roughness: 0.8 });
+
+/* Linea oscura fina sobre cada arista dura del volumen — el efecto que
+   mas cambia la percepcion de "juego" a "render arquitectonico" (tipo
+   SketchUp). Una sola instancia de material compartida entre todas las
+   cajas: mas barato que crear un LineBasicMaterial por volumen. */
+const edgeLineMat = new THREE.LineBasicMaterial({ color: 0x141519, transparent: true, opacity: 0.5 });
+
+function applyPolygonOffset(mat) {
+  mat.polygonOffset = true;
+  mat.polygonOffsetFactor = 1;
+  mat.polygonOffsetUnits = 1;
+}
 
 const addBox = (w, h, d, mat, x, y, z, group) => {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const m = new THREE.Mesh(geo, mat);
   m.position.set(x, y, z);
   m.castShadow = true; m.receiveShadow = true;
+  if (Array.isArray(mat)) mat.forEach(applyPolygonOffset); else applyPolygonOffset(mat);
+  m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeLineMat));
   group.add(m);
   return m;
 };
@@ -730,7 +748,7 @@ function buildStorefront(style, o) {
   const yGround = yBandBot - shopH;
 
   const shutter = texMat(shutterTexture(), 1, Math.max(2, shopH * 1.6), { roughness: 0.42, metalness: 0.65 });
-  const pave = texMat(pavementTexture(), 8, 8, { roughness: 0.95, metalness: 0 });
+  const pave = texMat(pavementTexture(), 8, 8, { roughness: 0.82, metalness: 0 });
   const glass = glassMat(night);
   const frame = frameMat();
   const conc = concreteMat();
@@ -944,7 +962,7 @@ function buildStreetEnv(envGroup, m, opts) {
   // Calzada frente a la vereda
   const road = new THREE.Mesh(
     new THREE.PlaneGeometry(bw, span * 6),
-    new THREE.MeshStandardMaterial({ color: night ? 0x111318 : 0x33353b, roughness: 0.95 })
+    new THREE.MeshStandardMaterial({ color: night ? 0x111318 : 0x33353b, roughness: 0.82 })
   );
   road.rotation.x = -Math.PI / 2;
   road.position.set(0, yGround - 0.01, zWall + span * 3.4);
@@ -1470,14 +1488,17 @@ export default function Prototipo() {
     sc.add(wallWash); sc.add(wallWash.target);
 
     /* Giro con arrastre */
-    let dragging = false, lx = 0;
+    let dragging = false, lx = 0, dragVel = 0;
     const gp = (e) => e.touches?.[0] ?? e;
-    const down = (e) => { if (e.touches?.length > 1) return; dragging = true; lx = gp(e).clientX; };
+    const down = (e) => { if (e.touches?.length > 1) return; dragging = true; lx = gp(e).clientX; dragVel = 0; };
+    // Al soltar, el giro no corta en seco: sigue con inercia y decae
+    // solo, como el orbit tool de SketchUp — se frena en el loop.
     const up = () => { dragging = false; };
     const move = (e) => {
       if (!dragging || e.touches?.length > 1) return;
       const dy = (gp(e).clientX - lx) * 0.009;
       rig.rotation.y += dy; envGroup.rotation.y += dy;
+      dragVel = dy;
       lx = gp(e).clientX;
     };
     renderer.domElement.addEventListener("pointerdown", down);
@@ -1512,12 +1533,25 @@ export default function Prototipo() {
     let raf;
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      if (S.current.autoRotate && !dragging) {
+      if (S.current.autoRotate && !dragging && Math.abs(dragVel) < 0.0002) {
         const a = Math.sin(clock.getElapsedTime() * 0.28) * 0.42;
         rig.rotation.y = a; envGroup.rotation.y = a;
+      } else if (!dragging && Math.abs(dragVel) > 0.0002) {
+        // Inercia: el giro decae solo tras soltar, no corta en seco.
+        rig.rotation.y += dragVel; envGroup.rotation.y += dragVel;
+        dragVel *= 0.92;
       }
       if (S.current.haloMat) {
         S.current.haloMat.opacity = S.current.haloBase * (0.95 + Math.sin(clock.getElapsedTime() * 1.5) * 0.05);
+      }
+      // Zoom con interpolacion: no salta de golpe al tocar los botones
+      // o la rueda, se desliza hacia el valor objetivo cada cuadro.
+      if (S.current.center) {
+        const cur = S.current.zoomCurrent ?? S.current.zoom ?? 1;
+        const target = S.current.zoom ?? 1;
+        const diff = target - cur;
+        S.current.zoomCurrent = Math.abs(diff) < 0.0015 ? target : cur + diff * 0.2;
+        applyZoom(camera, S.current.center, S.current.baseDist, S.current.zoomCurrent);
       }
       renderer.render(sc, camera);
     };
@@ -1531,7 +1565,11 @@ export default function Prototipo() {
       renderer.setSize(w2, h2);
       if (S.current.frameTarget) {
         const f = frameObject(camera, S.current.frameTarget, S.current.fill || 0.6);
-        if (f) { S.current.center = f.center; S.current.baseDist = f.dist; applyZoom(camera, f.center, f.dist, S.current.zoom || 1); }
+        if (f) {
+          S.current.center = f.center; S.current.baseDist = f.dist;
+          S.current.zoomCurrent = S.current.zoom || 1; // reencuadre instantaneo, sin arrastrar interpolacion vieja
+          applyZoom(camera, f.center, f.dist, S.current.zoomCurrent);
+        }
       }
     };
     let ro;
@@ -1566,9 +1604,9 @@ export default function Prototipo() {
   useEffect(() => { S.current.autoRotate = autoRotate; }, [autoRotate]);
 
   useEffect(() => {
+    // Solo fija el objetivo — el loop de render interpola hacia el cada
+    // cuadro (asi el zoom no salta de golpe al tocar botones o rueda).
     S.current.zoom = zoom;
-    const { camera, center, baseDist } = S.current;
-    if (camera && center) applyZoom(camera, center, baseDist, zoom);
   }, [zoom]);
 
   /* -- Construccion de la escena -- */
@@ -1668,6 +1706,10 @@ export default function Prototipo() {
         geo.computeVertexNormals();
         const m = new THREE.Mesh(geo, [face, edge]);
         m.castShadow = true; m.receiveShadow = true;
+        // Umbral alto (20°) para no dibujar cada faceta del bisel — solo
+        // las aristas realmente duras, como en un render de SketchUp.
+        applyPolygonOffset(face); applyPolygonOffset(edge);
+        m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 20), edgeLineMat));
         sign.add(m);
         built++;
       } catch {
@@ -1695,6 +1737,28 @@ export default function Prototipo() {
       sign.add(halo);
       S.current.haloMat = haloMat;
       S.current.haloBase = haloMat.opacity;
+    }
+
+    // Sombra de contacto contra el muro — SIEMPRE presente (no solo en
+    // modo retroiluminado). Sin esto el letrero se ve pegado/flotando
+    // sobre la pared en vez de apoyado. Reutiliza la misma silueta
+    // desenfocada del halo, pero oscura y mucho mas ceñida al muro.
+    {
+      const mPerPxSh = sil.wM / sil.canvas.width;
+      const radiusShPx = Math.max(1.5, (0.025 / mPerPxSh)); // ~2.5cm de difuminado
+      const { canvas: shc, pad: shPad } = haloCanvas(sil.canvas, radiusShPx);
+      const shTex = new THREE.CanvasTexture(shc);
+      shTex.colorSpace = SRGB;
+      const contactMat = new THREE.MeshBasicMaterial({
+        map: shTex, color: 0x000000, transparent: true, opacity: 0.4,
+        depthWrite: false, side: THREE.DoubleSide,
+      });
+      const contact = new THREE.Mesh(
+        new THREE.PlaneGeometry((sil.canvas.width + shPad * 2) * mPerPxSh, (sil.canvas.height + shPad * 2) * mPerPxSh),
+        contactMat
+      );
+      contact.position.set(sil.offX || 0, sil.offY || 0, -standoff + 0.004);
+      sign.add(contact);
     }
 
     const sb = new THREE.Box3().setFromObject(sign);
@@ -1866,7 +1930,8 @@ export default function Prototipo() {
     const f = frameObject(camera, sign, fill);
     if (f) {
       S.current.center = f.center; S.current.baseDist = f.dist;
-      applyZoom(camera, f.center, f.dist, S.current.zoom || 1);
+      S.current.zoomCurrent = S.current.zoom || 1; // reencuadre instantaneo tras reconstruir
+      applyZoom(camera, f.center, f.dist, S.current.zoomCurrent);
     }
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });

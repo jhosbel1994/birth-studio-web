@@ -18,7 +18,7 @@ avisá acá mismo.
 |---|---|---|---|---|---|
 | 1 | Tamaño de texto por defecto + aviso de ancho | `texto-escala` | — | `listo` | Ver Registro de cambios |
 | 2 | Fachada mall / centro comercial | `fachada-mall` | — | `listo` | Ver Registro de cambios |
-| 3 | Calidad visual tipo SketchUp | `render-calidad` | 1, 2 | `pendiente` | |
+| 3 | Calidad visual tipo SketchUp | `render-calidad` | 1, 2 | `listo` | Marca de agua se dejó fuera (opcional) — ver Registro |
 | 4 | Foto real + perspectiva + posicionamiento | `foto-perspectiva` | 3 | `pendiente` | Falta `prompt-foto-y-posicion.md` — evaluar alcance antes de construir |
 
 ---
@@ -65,14 +65,24 @@ piso si hace falta variante nueva.
 ## Detalle tarea 3 — `render-calidad`
 
 **Qué hacer:**
-- [ ] Líneas de borde (`EdgesGeometry` + `LineSegments` + `polygonOffset`)
+- [x] Líneas de borde (`EdgesGeometry` + `LineSegments` + `polygonOffset`)
       sobre el letrero y volúmenes principales del escenario
-- [ ] Sombra de contacto (textura de sombra suave bajo objetos) o SSAO
-- [ ] Calmar rango de `roughness`/`metalness` en materiales (0.3–0.7
+- [x] Sombra de contacto (versión liviana, no SSAO — ver nota abajo)
+- [x] Calmar rango de `roughness`/`metalness` en materiales (0.3–0.7
       salvo vidrio/metal pulido)
-- [ ] Zoom con interpolación (`lerp`), no salto instantáneo
-- [ ] Inercia al soltar el arrastre de giro
-- [ ] (Opcional) Marca de agua Birth Studio en la descarga
+- [x] Zoom con interpolación (`lerp`), no salto instantáneo
+- [x] Inercia al soltar el arrastre de giro
+- [ ] (Opcional) Marca de agua Birth Studio en la descarga — **no se
+      hizo**, quedó fuera de esta pasada por ser explícitamente opcional
+
+**Nota — sombra de contacto liviana en vez de SSAO:** se usó la
+alternativa barata que el propio prompt ofrece ("textura de sombra
+circular suave pegada al piso/muro"), reutilizando la silueta ya
+calculada para el halo retroiluminado — ahora SIEMPRE visible (antes
+solo existía en modo `back`/`both`), oscura y ceñida contra el muro. No
+se agregó `EffectComposer`/`SSAOPass`. Para el tótem no se sumó sombra
+extra: ya tenía sombra real de la luz direccional (`castShadow` sobre su
+base y el piso), que cumple el mismo propósito ahí.
 
 **Archivos que toca:** render loop, `makeFacadeMaterial`,
 `facadeTexture`/`facadeBump`, nuevo módulo de posproceso.
@@ -135,3 +145,19 @@ qué tocó)*
   pulido, formato grande); `buildMallEnv` nueva (piso continuo +
   cielorraso + luminarias, sin calle/cielo/vecinos); luz cenital difusa
   específica para `facadeStyle === "mall"` en `build()`.
+- 2026-08-18 — `render-calidad` — `Prototipo.jsx`: `addBox` (usado por
+  las 6 fachadas + tótem + interior) ahora agrega `EdgesGeometry` +
+  `LineSegments` a cada volumen, con `polygonOffset` en su material para
+  no parpadear contra la línea; mismo tratamiento en la extrusión del
+  letrero/caja de luz (umbral 20° para no dibujar cada faceta del
+  bisel). Sombra de contacto contra el muro (siempre visible, reutiliza
+  `haloCanvas`/silueta ya existente) agregada en el bloque del halo.
+  `roughness` calmado en `FINISHES`, `concreteMat`, calzada/vereda/piso
+  del tótem (rango 0.3–0.7, salvo vidrio/piso de mall que siguen
+  intencionalmente extremos). Zoom: la cámara ya no salta — el loop de
+  render interpola `zoomCurrent` hacia `zoom` cada cuadro; el `useEffect`
+  de `zoom` y el `resize` solo fijan el objetivo/reencuadran instantáneo
+  cuando corresponde (rebuild o resize), no en cada tick de usuario.
+  Inercia: el arrastre de giro guarda velocidad (`dragVel`) y decae solo
+  (`×0.92` por cuadro) al soltar, en vez de cortar en seco. Marca de
+  agua: no implementada (opcional).
