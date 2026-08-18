@@ -248,6 +248,20 @@ function panelMetrics(panelW, panelH) {
   return { pxW, pxH, pxPorCm: pxW / (panelW * 100), escala: drawingScale(panelW, panelH) };
 }
 
+/* Espejo horizontal y/o vertical del logo de origen. Se aplica sobre el
+   canvas ORIGINAL (nunca sobre uno ya volteado), para que prender y
+   apagar el espejo sea reversible en vez de acumularse. */
+function flipCanvas(src, fh, fv) {
+  if (!fh && !fv) return src;
+  const c = document.createElement("canvas");
+  c.width = src.width; c.height = src.height;
+  const g = c.getContext("2d");
+  g.translate(fh ? c.width : 0, fv ? c.height : 0);
+  g.scale(fh ? -1 : 1, fv ? -1 : 1);
+  g.drawImage(src, 0, 0);
+  return c;
+}
+
 /* Devuelve la caja del contenido real del logo, ignorando el margen vacio
    del archivo. Sin esto, un PNG con aire alrededor se dibuja mas chico de
    lo que el usuario pidio. */
@@ -278,8 +292,10 @@ function contentBounds(canvas) {
 }
 
 /* artScale al 100% llena el panel de borde a borde. En la caja circular lo
-   que sobresale no se dibuja, porque la placa ya es un circulo. */
-function panelCanvas(srcCanvas, form, panelW, panelH, artScale = 1) {
+   que sobresale no se dibuja, porque la placa ya es un circulo. offX/offY
+   (-1..1) desplazan el arte dentro del margen que deja el escalado, sin
+   sacarlo nunca del panel. */
+function panelCanvas(srcCanvas, form, panelW, panelH, artScale = 1, offX = 0, offY = 0) {
   const { pxW, pxH } = panelMetrics(panelW, panelH);
   const c = document.createElement("canvas");
   c.width = pxW; c.height = pxH;
@@ -289,7 +305,9 @@ function panelCanvas(srcCanvas, form, panelW, panelH, artScale = 1) {
   const b = contentBounds(srcCanvas);
   const k = Math.min((c.width * artScale) / b.w, (c.height * artScale) / b.h);
   const dw = b.w * k, dh = b.h * k;
-  g.drawImage(srcCanvas, b.x, b.y, b.w, b.h, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh);
+  const slackX = (c.width - dw) / 2, slackY = (c.height - dh) / 2;
+  const px = slackX + offX * slackX, py = slackY + offY * slackY;
+  g.drawImage(srcCanvas, b.x, b.y, b.w, b.h, px, py, dw, dh);
   return c;
 }
 
@@ -1281,6 +1299,12 @@ export default function Prototipo() {
   const [fontMsg, setFontMsg] = useState(null);
   const [unit, setUnit] = useState("cm");
   const [artScale, setArtScale] = useState(0.95);
+  const [offsetX, setOffsetX] = useState(0); // caja de luz: -1..1 dentro de la placa
+  const [offsetY, setOffsetY] = useState(0);
+  const [posX, setPosX] = useState(0); // letras: cm de desplazamiento sobre la fachada
+  const [posY, setPosY] = useState(0);
+  const [flipH, setFlipH] = useState(false); // espejo del logo de origen
+  const [flipV, setFlipV] = useState(false);
   const [anchoM, setAnchoM] = useState(3);
   const [altoM, setAltoM] = useState(1);
   const [depthCm, setDepthCm] = useState(8);
@@ -1505,7 +1529,7 @@ export default function Prototipo() {
       shapes = [box.shape];
       ({ realW, realH, perim, faceArea } = box);
       uvParams = { w: realW, h: realH };
-      tex = new THREE.CanvasTexture(panelCanvas(srcCanvas, form, realW, realH, artScale));
+      tex = new THREE.CanvasTexture(panelCanvas(srcCanvas, form, realW, realH, artScale, offsetX, offsetY));
       tex.colorSpace = SRGB; tex.anisotropy = 8;
       sil = { canvas: shapeSilhouetteCanvas(form, realW, realH), wM: realW, hM: realH };
     } else {
@@ -1603,6 +1627,12 @@ export default function Prototipo() {
 
     const sb = new THREE.Box3().setFromObject(sign);
     sign.position.sub(sb.getCenter(new THREE.Vector3()));
+    // Posicion sobre la fachada (solo letras corporeas — la caja de luz
+    // ya se posiciona con offsetX/offsetY dentro del panel).
+    if (product !== "lightbox") {
+      sign.position.x += posX / 100;
+      sign.position.y += posY / 100;
+    }
     rig.add(sign);
     // Encuadre y calculos con rotacion 0 (el giro lo repone el loop).
     rig.rotation.set(0, 0, 0); envGroup.rotation.set(0, 0, 0);
@@ -1755,7 +1785,8 @@ export default function Prototipo() {
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
   }, [product, form, scene, facadeStyle, showFacade, material, wallPanelDir, finish, wallColor, mode, night, ledColor,
-      useArt, faceColor, sourceType, genSeq, artScale, edgeColor, edgeMetal, anchoM, altoM, depthCm, standoffCm, threshold, invert, detect]);
+      useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, edgeColor, edgeMetal,
+      anchoM, altoM, depthCm, standoffCm, threshold, invert, detect]);
 
   // Micro-retardo: al arrastrar un slider no se reconstruye la escena en
   // cada tick, solo cuando el valor se estabiliza. Evita que se congele.
@@ -1801,6 +1832,8 @@ export default function Prototipo() {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     S.current.imageData = imageData;
     S.current.srcCanvas = canvas;
+    S.current.originalCanvas = canvas; // intacto: el espejo se calcula desde aca
+    setFlipH(false); setFlipV(false); // cada logo nuevo empieza sin espejo
     S.current.logoTex?.dispose();
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = SRGB; tex.anisotropy = 8;
@@ -1937,6 +1970,23 @@ export default function Prototipo() {
     }
   }, []);
 
+  // Recalcula el logo al voltearlo. Parte siempre del canvas ORIGINAL
+  // (no de uno ya volteado), asi prender/apagar el espejo es reversible.
+  // Solo se recalcula cuando el espejo cambia, no en cada build().
+  useEffect(() => {
+    const original = S.current.originalCanvas;
+    if (!original || sourceType !== "logo") return;
+    const work = flipCanvas(original, flipH, flipV);
+    S.current.imageData = work.getContext("2d", { willReadFrequently: true })
+      .getImageData(0, 0, work.width, work.height);
+    S.current.srcCanvas = work;
+    S.current.logoTex?.dispose();
+    const tex = new THREE.CanvasTexture(work);
+    tex.colorSpace = SRGB; tex.anisotropy = 8;
+    S.current.logoTex = tex;
+    setGenSeq((n) => n + 1);
+  }, [flipH, flipV, sourceType]);
+
   // Carga diferida de las fuentes al abrir la herramienta Texto.
   useEffect(() => { if (tool === "texto") cargarFuentesBase(); }, [tool]);
 
@@ -2061,6 +2111,33 @@ export default function Prototipo() {
                 ? "Al 100% el logo llena el disco de borde a borde."
                 : "Al 100% el logo llega al borde de la placa."}
             </div>
+          </>
+        )}
+        {sourceType === "logo" && (
+          <>
+            <div style={s.pLabel}>Voltear el logo</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 3 }}>
+              <button onClick={() => setFlipH((v) => !v)} style={{ ...s.segBtn, ...(flipH ? s.segOn : {}) }}>
+                Espejo horizontal
+              </button>
+              <button onClick={() => setFlipV((v) => !v)} style={{ ...s.segBtn, ...(flipV ? s.segOn : {}) }}>
+                Espejo vertical
+              </button>
+            </div>
+          </>
+        )}
+        <div style={s.pLabel}>Posición {product === "lightbox" ? "dentro de la placa" : "en la fachada"}</div>
+        {product === "lightbox" ? (
+          <>
+            <Slider label="Horizontal" value={Math.round(offsetX * 100)} unit=" %"
+              min={-100} max={100} step={5} onChange={(v) => setOffsetX(v / 100)} />
+            <Slider label="Vertical" value={Math.round(offsetY * 100)} unit=" %"
+              min={-100} max={100} step={5} onChange={(v) => setOffsetY(v / 100)} />
+          </>
+        ) : (
+          <>
+            <Slider label="Horizontal" value={posX} unit=" cm" min={-150} max={150} step={5} onChange={setPosX} />
+            <Slider label="Vertical" value={posY} unit=" cm" min={-150} max={150} step={5} onChange={setPosY} />
           </>
         )}
         {(product !== "lightbox") && (
