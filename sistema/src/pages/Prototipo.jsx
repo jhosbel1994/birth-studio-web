@@ -4,6 +4,22 @@ import { guardarPrototipo } from "../utils/prototipoStore";
 
 const SRGB = THREE.SRGBColorSpace;
 
+// Aleatoriedad con semilla: las texturas y las luces de las ventanas se
+// generan igual en cada reconstruccion, en vez de re-sortearse (lo que
+// hacia parpadear las luces del entorno). resetRng() se llama al inicio
+// de cada armado del entorno para que la secuencia sea siempre la misma.
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let _rng = mulberry32(0x9e3779b9);
+function rnd() { return _rng(); }
+function resetRng() { _rng = mulberry32(0x9e3779b9); }
+
 /* ================================================================
    MASCARA Y TRAZADO
    Convierte el logo en una mascara de blanco/negro y de ahi extrae
@@ -407,7 +423,7 @@ function facadeTexture(material, hex, dir = "h") {
   } else if (material === "acm") {
     const p = 341;
     for (let y = 0; y < H; y += p) for (let x = 0; x < W; x += p) {
-      g.fillStyle = shade(hex, (Math.random() - 0.5) * 0.05);
+      g.fillStyle = shade(hex, (rnd() - 0.5) * 0.05);
       g.fillRect(x, y, p - 5, p - 5);
     }
     g.fillStyle = shade(hex, -0.55);
@@ -439,8 +455,8 @@ function facadeTexture(material, hex, dir = "h") {
   } else if (material === "internit") {
     const p = 256;
     for (let i = 0; i < 26000; i++) {
-      g.fillStyle = shade(hex, (Math.random() - 0.5) * 0.13);
-      g.fillRect(Math.random() * W, Math.random() * H, 2.5, 2.5);
+      g.fillStyle = shade(hex, (rnd() - 0.5) * 0.13);
+      g.fillRect(rnd() * W, rnd() * H, 2.5, 2.5);
     }
     g.fillStyle = shade(hex, -0.40);
     for (let y = p; y < H; y += p) g.fillRect(0, y - 2, W, 3);
@@ -448,12 +464,12 @@ function facadeTexture(material, hex, dir = "h") {
   } else if (material === "madera") {
     const plank = 128;
     for (let x = 0; x < W; x += plank) {
-      g.fillStyle = shade(hex, (Math.random() - 0.5) * 0.14);
+      g.fillStyle = shade(hex, (rnd() - 0.5) * 0.14);
       g.fillRect(x, 0, plank - 3, H);
       g.strokeStyle = shade(hex, -0.30);
       g.lineWidth = 1;
       for (let i = 0; i < 22; i++) {
-        const gx = x + Math.random() * plank;
+        const gx = x + rnd() * plank;
         g.beginPath(); g.moveTo(gx, 0);
         for (let y = 0; y < H; y += 40) g.lineTo(gx + Math.sin(y * 0.02 + x) * 4, y);
         g.stroke();
@@ -515,9 +531,9 @@ function facadeBump(material, dir = "h") {
     }
   } else if (material === "internit") {
     for (let i = 0; i < 30000; i++) {
-      const v = 110 + Math.random() * 80;
+      const v = 110 + rnd() * 80;
       g.fillStyle = `rgb(${v},${v},${v})`;
-      g.fillRect(Math.random() * W, Math.random() * H, 3, 3);
+      g.fillRect(rnd() * W, rnd() * H, 3, 3);
     }
     g.fillStyle = "#2a2a2a";
     for (let y = 256; y < H; y += 256) g.fillRect(0, y - 2, W, 3);
@@ -525,14 +541,14 @@ function facadeBump(material, dir = "h") {
   } else if (material === "madera") {
     const plank = 128;
     for (let x = 0; x < W; x += plank) {
-      const base = 120 + Math.random() * 50;
+      const base = 120 + rnd() * 50;
       g.fillStyle = `rgb(${base},${base},${base})`;
       g.fillRect(x, 0, plank - 3, H);
       g.lineWidth = 2;
       for (let i = 0; i < 24; i++) {
-        const v = 60 + Math.random() * 60;
+        const v = 60 + rnd() * 60;
         g.strokeStyle = `rgb(${v},${v},${v})`;
-        const gx = x + Math.random() * plank;
+        const gx = x + rnd() * plank;
         g.beginPath(); g.moveTo(gx, 0);
         for (let y = 0; y < H; y += 40) g.lineTo(gx + Math.sin(y * 0.02 + x) * 4, y);
         g.stroke();
@@ -579,14 +595,14 @@ function floorTexture(kind) {
     g.fillStyle = "#3c3f45"; g.fillRect(0, 0, W, H);
     const t = 128;
     for (let y = 0; y < H; y += t) for (let x = 0; x < W; x += t) {
-      g.fillStyle = shade("#4a4e56", (Math.random() - 0.5) * 0.12);
+      g.fillStyle = shade("#4a4e56", (rnd() - 0.5) * 0.12);
       g.fillRect(x + 2, y + 2, t - 4, t - 4);
     }
   } else {
     g.fillStyle = "#3a3b3d"; g.fillRect(0, 0, W, H);
     for (let i = 0; i < 9000; i++) {
-      g.fillStyle = shade("#3a3b3d", (Math.random() - 0.5) * 0.22);
-      g.fillRect(Math.random() * W, Math.random() * H, 3, 3);
+      g.fillStyle = shade("#3a3b3d", (rnd() - 0.5) * 0.22);
+      g.fillRect(rnd() * W, rnd() * H, 3, 3);
     }
   }
   return c;
@@ -624,7 +640,7 @@ function pavementTexture() {
   for (let y = 0; y < S; y += t) {
     for (let x = 0; x < S; x += t) {
       const off = (Math.floor(y / t) % 2) * (t / 2);
-      const v = 68 + Math.random() * 22;
+      const v = 68 + rnd() * 22;
       g.fillStyle = `rgb(${v},${v + 2},${v + 5})`;
       g.fillRect(x + off - t, y + 2, t - 4, t - 4);
     }
@@ -808,14 +824,14 @@ function skyTexture(night) {
 
   if (night) {
     g.fillStyle = "rgba(255,255,255,0.85)";
-    for (let i = 0; i < 160; i++) g.fillRect(Math.random() * W, Math.random() * horizon * 0.7, 1.6, 1.6);
+    for (let i = 0; i < 160; i++) g.fillRect(rnd() * W, rnd() * horizon * 0.7, 1.6, 1.6);
     g.beginPath(); g.arc(W * 0.82, H * 0.16, 42, 0, Math.PI * 2);
     g.fillStyle = "rgba(240,238,214,0.92)"; g.fill();
   } else {
     // nubes suaves
     g.fillStyle = "rgba(255,255,255,0.55)";
     for (let i = 0; i < 5; i++) {
-      const cxp = Math.random() * W, cyp = Math.random() * horizon * 0.5;
+      const cxp = rnd() * W, cyp = rnd() * horizon * 0.5;
       for (let k = 0; k < 6; k++) {
         g.beginPath();
         g.ellipse(cxp + k * 34 - 90, cyp, 60 - Math.abs(k - 3) * 8, 22, 0, 0, Math.PI * 2);
@@ -841,15 +857,15 @@ function skyTexture(night) {
   // ciudad a lo lejos, contra el horizonte
   let x = 0;
   while (x < W) {
-    const bw = 26 + Math.random() * 66;
-    const bh = 46 + Math.random() * 150;
+    const bw = 26 + rnd() * 66;
+    const bh = 46 + rnd() * 150;
     const by = horizon - bh;
     g.fillStyle = night ? "#0c1226" : "#7c8ba0";
     g.fillRect(x, by, bw - 3, bh);
     if (night) {
       for (let wy = by + 7; wy < horizon - 5; wy += 11)
         for (let wx = x + 4; wx < x + bw - 7; wx += 9)
-          if (Math.random() > 0.5) { g.fillStyle = "rgba(255,208,128,0.85)"; g.fillRect(wx, wy, 4, 5); }
+          if (rnd() > 0.5) { g.fillStyle = "rgba(255,208,128,0.85)"; g.fillRect(wx, wy, 4, 5); }
     }
     x += bw;
   }
@@ -905,8 +921,8 @@ function buildStreetEnv(envGroup, m, opts) {
   });
   const darkWin = new THREE.MeshStandardMaterial({ color: night ? 0x1a1f2a : 0x2f3946, roughness: 0.5, metalness: 0.2 });
   for (const side of [-1, 1]) {
-    const w = facW * (0.75 + Math.random() * 0.25);
-    const h = m.shopH + m.bandH + m.upperH + 1.4 + Math.random() * 2.2;
+    const w = facW * (0.75 + rnd() * 0.25);
+    const h = m.shopH + m.bandH + m.upperH + 1.4 + rnd() * 2.2;
     const depth = 1.4;
     const cx = side * (facW / 2 + w / 2 + 0.12);
     const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth),
@@ -918,11 +934,26 @@ function buildStreetEnv(envGroup, m, opts) {
     const rows = Math.max(3, Math.round(h / 1.15));
     const gx = w / (cols + 1), gy = h / (rows + 1);
     for (let r = 1; r <= rows; r++) for (let cc = 1; cc <= cols; cc++) {
-      const on = night && Math.random() > 0.55;
+      const on = night && rnd() > 0.55;
       const win = new THREE.Mesh(new THREE.PlaneGeometry(gx * 0.58, gy * 0.62), on ? litMat : darkWin);
       win.position.set(cx - w / 2 + gx * cc, yGround + gy * r, zWall + 0.03);
       envGroup.add(win);
     }
+  }
+
+  // De noche: alumbrado publico + brillo interior de la vitrina, para
+  // que el local se entienda y no quede negro contra el fondo iluminado.
+  if (night) {
+    const farol = new THREE.PointLight(0xffe0b0, 2.6, span * 16, 1.8);
+    farol.position.set(-facW * 0.55, m.yGround + m.shopH + m.bandH + m.upperH + 2.4, zWall + span * 1.4);
+    envGroup.add(farol);
+
+    const vitrina = new THREE.Mesh(
+      new THREE.PlaneGeometry(facW * 0.92, m.shopH * 0.9),
+      new THREE.MeshBasicMaterial({ color: 0xffe6b8, transparent: true, opacity: 0.5 })
+    );
+    vitrina.position.set(0, m.yGround - m.bandH / 2 - m.shopH / 2, zWall - 0.03);
+    envGroup.add(vitrina);
   }
 }
 
@@ -1422,7 +1453,7 @@ export default function Prototipo() {
         });
       }
     };
-    clear(rig); clear(envGroup);
+    clear(rig);
     S.current.haloMat = null;
 
     // El canto fabricable va de 4 a 12 cm en ambos productos
@@ -1535,76 +1566,106 @@ export default function Prototipo() {
     const sb = new THREE.Box3().setFromObject(sign);
     sign.position.sub(sb.getCenter(new THREE.Vector3()));
     rig.add(sign);
+    // Encuadre y calculos con rotacion 0 (el giro lo repone el loop).
+    rig.rotation.set(0, 0, 0); envGroup.rotation.set(0, 0, 0);
 
     const span = Math.max(realW, realH);
-    const fin = FINISHES.find((f) => f.id === finish) || FINISHES[2];
 
-    if (!showFacade) {
-      wallWash.intensity = 0;
-    } else {
-      const wallMat = makeFacadeMaterial(material, wallColor, fin.rough, fin.metal, span, wallPanelDir);
+    // Firma del entorno: si no cambia, se reutiliza tal cual (no se
+    // regenera ni se redibujan sus texturas). El letrero (rig) siempre
+    // se reconstruye; el entorno (envGroup) solo cuando cambia algo suyo.
+    // Junto con la aleatoriedad con semilla, esto elimina el parpadeo de
+    // las luces y evita el trabajo pesado en cada tecla.
+    const envSig = !showFacade ? "none" : [
+      scene, facadeStyle, material, wallPanelDir, finish, wallColor, night,
+      Math.round(realW * 4), Math.round(realH * 4), Math.round(standoff * 50),
+    ].join("|");
 
-      if (scene === "totem") {
-        const bodyW = realW + 0.5, bodyH = realH + 1.9, bodyD = 0.36;
-        const body = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyD), wallMat);
-        body.position.set(0, 0, -standoff - bodyD / 2);
-        body.castShadow = true; body.receiveShadow = true;
-        envGroup.add(body);
-        const baseH = 0.14;
-        const base = new THREE.Mesh(new THREE.BoxGeometry(bodyW + 0.24, baseH, bodyD + 0.24),
-          new THREE.MeshStandardMaterial({ color: 0x2b2c30, roughness: 0.85 }));
-        base.position.set(0, -bodyH / 2 - baseH / 2, -standoff - bodyD / 2);
-        base.receiveShadow = true; base.castShadow = true;
-        envGroup.add(base);
-        const gtex = new THREE.CanvasTexture(floorTexture("ext"));
-        gtex.colorSpace = SRGB;
-        gtex.wrapS = gtex.wrapT = THREE.RepeatWrapping; gtex.repeat.set(14, 14);
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(span * 26, span * 26),
-          new THREE.MeshStandardMaterial({ map: gtex, roughness: 0.95 }));
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.set(0, -bodyH / 2 - baseH, 0);
-        ground.receiveShadow = true;
-        envGroup.add(ground);
-        sign.position.y += bodyH / 2 - realH / 2 - 0.35;
-      } else if (scene === "interior") {
-        const wallH = Math.max(2.7, realH * 3.2), wallW = Math.max(4.2, realW * 3.4);
-        const wall = new THREE.Mesh(new THREE.PlaneGeometry(wallW, wallH), wallMat);
-        wall.position.set(0, 0, -standoff - 0.02);
-        wall.receiveShadow = true;
-        envGroup.add(wall);
-        const floorY = -wallH / 2;
-        const ftex = new THREE.CanvasTexture(floorTexture("interior"));
-        ftex.colorSpace = SRGB;
-        ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(6, 6);
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(wallW, wallW),
-          new THREE.MeshStandardMaterial({ map: ftex, roughness: 0.55, metalness: 0.05 }));
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.set(0, floorY, wallW / 2 - standoff);
-        floor.receiveShadow = true;
-        envGroup.add(floor);
-        const skirt = new THREE.Mesh(new THREE.BoxGeometry(wallW, 0.11, 0.03),
-          new THREE.MeshStandardMaterial({ color: 0xe8e8ea, roughness: 0.4 }));
-        skirt.position.set(0, floorY + 0.055, -standoff + 0.005);
-        skirt.receiveShadow = true;
-        envGroup.add(skirt);
-        sign.position.y += wallH * 0.12;
-      } else {
-        // Fachada externa: local completo + entorno de calle (cielo,
-        // montañas, ciudad, vecinos y calzada) para que se lea como una
-        // calle real.
-        const store = buildStorefront(facadeStyle, {
-          signW: realW, signH: realH, standoff, wallMat, night,
-        });
-        envGroup.add(store.group);
-        buildStreetEnv(envGroup, store, { night, standoff });
+    if (S.current.envSig !== envSig) {
+      clear(envGroup);
+      S.current.envMeta = null;
+      if (showFacade) {
+        resetRng();
+        const fin = FINISHES.find((f) => f.id === finish) || FINISHES[2];
+        const wallMat = makeFacadeMaterial(material, wallColor, fin.rough, fin.metal, span, wallPanelDir);
+        if (scene === "totem") {
+          const bodyW = realW + 0.5, bodyH = realH + 1.9, bodyD = 0.36;
+          const body = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyD), wallMat);
+          body.position.set(0, 0, -standoff - bodyD / 2);
+          body.castShadow = true; body.receiveShadow = true;
+          envGroup.add(body);
+          const baseH = 0.14;
+          const base = new THREE.Mesh(new THREE.BoxGeometry(bodyW + 0.24, baseH, bodyD + 0.24),
+            new THREE.MeshStandardMaterial({ color: 0x2b2c30, roughness: 0.85 }));
+          base.position.set(0, -bodyH / 2 - baseH / 2, -standoff - bodyD / 2);
+          base.receiveShadow = true; base.castShadow = true;
+          envGroup.add(base);
+          const gtex = new THREE.CanvasTexture(floorTexture("ext"));
+          gtex.colorSpace = SRGB;
+          gtex.wrapS = gtex.wrapT = THREE.RepeatWrapping; gtex.repeat.set(14, 14);
+          const ground = new THREE.Mesh(new THREE.PlaneGeometry(span * 26, span * 26),
+            new THREE.MeshStandardMaterial({ map: gtex, roughness: 0.95 }));
+          ground.rotation.x = -Math.PI / 2;
+          ground.position.set(0, -bodyH / 2 - baseH, 0);
+          ground.receiveShadow = true;
+          envGroup.add(ground);
+          S.current.envMeta = { type: "totem", bodyH };
+        } else if (scene === "interior") {
+          const wallH = Math.max(2.7, realH * 3.2), wallW = Math.max(4.2, realW * 3.4);
+          const wall = new THREE.Mesh(new THREE.PlaneGeometry(wallW, wallH), wallMat);
+          wall.position.set(0, 0, -standoff - 0.02);
+          wall.receiveShadow = true;
+          envGroup.add(wall);
+          const floorY = -wallH / 2;
+          const ftex = new THREE.CanvasTexture(floorTexture("interior"));
+          ftex.colorSpace = SRGB;
+          ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(6, 6);
+          const floor = new THREE.Mesh(new THREE.PlaneGeometry(wallW, wallW),
+            new THREE.MeshStandardMaterial({ map: ftex, roughness: 0.55, metalness: 0.05 }));
+          floor.rotation.x = -Math.PI / 2;
+          floor.position.set(0, floorY, wallW / 2 - standoff);
+          floor.receiveShadow = true;
+          envGroup.add(floor);
+          const skirt = new THREE.Mesh(new THREE.BoxGeometry(wallW, 0.11, 0.03),
+            new THREE.MeshStandardMaterial({ color: 0xe8e8ea, roughness: 0.4 }));
+          skirt.position.set(0, floorY + 0.055, -standoff + 0.005);
+          skirt.receiveShadow = true;
+          envGroup.add(skirt);
+          S.current.envMeta = { type: "interior", wallH };
+        } else {
+          // Fachada externa: local completo + entorno de calle.
+          const store = buildStorefront(facadeStyle, {
+            signW: realW, signH: realH, standoff, wallMat, night,
+          });
+          envGroup.add(store.group);
+          buildStreetEnv(envGroup, store, { night, standoff });
+          S.current.envMeta = { type: "fachada", zWall: store.zWall, marquesina: facadeStyle === "marquesina" };
+        }
       }
+      S.current.envSig = envSig;
+    }
 
+    // Reposicion del letrero segun el entorno. Se aplica en cada armado
+    // (el letrero se reconstruye siempre, aunque el entorno se reuse).
+    const meta = S.current.envMeta;
+    if (meta?.type === "totem") sign.position.y += meta.bodyH / 2 - realH / 2 - 0.35;
+    else if (meta?.type === "interior") sign.position.y += meta.wallH * 0.12;
+    else if (meta?.marquesina) {
+      // Montado sobre la cara FRONTAL del voladizo, no detras de la banda.
+      const sb2 = new THREE.Box3().setFromObject(sign);
+      sign.position.z += (meta.zWall + 0.42) - sb2.min.z + 0.03;
+    }
+
+    // Luz que bana la fachada (uniforme, se ajusta en cada armado)
+    if (showFacade) {
       wallWash.color.set(night ? 0xfff0d8 : 0xffffff);
       wallWash.intensity = night ? 2.6 : 1.4;
       wallWash.distance = span * 18;
       wallWash.position.set(span * 0.5, span * 1.5, -standoff + span * 0.35);
       wallWash.target.position.set(0, 0, -standoff);
       wallWash.target.updateMatrixWorld();
+    } else {
+      wallWash.intensity = 0;
     }
 
     keyLight.position.set(span * 1.2, span * 1.4, span * 1.8);
@@ -1615,20 +1676,37 @@ export default function Prototipo() {
 
     if (night) {
       sc.background = new THREE.Color(0x08080a);
-      ambient.intensity = 0.14; keyLight.intensity = 0.55;
-      fillLight.intensity = 0.16; rimLight.intensity = 0.4;
+      // Noche mas legible: se sube ambiente/relleno para que la fachada no
+      // quede negra contra el fondo iluminado, sin perder el ambiente.
+      ambient.intensity = 0.34; keyLight.intensity = 0.8;
+      fillLight.intensity = 0.32; rimLight.intensity = 0.5;
     } else {
       sc.background = new THREE.Color(0xd9dbe0);
       ambient.intensity = 0.9; keyLight.intensity = 2.3;
       fillLight.intensity = 0.75; rimLight.intensity = 0.3;
     }
 
-    spill.color = new THREE.Color(ledColor);
-    spill.intensity = mode === "front" ? 0.4 : mode === "back" ? 2.2 : 1.5;
-    spill.distance = span * 4;
-    spill.position.set(0, sign.position.y, -standoff * 0.6);
+    // Retroiluminado uniforme: en vez de una sola luz puntual al centro
+    // (muro fuerte al medio, apagado en las esquinas), se reparten varias
+    // luces a lo ancho del letrero.
+    spill.intensity = 0;
+    if (mode === "front") {
+      spill.color = new THREE.Color(ledColor);
+      spill.intensity = 0.4;
+      spill.distance = span * 4;
+      spill.position.set(0, sign.position.y, -standoff * 0.6);
+    } else {
+      const total = mode === "back" ? 2.2 : 1.4;
+      const N = 5;
+      const wallZ = -standoff * 0.6;
+      for (let i = 0; i < N; i++) {
+        const wl = new THREE.PointLight(new THREE.Color(ledColor), total / N, span * 3.5, 2);
+        const fx = (i / (N - 1) - 0.5) * realW * 1.05;
+        wl.position.set(fx, sign.position.y, wallZ);
+        rig.add(wl);
+      }
+    }
 
-    rig.rotation.set(0, 0, 0); envGroup.rotation.set(0, 0, 0);
     // En fachada hay que abrir el encuadre: el local es mucho mas grande que el letrero
     const fill = scene === "totem" ? 0.5
       : scene === "interior" ? 0.45
