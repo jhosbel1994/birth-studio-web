@@ -769,7 +769,7 @@ const FACADE_STYLES = [
 /* Devuelve un grupo con el local completo. El centro del letrero queda
    en el origen, para que el encuadre y el giro no cambien. */
 function buildStorefront(style, o) {
-  const { signW, signH, standoff, wallMat, night } = o;
+  const { signW, signH, standoff, wallMat, night, buildingFloors } = o;
   const g = new THREE.Group();
   const isMall = style === "mall";
 
@@ -783,6 +783,15 @@ function buildStorefront(style, o) {
   const zWall = -standoff - 0.07;
   const yBandBot = -bandH / 2;
   const yGround = yBandBot - shopH;
+  // Solo "esquina" la usa: baja el suelo real varios pisos, para que el
+  // local + banda del letrero queden montados en altura (letrero de
+  // parapeto en una esquina de edificio, no un local a nivel de calle).
+  // Se calcula aca arriba (no solo dentro de la rama "esquina") porque
+  // la vereda/cordon de mas abajo tienen que nacer del suelo real, no
+  // del nivel del local.
+  const floors = style === "esquina" ? Math.max(0, Math.round(buildingFloors || 0)) : 0;
+  const floorH = 3.0;
+  let yGroundOut = floors > 0 ? yGround - floors * floorH : yGround;
 
   const shutter = texMat(shutterTexture(), 1, Math.max(2, shopH * 1.6), { roughness: 0.42, metalness: 0.65 });
   const pave = texMat(pavementTexture(), 8, 8, { roughness: 0.82, metalness: 0 });
@@ -795,13 +804,15 @@ function buildStorefront(style, o) {
   addBox(facW, bandH, 0.14, wallMat, 0, 0, zWall - 0.07, g);
 
   if (!isMall) {
-    /* Vereda — un local de mall no tiene calle ni vereda afuera. */
+    /* Vereda — un local de mall no tiene calle ni vereda afuera. Nace del
+       suelo real (yGroundOut): en un edificio en altura, muchos pisos
+       mas abajo que la banda del letrero. */
     const pav = new THREE.Mesh(new THREE.PlaneGeometry(facW * 4, 14), pave);
     pav.rotation.x = -Math.PI / 2;
-    pav.position.set(0, yGround, zWall + 7);
+    pav.position.set(0, yGroundOut, zWall + 7);
     pav.receiveShadow = true;
     g.add(pav);
-    addBox(facW * 4, 0.14, 0.3, conc, 0, yGround + 0.07, zWall + 5.6, g); // cordon
+    addBox(facW * 4, 0.14, 0.3, conc, 0, yGroundOut + 0.07, zWall + 5.6, g); // cordon
   }
 
   /* Pano superior — con ventanas en un local a la calle; en mall es solo
@@ -846,9 +857,44 @@ function buildStorefront(style, o) {
     side.rotation.y = -Math.PI / 2;
     side.position.set(facW / 2, 0, zWall + facW * 0.4);
     g.add(side);
-    addBox(0.35, bandH + upperH + shopH, 0.35, conc, facW / 2, (bandH / 2 + upperH) - (bandH + upperH + shopH) / 2, zWall + 0.1, g);
     addBox(facW - 0.6, shopH * 0.9, 0.04, glass, -0.2, shopY, zWall + 0.04, g);
     addBox(facW, 0.12, 0.16, frame, 0, yBandBot - 0.06, zWall + 0.06, g);
+
+    // Edificio en altura (opcional): pisos extra bajo el local, hasta el
+    // suelo real (yGroundOut, ya calculado arriba), para que el letrero
+    // quede como en una esquina de varios pisos (parapeto), con el mismo
+    // entorno de calle de siempre reubicado abajo del todo.
+    const postTop = bandH / 2 + upperH;
+    let postBot = yGround;
+    if (floors > 0) {
+      const extraH = floors * floorH;
+      postBot = yGroundOut;
+
+      const bodyMat = new THREE.MeshStandardMaterial({ color: night ? 0x191c24 : 0x9198a2, roughness: 0.88 });
+      const litMat = new THREE.MeshStandardMaterial({
+        color: 0x3a3222, emissive: new THREE.Color(0xffcf87), emissiveIntensity: night ? 0.75 : 0, roughness: 0.4,
+      });
+      const darkWin = new THREE.MeshStandardMaterial({ color: night ? 0x1a1f2a : 0x2f3946, roughness: 0.5, metalness: 0.2 });
+      addBox(facW + 0.1, extraH, 0.3, bodyMat, 0, (yGround + yGroundOut) / 2, zWall - 0.15, g);
+      addBox(facW * 0.8 + 0.1, extraH, 0.3, bodyMat, 0, (yGround + yGroundOut) / 2, -0.15, side);
+
+      const winGrid = (w, zFront, target) => {
+        const cols = Math.max(3, Math.round(w / 1.1));
+        for (let f = 0; f < floors; f++) {
+          const fy = yGround - floorH * (f + 0.5);
+          for (let cc = 0; cc < cols; cc++) {
+            const on = night && rnd() > 0.5;
+            const wx = -w / 2 + (w / cols) * (cc + 0.5);
+            const win = new THREE.Mesh(new THREE.PlaneGeometry((w / cols) * 0.62, floorH * 0.58), on ? litMat : darkWin);
+            win.position.set(wx, fy, zFront);
+            target.add(win);
+          }
+        }
+      };
+      winGrid(facW, zWall + 0.02, g);
+      winGrid(facW * 0.8, 0.04, side);
+    }
+    addBox(0.35, postTop - postBot, 0.35, conc, facW / 2, (postTop + postBot) / 2, zWall + 0.1, g);
   } else if (style === "marquesina") {
     // Toldo solido que sobresale sobre una fachada plana y cerrada —
     // antes era un marco hueco (se veia el vacio por los costados).
@@ -893,7 +939,7 @@ function buildStorefront(style, o) {
     addBox(glassW + 0.1, 0.08, 0.12, frame, 0, shopY - shopH / 2, zWall + 0.05, g); // umbral
     addBox(glassW + 0.1, 0.08, 0.12, frame, 0, shopY + shopH / 2, zWall + 0.05, g); // dintel
   }
-  return { group: g, facW, bandH, shopH, upperH, yGround, zWall, isMall };
+  return { group: g, facW, bandH, shopH, upperH, yGround: yGroundOut, zWall, isMall };
 }
 
 /* ================================================================
@@ -1399,6 +1445,7 @@ export default function Prototipo() {
   const [suggested, setSuggested] = useState(null);
   const [scene, setScene] = useState("fachada");
   const [facadeStyle, setFacadeStyle] = useState("calle");
+  const [buildingFloors, setBuildingFloors] = useState(0); // pisos extra bajo el local, solo estilo "esquina"
   const [showFacade, setShowFacade] = useState(true);
   const [material, setMaterial] = useState("acanalada");
   const [wallPanelDir, setWallPanelDir] = useState("h");
@@ -1899,6 +1946,7 @@ export default function Prototipo() {
     // aseguramos de que envGroup quede vacio si se viene de otra escena.
     const envSig = scene === "foto" ? "foto" : !showFacade ? "none" : [
       scene, facadeStyle, material, wallPanelDir, wallPanelSize, finish, wallColor, night,
+      facadeStyle === "esquina" ? buildingFloors : 0,
       Math.round(realW * 4), Math.round(realH * 4), Math.round(standoff * 50),
     ].join("|");
 
@@ -1959,7 +2007,7 @@ export default function Prototipo() {
           // o pasillo de mall (piso continuo, sin calle ni cielo) para
           // el local de centro comercial.
           const store = buildStorefront(facadeStyle, {
-            signW: realW, signH: realH, standoff, wallMat, night,
+            signW: realW, signH: realH, standoff, wallMat, night, buildingFloors,
           });
           envGroup.add(store.group);
           if (store.isMall) buildMallEnv(envGroup, store);
@@ -2147,7 +2195,7 @@ export default function Prototipo() {
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
-  }, [product, form, scene, facadeStyle, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
+  }, [product, form, scene, facadeStyle, buildingFloors, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, edgeColor, edgeMetal,
       anchoM, altoM, depthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
@@ -2871,6 +2919,10 @@ export default function Prototipo() {
                 <div style={s.pLabel}>Tipo de local</div>
                 <Seg items={FACADE_STYLES} value={facadeStyle}
                   onPick={(f) => setFacadeStyle(f.id)} cols={1} />
+                {facadeStyle === "esquina" && (
+                  <Slider label="Pisos de altura" value={buildingFloors} unit="" min={0} max={14} step={1}
+                    onChange={setBuildingFloors} />
+                )}
               </>
             )}
             <div style={s.pLabel}>Material de la banda</div>
