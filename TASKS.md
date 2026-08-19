@@ -23,7 +23,7 @@ avisá acá mismo.
 | 5 | Limpieza de código general (ex Requisito 4 de la tarea 4) | *(sin asignar)* | — | `pendiente` | No ejecutado a propósito — el usuario pidió anotarlo aparte, no hacerlo ahora |
 | 6 | Ronda de feedback: zoom directo, ancho de wall panel, esquina en altura | `feedback-r7` | — | `listo` | Ver Registro de cambios |
 | 7 | Zoom v2: separar reencuadre de reaplicar zoom del usuario | `zoom-v2` | — | `listo` | De `prompt-seis-mejoras.md` paso 1. Ver Registro |
-| 8 | Candado ancho/alto en Texto (deformación con aviso) | `candado-wh` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 2 |
+| 8 | Candado ancho/alto en Texto (deformación con aviso) | `candado-wh` | — | `listo` | De `prompt-seis-mejoras.md` paso 2. Ver Registro |
 | 9 | Medidas reales de fachada + aviso de encaje | `medidas-reales` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 3 |
 | 10 | Temperatura de luz (K → RGB cuerpo negro) | `temp-luz` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 4 |
 | 11 | Regla de los 10 cm (auto-conversión a caja de luz) | `regla-10cm` | 8, 9 | `pendiente` | De `prompt-seis-mejoras.md` paso 5 |
@@ -258,6 +258,52 @@ no un cambio de tamaño real.
 
 ---
 
+## Detalle tarea 8 — `candado-wh`
+
+**Decisión de arquitectura:** en vez de tocar `buildLetters` (fuera de
+los límites, calcula el escalado con un solo factor por diseño — ver
+`Logo360Generator.md`), la deformación se aplica como un escalado NO
+uniforme sobre el grupo `sign` ya construido (`sign.scale.set(scaleX,
+scaleY, 1)`), después de que `buildLetters` ya hizo su ajuste uniforme
+normal. El trazador nunca se entera de que hay deformación.
+
+**Qué se hizo:**
+- [x] Candado (ícono `lock`/`unlock` nuevo en `Icon`) entre los campos
+      Ancho/Alto del panel Texto — estado `whLocked`, default cerrado
+- [x] Cerrado: editar un campo recalcula el otro con la proporción
+      natural del texto (`textAspect`, ya existía)
+- [x] Abierto: campos independientes; `sign.scale.set(anchoM/realW,
+      altoM/realH, 1)` aplicado al grupo justo antes del centrado
+      (`Box3().setFromObject`), así el bbox y el offset de posición ya
+      ven la forma deformada. Z no se toca — el canto no se estira
+- [x] Aviso de % de deformación ("condensado/extendido al X%") cuando el
+      candado está abierto, con aviso más fuerte sobre 40% de
+      deformación (`Math.abs(relScale-1) > 0.4`)
+- [x] El aviso de trazo en mm se recalcula con `relScale` (proporción
+      pedida / proporción natural) multiplicando el cálculo existente —
+      el trazo vertical real escala con el eje ancho, no con el alto
+- [x] El aviso "no cabe" (tarea 1, `texto-escala`) sigue existiendo pero
+      solo se muestra con candado cerrado — con candado abierto la
+      distorsión es intencional, no un ajuste por falta de espacio
+- [x] `whLocked` sumado a `frameSig` (tarea 7): togglear el candado sí
+      reencuadra, cambia el tamaño real del letrero
+- [x] **Bug encontrado y corregido de paso:** en la escena "foto", la
+      calibración de escala hacía `sign.scale.setScalar(...)` (uniforme)
+      DESPUÉS de armar el letrero — con el candado abierto esto borraba
+      por completo la deformación no uniforme. Cambiado a
+      `multiplyScalar` para que ambas escalas compongan en vez de que
+      una pise a la otra.
+- [x] Logos subidos y cajas de luz no tocados: `sign.scale` solo se
+      toca cuando `sourceType === "texto" && !whLocked`
+
+**Archivos que tocó:** `Prototipo.jsx` — nuevos íconos `lock`/`unlock`,
+estado `whLocked`, bloque de escalado en `build()` (rama letras, antes
+del centrado), fix de `setScalar`→`multiplyScalar` en la rama foto,
+panel Texto (campos + candado + avisos), `frameSig` y dependencias de
+`build()`.
+**Archivos que NO tocó:** `buildLetters`, `buildMask`, `traceContours`,
+`applyUV` — la deformación vive enteramente fuera del trazador.
+
 ---
 
 ## Registro de cambios
@@ -323,3 +369,10 @@ qué tocó)*
   siempre. Antes `build()` reencuadraba en cada rebuild sin importar la
   causa (aunque el zoom del usuario no se perdía, la cámara podía
   reposicionarse por cambios puramente cosméticos).
+- 2026-08-18 — `candado-wh` — `Prototipo.jsx`: candado ancho/alto en el
+  panel Texto (`whLocked`, íconos `lock`/`unlock`). Abierto, aplica
+  `sign.scale.set(anchoM/realW, altoM/realH, 1)` al grupo ya construido
+  (no toca `buildLetters`). Aviso de % de deformación + aviso fuerte
+  sobre 40%; trazo en mm corregido por `relScale`. Fix de bug real:
+  `sign.scale.setScalar` en la rama foto (calibración) pisaba la
+  deformación no uniforme — cambiado a `multiplyScalar`.

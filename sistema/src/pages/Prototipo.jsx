@@ -1383,6 +1383,8 @@ function Icon({ name, size = 16 }) {
     plus: <><path {...p} d="M12 6v12M6 12h12" /></>,
     minus: <><path {...p} d="M6 12h12" /></>,
     reset: <><path {...p} d="M4 9a8 8 0 1 1 .5 5" /><path {...p} d="M4 4v5h5" /></>,
+    lock: <><rect {...p} x="5" y="11" width="14" height="9" rx="1.5" /><path {...p} d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
+    unlock: <><rect {...p} x="5" y="11" width="14" height="9" rx="1.5" /><path {...p} d="M8 11V7a4 4 0 0 1 7.5-2.5" /></>,
     spin: <><path {...p} d="M4 12a8 8 0 1 0 3-6.2" /><path {...p} d="M3 4v4h4" /></>,
   };
   return (
@@ -1473,6 +1475,7 @@ export default function Prototipo() {
   const [customFont, setCustomFont] = useState(null); // { family, step }
   const [fontMsg, setFontMsg] = useState(null);
   const [textAspect, setTextAspect] = useState(null); // pxW/pxH del ultimo canvas de texto dibujado
+  const [whLocked, setWhLocked] = useState(true); // candado ancho/alto en Texto: cerrado = sin deformar
   const [unit, setUnit] = useState("cm");
   const [artScale, setArtScale] = useState(0.95);
   const [offsetX, setOffsetX] = useState(0); // caja de luz: -1..1 dentro de la placa
@@ -1922,6 +1925,16 @@ export default function Prototipo() {
       sign.add(contact);
     }
 
+    // Candado ancho/alto abierto (solo Texto): deformar a proposito para
+    // llenar exactamente anchoM x altoM, en vez del ajuste uniforme de
+    // buildLetters (que dentro respeta un unico factor y puede dejar aire
+    // en un eje). Escala no uniforme sobre el GRUPO, no sobre el trazado
+    // — no toca buildLetters ni su calculo de escala en metros. La
+    // profundidad (Z) no se toca: el canto no debe estirarse con la cara.
+    if (sourceType === "texto" && !whLocked && realW > 0.001 && realH > 0.001) {
+      sign.scale.set(anchoM / realW, altoM / realH, 1);
+    }
+
     const sb = new THREE.Box3().setFromObject(sign);
     sign.position.sub(sb.getCenter(new THREE.Vector3()));
     // Posicion del letrero completo sobre la fachada/foto — universal
@@ -2094,7 +2107,10 @@ export default function Prototipo() {
       // sea la correcta contra esa foto especifica (el letrero ya viene
       // bien dimensionado en metros — esto solo ajusta cuanto ESPACIO de
       // pantalla ocupa esa medida real, segun el encuadre de la foto).
-      sign.scale.setScalar(photoCalib?.scaleFactor || 1);
+      // multiplyScalar, no setScalar: si el texto esta con el candado
+      // ancho/alto abierto, sign.scale ya trae una deformacion no
+      // uniforme (ver mas arriba) — setScalar la borraria por completo.
+      sign.scale.multiplyScalar(photoCalib?.scaleFactor || 1);
     }
 
     // Fondo de foto real: plano fijo (no gira con el letrero) que cubre
@@ -2198,7 +2214,7 @@ export default function Prototipo() {
       // detalle. El boton "Encuadrar" (setZoom(1)) sigue siendo el unico
       // que devuelve el zoom a 100% de forma explicita.
       const frameSig = [
-        scene, product, form, sourceType, genSeq,
+        scene, product, form, sourceType, genSeq, whLocked,
         Math.round(realW * 1000), Math.round(realH * 1000), Math.round(depthCm), showFacade,
       ].join("|");
       if (S.current.frameSig !== frameSig) {
@@ -2211,7 +2227,7 @@ export default function Prototipo() {
     setBusy(false);
   }, [product, form, scene, facadeStyle, buildingFloors, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, edgeColor, edgeMetal,
-      anchoM, altoM, depthCm, standoffCm, threshold, invert, detect,
+      anchoM, altoM, whLocked, depthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
 
   // Micro-retardo: al arrastrar un slider no se reconstruye la escena en
@@ -2724,8 +2740,17 @@ export default function Prototipo() {
       const resSel = resolverFuente(weightStep, fontStyle, customFont);
       const pctUsed = STROKE_PCT[resSel.usedStep] || STROKE_PCT[weightStep];
       const letterHmm = (altoM / nLines) * 1000;
-      const trazoMm = Math.round(pctUsed * letterHmm);
+      // Candado abierto: el trazo vertical real escala con el eje ancho
+      // (X), no con el alto — relScale = proporcion pedida / proporcion
+      // natural del texto. Sin este ajuste el aviso de trazo mostraria un
+      // grosor que no es el que realmente queda tras deformar (una letra
+      // condensada tiene los verticales mas finos de lo que dice la
+      // tabla de grosores, calculada para texto sin deformar).
+      const relScale = (!whLocked && textAspect) ? (anchoM / altoM) / textAspect : 1;
+      const trazoMm = Math.round(pctUsed * letterHmm * relScale);
       const trazoColor = trazoMm < 20 ? "#e8000d" : trazoMm < 30 ? "#d99320" : "#8CE0A6";
+      const deformPct = Math.round(relScale * 100);
+      const deformFuerte = !whLocked && Math.abs(relScale - 1) > 0.4;
       return (
         <>
           <div style={s.pTitle}>Texto</div>
@@ -2741,11 +2766,23 @@ export default function Prototipo() {
 
           <div style={s.pLabel}>Tamaño del letrero</div>
           <div style={s.fields}>
-            <Field label="Ancho" value={anchoM} onChange={setAnchoM} />
-            <Field label="Alto" value={altoM} onChange={setAltoM} />
+            <Field label="Ancho" value={anchoM}
+              onChange={(v) => { setAnchoM(v); if (whLocked && textAspect) setAltoM(v / textAspect); }} />
+            <Field label="Alto" value={altoM}
+              onChange={(v) => { setAltoM(v); if (whLocked && textAspect) setAnchoM(v * textAspect); }} />
+            <button type="button" onClick={() => setWhLocked((v) => !v)}
+              title={whLocked ? "Proporción bloqueada — clic para deformar libremente" : "Proporción libre — clic para bloquear"}
+              style={{ ...s.zBtn, alignSelf: "flex-end", marginBottom: 7 }}>
+              <Icon name={whLocked ? "lock" : "unlock"} size={15} />
+            </button>
           </div>
-          <div style={s.pHint}>Ancho y alto en {unit === "cm" ? "centímetros" : "metros"} — cámbialo aquí si el texto sale muy grande o muy chico.</div>
-          {textAspect && (() => {
+          <div style={s.pHint}>
+            Ancho y alto en {unit === "cm" ? "centímetros" : "metros"}.{" "}
+            {whLocked
+              ? "Candado cerrado: los dos campos mantienen la proporción del texto, sin deformarlo."
+              : "Candado abierto: cada campo es independiente y el texto se estira o se comprime para llenar el tamaño."}
+          </div>
+          {whLocked && textAspect && (() => {
             const neededW = altoM * textAspect;
             if (neededW <= anchoM * 1.01) return null;
             const pct = Math.max(1, Math.round((anchoM / neededW) * 100));
@@ -2758,6 +2795,12 @@ export default function Prototipo() {
               </div>
             );
           })()}
+          {!whLocked && textAspect && Math.abs(relScale - 1) > 0.02 && (
+            <div style={{ ...s.note, borderColor: deformFuerte ? "#5a4418" : LINE, color: deformFuerte ? "#e0c88c" : DIM }}>
+              Texto {relScale < 1 ? "condensado" : "extendido"} al {deformPct}% respecto a su proporción natural.
+              {deformFuerte && " Deformación fuerte: el trazo queda más fino de lo normal y puede verse mal fabricado."}
+            </div>
+          )}
 
           <div style={s.pLabel}>Alineación</div>
           <Seg items={[{ id: "left", label: "Izq." }, { id: "center", label: "Centro" }, { id: "right", label: "Der." }]}
