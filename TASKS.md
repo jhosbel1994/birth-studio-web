@@ -26,7 +26,7 @@ avisá acá mismo.
 | 8 | Candado ancho/alto en Texto (deformación con aviso) | `candado-wh` | — | `listo` | De `prompt-seis-mejoras.md` paso 2. Ver Registro |
 | 9 | Medidas reales de fachada + aviso de encaje | `medidas-reales` | — | `listo` | De `prompt-seis-mejoras.md` paso 3. Ver Registro |
 | 10 | Temperatura de luz (K → RGB cuerpo negro) | `temp-luz` | — | `listo` | De `prompt-seis-mejoras.md` paso 4. Ver Registro |
-| 11 | Regla de los 10 cm (auto-conversión a caja de luz) | `regla-10cm` | 8, 9 | `pendiente` | De `prompt-seis-mejoras.md` paso 5 |
+| 11 | Regla de los 10 cm (auto-conversión a caja de luz) | `regla-10cm` | 8, 9 | `listo` | De `prompt-seis-mejoras.md` paso 5. Ver Registro |
 | 12 | Múltiples logos/textos (lista de elementos) | `multi-logo` | 4 (posicionamiento, ✅) | `pendiente` | De `prompt-seis-mejoras.md` paso 6 — mayor cambio de arquitectura, confirmar alcance antes de arrancar |
 
 ---
@@ -388,6 +388,49 @@ igual), ninguna dependencia nueva hizo falta.
 
 ---
 
+## Detalle tarea 11 — `regla-10cm`
+
+**Decisión de arquitectura:** cero canvas nuevo — `loadCanvas` ya
+guardaba el canvas del texto en `S.current.srcCanvas`
+incondicionalmente (lo usa el trazador para letras), y `build()` ya
+sabía leer `srcCanvas` vía `panelCanvas()` para el producto "lightbox"
+(el mismo camino que usa un logo subido en modo caja de luz). Solo hizo
+falta que `product` pudiera valer `"lightbox"` con `sourceType==="texto"`
+sin que se pisara solo.
+
+**El pisado que había que resolver:** `loadCanvas` forzaba
+`setProduct("letters")` sin condición en su rama de texto — cada tecla
+tipeada lo habría revertido. Se agregó `textAsLightbox` (estado +
+espejo en `S.current`, mismo patrón que `calibrating`/`sourceType`) que
+`loadCanvas` consulta antes de decidir `product`.
+
+**Qué se hizo:**
+- [x] Bajo 10cm de alto de letra (por línea) y sin convertir todavía:
+      aviso rojo explicando por qué (canto mínimo 4cm no deja espacio
+      para el LED) + botón "Convertir a caja de luz"
+- [x] Al aceptar: `setTextAsLightbox(true)`, `product→"lightbox"`,
+      `form→"rect"` — el texto pasa a placa impresa con el mismo canvas
+- [x] Ficha técnica: ya decía "placa" vs "piezas" según `product` sin
+      saber de dónde viene — no hizo falta tocarla
+- [x] Si ya convertido y la altura vuelve a superar 10cm: aviso neutro +
+      botón "Volver a letras corpóreas" (no revierte solo, mismo
+      criterio que la conversión: nada en silencio)
+
+**No cubierto a propósito:** si el usuario cambia `product` a mano desde
+el panel Producto (no con el botón de esta regla) mientras el texto
+sigue siendo muy chico, `textAsLightbox` no se sincroniza y el próximo
+build por tecla lo revierte a `letters` — comportamiento preexistente
+(ya pasaba antes de esta tarea), no se tocó por estar fuera del alcance
+del paso 5.
+
+**Archivos que tocó:** `Prototipo.jsx` — estado `textAsLightbox` +
+espejo en `S.current`, rama `forceDetect` de `loadCanvas`, panel Texto
+(aviso + botones).
+**Archivos que NO tocó:** `panelCanvas`, `buildLightbox`, el trazador —
+la ruta de caja de luz para texto ya existía completa.
+
+---
+
 ## Registro de cambios
 
 *(cada agente agrega una línea acá al terminar, formato: fecha — agente —
@@ -451,6 +494,13 @@ qué tocó)*
   siempre. Antes `build()` reencuadraba en cada rebuild sin importar la
   causa (aunque el zoom del usuario no se perdía, la cámara podía
   reposicionarse por cambios puramente cosméticos).
+- 2026-08-18 — `regla-10cm` — `Prototipo.jsx`: `textAsLightbox` (estado +
+  espejo en `S.current`) evita que `loadCanvas` pise `product` de vuelta
+  a `"letters"` en cada tecla una vez convertido. Aviso rojo bajo 10cm de
+  alto de letra con botón "Convertir a caja de luz" (`product→lightbox`,
+  `form→rect`); aviso neutro + botón para volver si vuelve a entrar como
+  corpórea. Reutiliza `panelCanvas`/`srcCanvas` que ya existían, sin
+  generar ningún canvas nuevo.
 - 2026-08-18 — `candado-wh` — `Prototipo.jsx`: candado ancho/alto en el
   panel Texto (`whLocked`, íconos `lock`/`unlock`). Abierto, aplica
   `sign.scale.set(anchoM/realW, altoM/realH, 1)` al grupo ya construido

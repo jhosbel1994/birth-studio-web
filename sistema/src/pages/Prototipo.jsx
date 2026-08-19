@@ -1503,6 +1503,7 @@ export default function Prototipo() {
   const [fontMsg, setFontMsg] = useState(null);
   const [textAspect, setTextAspect] = useState(null); // pxW/pxH del ultimo canvas de texto dibujado
   const [whLocked, setWhLocked] = useState(true); // candado ancho/alto en Texto: cerrado = sin deformar
+  const [textAsLightbox, setTextAsLightbox] = useState(false); // regla de los 10cm: texto convertido a caja de luz
   const [unit, setUnit] = useState("cm");
   const [artScale, setArtScale] = useState(0.95);
   const [offsetX, setOffsetX] = useState(0); // caja de luz: -1..1 dentro de la placa
@@ -1789,6 +1790,7 @@ export default function Prototipo() {
 
   useEffect(() => { S.current.autoRotate = autoRotate; }, [autoRotate]);
   useEffect(() => { S.current.calibrating = calibrating; }, [calibrating]);
+  useEffect(() => { S.current.textAsLightbox = textAsLightbox; }, [textAsLightbox]);
 
   useEffect(() => {
     // Aplicacion directa e inmediata: nada de interpolar por cuadro en el
@@ -2316,7 +2318,13 @@ export default function Prototipo() {
     // dispara genSeq (el efecto de build), no una llamada directa.
     if (forceDetect) {
       setSuggested(null);
-      setProduct("letters");
+      // Regla de los 10cm: si el usuario ya aceptó convertir a caja de
+      // luz porque la letra quedó muy chica para fabricarse corpórea,
+      // no lo pisamos de vuelta a "letters" en cada tecla — el mismo
+      // canvas de texto sirve para las dos rutas (panelCanvas en vez de
+      // trazado de contornos), no hace falta generar nada distinto.
+      if (S.current.textAsLightbox) { setProduct("lightbox"); setForm("rect"); }
+      else setProduct("letters");
       setDetect(forceDetect);
       // El zoom solo se encuadra la PRIMERA vez que se entra a Texto —
       // antes se reseteaba en cada letra escrita, y el usuario perdia el
@@ -2781,6 +2789,12 @@ export default function Prototipo() {
       const trazoColor = trazoMm < 20 ? "#e8000d" : trazoMm < 30 ? "#d99320" : "#8CE0A6";
       const deformPct = Math.round(relScale * 100);
       const deformFuerte = !whLocked && Math.abs(relScale - 1) > 0.4;
+      // Regla de los 10cm: bajo esa altura de letra el canto minimo
+      // (4cm) no deja espacio para el LED — no se fabrica como
+      // corporea, se pasa a caja de luz rectangular con el texto
+      // impreso (mismo canvas, via panelCanvas en vez del trazador).
+      const letterHcm = letterHmm / 10;
+      const demasiadoChica = letterHcm < 10;
       return (
         <>
           <div style={s.pTitle}>Texto</div>
@@ -2829,6 +2843,32 @@ export default function Prototipo() {
             <div style={{ ...s.note, borderColor: deformFuerte ? "#5a4418" : LINE, color: deformFuerte ? "#e0c88c" : DIM }}>
               Texto {relScale < 1 ? "condensado" : "extendido"} al {deformPct}% respecto a su proporción natural.
               {deformFuerte && " Deformación fuerte: el trazo queda más fino de lo normal y puede verse mal fabricado."}
+            </div>
+          )}
+          {demasiadoChica && !textAsLightbox && (
+            <div style={{ ...s.note, borderColor: "#5a2020", color: "#e89088" }}>
+              A {letterHcm.toFixed(1)} cm de alto la letra no se puede fabricar como corpórea: el canto
+              mínimo (4 cm) casi no deja espacio para el LED. Se puede convertir a una caja de luz
+              rectangular con este mismo texto impreso.
+              <div style={{ marginTop: 6 }}>
+                <button type="button"
+                  onClick={() => { setTextAsLightbox(true); setProduct("lightbox"); setForm("rect"); }}
+                  style={{ ...s.flatBtn, width: "100%" }}>
+                  Convertir a caja de luz
+                </button>
+              </div>
+            </div>
+          )}
+          {textAsLightbox && !demasiadoChica && (
+            <div style={s.note}>
+              A este tamaño la letra ya cabe como corpórea.
+              <div style={{ marginTop: 6 }}>
+                <button type="button"
+                  onClick={() => { setTextAsLightbox(false); setProduct("letters"); }}
+                  style={{ ...s.flatBtn, width: "100%" }}>
+                  Volver a letras corpóreas
+                </button>
+              </div>
             </div>
           )}
 
