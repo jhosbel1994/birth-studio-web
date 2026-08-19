@@ -1532,6 +1532,7 @@ export default function Prototipo() {
   const [detect, setDetect] = useState("alpha");
   const [autoRotate, setAutoRotate] = useState(true);
   const [wheelHits, setWheelHits] = useState(0); // DEBUG temporal: cuenta eventos "wheel" recibidos, ver zoomBar
+  const [zoomDebug, setZoomDebug] = useState("init"); // DEBUG temporal: distancia real de camara tras applyZoom
   const [zoom, setZoom] = useState(1);
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -1804,6 +1805,12 @@ export default function Prototipo() {
     S.current.zoom = zoom;
     if (S.current.center && S.current.camera) {
       applyZoom(S.current.camera, S.current.center, S.current.baseDist, zoom);
+      // DEBUG temporal: distancia real resultante, para confirmar si la
+      // camara efectivamente se movio o si el guard nunca se cumple.
+      const realDist = S.current.camera.position.distanceTo(S.current.center);
+      setZoomDebug(`d=${realDist.toFixed(2)} base=${(S.current.baseDist || 0).toFixed(2)}`);
+    } else {
+      setZoomDebug(`sin-centro c=${!!S.current.center} cam=${!!S.current.camera}`);
     }
   }, [zoom]);
 
@@ -3241,7 +3248,7 @@ export default function Prototipo() {
 
             <div style={s.zoomBar}>
               <button onClick={() => setZoom((z) => clampZoom(z / 1.25))} title="Alejar" style={s.zBtn}><Icon name="minus" size={15} /></button>
-              <span style={s.zVal} title="Debug temporal: eventos de rueda recibidos">{Math.round(zoom * 100)}% ({wheelHits})</span>
+              <span style={s.zVal} title="Debug temporal: eventos de rueda recibidos">{Math.round(zoom * 100)}% ({wheelHits}) {zoomDebug}</span>
               <button onClick={() => setZoom((z) => clampZoom(z * 1.25))} title="Acercar" style={s.zBtn}><Icon name="plus" size={15} /></button>
               <div style={s.zSep} />
               <button onClick={() => setZoom(1)} title="Encuadrar" style={s.zBtn}><Icon name="reset" size={15} /></button>
