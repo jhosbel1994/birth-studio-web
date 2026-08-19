@@ -21,6 +21,13 @@ avisá acá mismo.
 | 3 | Calidad visual tipo SketchUp | `render-calidad` | 1, 2 | `listo` | Marca de agua se dejó fuera (opcional) — ver Registro |
 | 4 | Foto real + perspectiva + posicionamiento | `foto-perspectiva` | 3 | `listo` | Ver Registro de cambios |
 | 5 | Limpieza de código general (ex Requisito 4 de la tarea 4) | *(sin asignar)* | — | `pendiente` | No ejecutado a propósito — el usuario pidió anotarlo aparte, no hacerlo ahora |
+| 6 | Ronda de feedback: zoom directo, ancho de wall panel, esquina en altura | `feedback-r7` | — | `listo` | Ver Registro de cambios |
+| 7 | Zoom v2: separar reencuadre de reaplicar zoom del usuario | `zoom-v2` | — | `listo` | De `prompt-seis-mejoras.md` paso 1. Ver Registro |
+| 8 | Candado ancho/alto en Texto (deformación con aviso) | `candado-wh` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 2 |
+| 9 | Medidas reales de fachada + aviso de encaje | `medidas-reales` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 3 |
+| 10 | Temperatura de luz (K → RGB cuerpo negro) | `temp-luz` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 4 |
+| 11 | Regla de los 10 cm (auto-conversión a caja de luz) | `regla-10cm` | 8, 9 | `pendiente` | De `prompt-seis-mejoras.md` paso 5 |
+| 12 | Múltiples logos/textos (lista de elementos) | `multi-logo` | 4 (posicionamiento, ✅) | `pendiente` | De `prompt-seis-mejoras.md` paso 6 — mayor cambio de arquitectura, confirmar alcance antes de arrancar |
 
 ---
 
@@ -187,6 +194,72 @@ con otra tarea que edite el mismo archivo.
 
 ---
 
+## Detalle tarea 6 — `feedback-r7` (ronda de feedback con capturas)
+
+**Qué hacer (feedback directo del usuario, 4 puntos):**
+- [x] Zoom reportado roto — diagnóstico y fix
+- [x] Quitar el texto "Generando…" del overlay de carga
+- [x] Marca de agua — verificado que no existe en el código
+- [x] Wall panel: ancho de tabla ajustable (antes fijo en 102px/~22cm)
+- [x] Fachada de edificio en altura (mockups tipo "Plaza Maule") — alcance
+      acotado con el usuario vía preguntas: extender el estilo `esquina`
+      existente (no un estilo nuevo), reusar `mall` tal cual para locales
+      de un piso, reusar `buildStreetEnv` tal cual para el paisaje
+
+**Archivos que tocó:** `Prototipo.jsx` — loop de render (se sacó el lerp
+de zoom por cuadro), `resize`/`build` (aplican zoom directo), overlay de
+carga, `facadeTexture`/`facadeBump`/`makeFacadeMaterial` (parámetro
+`slatM`/`slatPx`), `buildStorefront` (rama `esquina` gana
+`buildingFloors` opcional, retrocompatible en 0).
+**Archivos que NO tocó:** `traceContours`/`buildMask`/`buildLetters`,
+las otras 5 ramas de fachada.
+
+**Nota:** este fix de zoom (sacar el lerp, aplicar directo) fue el
+diagnóstico propio de esta sesión, hecho ANTES de recibir
+`prompt-seis-mejoras.md`. Ese documento trae un diagnóstico distinto
+(`build()` reencuadra en cada rebuild así sea un cambio cosmético) — ver
+tarea 7, que lo revisa y corrige sobre esta base, no lo repite desde
+cero.
+
+---
+
+## Detalle tarea 7 — `zoom-v2`
+
+**Diagnóstico del documento, verificado contra el código actual:**
+`build()` recalcula `center`/`baseDist` y llama `applyZoom` con
+`S.current.zoom` **en cada rebuild**, y `build()` tiene 20+ dependencias
+(cualquier cosmético dispara rebuild). Como `applyZoom` siempre usa el
+`zoom` actual (no lo pisa a 1), un cambio de color de LED **no** saltaba
+a 100% — pero si `frameObject` devolvía un `center`/`dist` distinto (por
+cualquier motivo, incluido drift de punto flotante), la cámara se movía
+igual aunque el % mostrado no cambiara. El fix separa las dos cosas.
+
+**Qué se hizo:**
+- [x] `build()` sigue recalculando `center`/`baseDist` siempre (barato,
+      los mantiene frescos para el botón "Encuadrar")
+- [x] `applyZoom` (mover la cámara) solo se llama cuando cambia una
+      firma `frameSig` = `scene, product, form, sourceType, genSeq,
+      realW, realH, depthCm, showFacade` — lo que cambia el tamaño real
+      o el tipo de encuadre, no el color/material/finish/posición
+- [x] Verificado con lectura de código: `material`, `wallColor`,
+      `finish`, `ledColor`, `mode`, `night`, `wallPanelDir`,
+      `wallPanelSize`, `facadeStyle`, `buildingFloors`, `posX/Y`,
+      `offsetX/Y`, `edgeColor/Metal`, `artScale` NO están en `frameSig`
+- [x] El botón "Encuadrar" (`setZoom(1)`) sigue siendo el único que
+      fuerza 100%, sin cambios
+
+**No cubierto a propósito (fuera del alcance de este paso):** los
+sliders de la escena "foto" (`photoTiltX/Y`, calibración) tampoco
+reencuadran — mismo criterio que posición, es ajuste manual del usuario,
+no un cambio de tamaño real.
+
+**Archivos que tocó:** `Prototipo.jsx` — bloque final de `build()`
+(framing). No tocó el loop de render ni `applyZoom`/`frameObject`.
+
+---
+
+---
+
 ## Registro de cambios
 
 *(cada agente agrega una línea acá al terminar, formato: fecha — agente —
@@ -231,3 +304,22 @@ qué tocó)*
   arrastre con raycaster separa mover-letrero de girar-escena; posición
   X/Y (`posX`/`posY`) ahora universal para letras y caja de luz (antes
   solo letras). Ver notas de simplificaciones deliberadas arriba.
+- 2026-08-18 — `feedback-r7` — `Prototipo.jsx`: se sacó el `lerp` de zoom
+  por cuadro del loop de render (commit `6882a9d`); `resize`/`build`/el
+  `useEffect` de `zoom` aplican la cámara directo con `applyZoom`, sin
+  `zoomCurrent`. Overlay "Generando…" eliminado. `facadeTexture`/
+  `facadeBump` ganan parámetro `slatPx` (antes `slat=102` fijo), seam
+  proporcional; `makeFacadeMaterial` gana `slatM` (metros reales, UI:
+  slider "Ancho de tabla" 10-40cm, estado `wallPanelSize`). `buildStorefront`
+  rama `esquina` gana `buildingFloors` (0-14, UI: slider "Pisos de
+  altura"): pisos con ventanas bajo el local, baja `yGroundOut` para que
+  vereda/calzada/vecinos nazcan del suelo real (commit `639b75c`).
+  `Logo360Generator.md` actualizado a la arquitectura real (commit
+  `5aa4cc6`).
+- 2026-08-18 — `zoom-v2` — `Prototipo.jsx`: el bloque final de `build()`
+  ahora arma `frameSig` (scene/product/form/sourceType/genSeq/
+  realW/realH/depthCm/showFacade) y solo llama `applyZoom` cuando cambia
+  respecto al build anterior; `center`/`baseDist` se siguen recalculando
+  siempre. Antes `build()` reencuadraba en cada rebuild sin importar la
+  causa (aunque el zoom del usuario no se perdía, la cámara podía
+  reposicionarse por cambios puramente cosméticos).

@@ -2190,7 +2190,21 @@ export default function Prototipo() {
     const f = frameObject(camera, sign, fill);
     if (f) {
       S.current.center = f.center; S.current.baseDist = f.dist;
-      applyZoom(camera, f.center, f.dist, S.current.zoom || 1);
+      // Reencuadrar (mover la camara) solo cuando cambio algo que
+      // realmente lo justifica: escena, producto o medidas reales. Un
+      // cambio cosmetico (color de LED, material de fachada, acabado)
+      // dispara build() igual (esta en sus dependencias) pero no debe
+      // mover la camara si el usuario esta con zoom puesto mirando un
+      // detalle. El boton "Encuadrar" (setZoom(1)) sigue siendo el unico
+      // que devuelve el zoom a 100% de forma explicita.
+      const frameSig = [
+        scene, product, form, sourceType, genSeq,
+        Math.round(realW * 1000), Math.round(realH * 1000), Math.round(depthCm), showFacade,
+      ].join("|");
+      if (S.current.frameSig !== frameSig) {
+        S.current.frameSig = frameSig;
+        applyZoom(camera, f.center, f.dist, S.current.zoom || 1);
+      }
     }
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
