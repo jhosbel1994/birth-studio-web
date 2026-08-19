@@ -1531,6 +1531,7 @@ export default function Prototipo() {
   const [invert, setInvert] = useState(false);
   const [detect, setDetect] = useState("alpha");
   const [autoRotate, setAutoRotate] = useState(true);
+  const [wheelHits, setWheelHits] = useState(0); // DEBUG temporal: cuenta eventos "wheel" recibidos, ver zoomBar
   const [zoom, setZoom] = useState(1);
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -1702,13 +1703,17 @@ export default function Prototipo() {
     window.addEventListener("pointerup", up);
     window.addEventListener("pointermove", move);
 
-    /* Zoom con rueda */
+    /* Zoom con rueda — escuchado en "mount" (el div contenedor), no en
+       renderer.domElement (el canvas). El canvas es un nodo que Three.js
+       redimensiona por su cuenta; el div contenedor es un objetivo de
+       evento estable y siempre cubre exactamente el area visible. */
     const onWheel = (e) => {
       e.preventDefault();
       const k = Math.exp(-e.deltaY * 0.0016);
       setZoom((z) => Math.max(0.45, Math.min(5, z * k)));
+      setWheelHits((n) => n + 1); // DEBUG temporal
     };
-    renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
+    mount.addEventListener("wheel", onWheel, { passive: false });
 
     /* Zoom con pellizco */
     let pinch = 0;
@@ -1722,9 +1727,9 @@ export default function Prototipo() {
       pinch = d;
     };
     const tEnd = () => { pinch = 0; };
-    renderer.domElement.addEventListener("touchstart", tStart, { passive: false });
-    renderer.domElement.addEventListener("touchmove", tMove, { passive: false });
-    renderer.domElement.addEventListener("touchend", tEnd);
+    mount.addEventListener("touchstart", tStart, { passive: false });
+    mount.addEventListener("touchmove", tMove, { passive: false });
+    mount.addEventListener("touchend", tEnd);
 
     const clock = new THREE.Clock();
     let raf;
@@ -1777,10 +1782,10 @@ export default function Prototipo() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointermove", move);
       renderer.domElement.removeEventListener("pointerdown", down);
-      renderer.domElement.removeEventListener("wheel", onWheel);
-      renderer.domElement.removeEventListener("touchstart", tStart);
-      renderer.domElement.removeEventListener("touchmove", tMove);
-      renderer.domElement.removeEventListener("touchend", tEnd);
+      mount.removeEventListener("wheel", onWheel);
+      mount.removeEventListener("touchstart", tStart);
+      mount.removeEventListener("touchmove", tMove);
+      mount.removeEventListener("touchend", tEnd);
       renderer.domElement.removeEventListener("webglcontextlost", onLost);
       renderer.domElement.removeEventListener("webglcontextrestored", onRestored);
       renderer.dispose();
@@ -3236,7 +3241,7 @@ export default function Prototipo() {
 
             <div style={s.zoomBar}>
               <button onClick={() => setZoom((z) => clampZoom(z / 1.25))} title="Alejar" style={s.zBtn}><Icon name="minus" size={15} /></button>
-              <span style={s.zVal}>{Math.round(zoom * 100)}%</span>
+              <span style={s.zVal} title="Debug temporal: eventos de rueda recibidos">{Math.round(zoom * 100)}% ({wheelHits})</span>
               <button onClick={() => setZoom((z) => clampZoom(z * 1.25))} title="Acercar" style={s.zBtn}><Icon name="plus" size={15} /></button>
               <div style={s.zSep} />
               <button onClick={() => setZoom(1)} title="Encuadrar" style={s.zBtn}><Icon name="reset" size={15} /></button>

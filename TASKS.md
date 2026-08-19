@@ -501,6 +501,17 @@ qué tocó)*
   `form→rect`); aviso neutro + botón para volver si vuelve a entrar como
   corpórea. Reutiliza `panelCanvas`/`srcCanvas` que ya existían, sin
   generar ningún canvas nuevo.
+- 2026-08-19 — seguimiento zoom (usuario reporta que sigue sin andar tras
+  `zoom-v2`) — `vercel.json`: la regla de `Cache-Control: no-cache` solo
+  cubría la ruta literal `/cotizador/index.html`, que el navegador nunca
+  pide tal cual (pide `/cotizador` o `/cotizador/`) — sumada a esas dos
+  rutas (commit `a7e9132`). `Prototipo.jsx`: listeners de rueda/pellizco
+  movidos de `renderer.domElement` (canvas, gestionado por Three.js) a
+  `mount` (el div contenedor, objetivo de evento estable) — mismo cambio
+  no aplicado a pointerdown/drag porque el arrastre no fue reportado
+  como roto. Contador de debug temporal (`wheelHits`, visible en la
+  barra de zoom) para confirmar si el evento wheel llega o no en el
+  próximo reporte — **sacar una vez confirmado el fix**.
 - 2026-08-18 — `candado-wh` — `Prototipo.jsx`: candado ancho/alto en el
   panel Texto (`whLocked`, íconos `lock`/`unlock`). Abierto, aplica
   `sign.scale.set(anchoM/realW, altoM/realH, 1)` al grupo ya construido
