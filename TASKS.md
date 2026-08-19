@@ -25,7 +25,7 @@ avisá acá mismo.
 | 7 | Zoom v2: separar reencuadre de reaplicar zoom del usuario | `zoom-v2` | — | `listo` | De `prompt-seis-mejoras.md` paso 1. Ver Registro |
 | 8 | Candado ancho/alto en Texto (deformación con aviso) | `candado-wh` | — | `listo` | De `prompt-seis-mejoras.md` paso 2. Ver Registro |
 | 9 | Medidas reales de fachada + aviso de encaje | `medidas-reales` | — | `listo` | De `prompt-seis-mejoras.md` paso 3. Ver Registro |
-| 10 | Temperatura de luz (K → RGB cuerpo negro) | `temp-luz` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 4 |
+| 10 | Temperatura de luz (K → RGB cuerpo negro) | `temp-luz` | — | `listo` | De `prompt-seis-mejoras.md` paso 4. Ver Registro |
 | 11 | Regla de los 10 cm (auto-conversión a caja de luz) | `regla-10cm` | 8, 9 | `pendiente` | De `prompt-seis-mejoras.md` paso 5 |
 | 12 | Múltiples logos/textos (lista de elementos) | `multi-logo` | 4 (posicionamiento, ✅) | `pendiente` | De `prompt-seis-mejoras.md` paso 6 — mayor cambio de arquitectura, confirmar alcance antes de arrancar |
 
@@ -351,6 +351,43 @@ dependencias de `build()`.
 
 ---
 
+## Detalle tarea 10 — `temp-luz`
+
+**Decisión de arquitectura:** `ledColor` (hex) ya era la única fuente de
+verdad para el color del LED en todo `build()` (cara emisiva, halo,
+reflejo en piso, luces puntuales) — la temperatura no necesitó tocar
+ninguno de esos consumidores, solo agrega una FORMA MÁS de calcular el
+hex que ya existía (`setLedColor(kelvinToHex(k))`), en vez de tipearlo o
+elegirlo de una paleta fija.
+
+**Qué se hizo:**
+- [x] `kelvinToHex(kelvin)` — aproximación de cuerpo negro de Tanner
+      Helland (la misma que usan herramientas de fotografía/iluminación
+      reales, no colores inventados), verificada numéricamente: 6500K→
+      `#fffefa` (casi blanco puro), 4000K→`#ffcea6` (blanco cálido),
+      3000K→`#ffb16e` (ámbar, sin llegar a naranja)
+- [x] `LIGHT_TEMPS` (Fría 6500K / Neutra 4000K / Cálida 3000K) como
+      `Seg` de 3 opciones en el panel Luz, separado de `LED_COLORS`
+- [x] Sin estado nuevo: qué temperatura está "activa" se deriva
+      comparando `ledColor === kelvinToHex(t.k)` al vuelo — elegir un
+      color de la paleta automáticamente deja de mostrar ninguna
+      temperatura seleccionada (son excluyentes por construcción, no
+      hace falta sincronizar dos estados a mano)
+- [x] Se sacaron `"Blanco frio"/"Blanco calido"` de `LED_COLORS` (hex
+      elegidos a ojo) — quedan redundantes con la temperatura real;
+      `LED_COLORS` ahora son solo colores de verdad (rojo/azul/verde)
+
+**No cubierto a propósito:** el valor inicial de `ledColor` no se tocó
+(sigue en `#ffffff` literal) — no se fuerza "Neutra" como default para
+no cambiar el look de arranque de escenas existentes.
+
+**Archivos que tocó:** `Prototipo.jsx` — `LED_COLORS`, `LIGHT_TEMPS` y
+`kelvinToHex` nuevos, panel Luz.
+**Archivos que NO tocó:** `build()` (ledColor ya fluía a todos lados
+igual), ninguna dependencia nueva hizo falta.
+
+---
+
 ## Registro de cambios
 
 *(cada agente agrega una línea acá al terminar, formato: fecha — agente —
@@ -430,3 +467,9 @@ qué tocó)*
   `info.realW/realH` contra las medidas de fachada. Default
   `facadeAuto=true` mantiene el cálculo automático de siempre, cero
   cambio para escenas existentes.
+- 2026-08-18 — `temp-luz` — `Prototipo.jsx`: `kelvinToHex` (blackbody de
+  Tanner Helland) + `LIGHT_TEMPS` (Fría/Neutra/Cálida) como control
+  separado en el panel Luz; escriben sobre el mismo `ledColor` de
+  siempre (`setLedColor(kelvinToHex(k))`), sin tocar `build()`. Se
+  sacaron los dos "blanco" hardcodeados de `LED_COLORS` por quedar
+  redundantes con la temperatura real.

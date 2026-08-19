@@ -1426,9 +1426,30 @@ const EDGE_COLORS = [
   { hex: "#C0392B", name: "Rojo" },
 ];
 const LED_COLORS = [
-  { hex: "#ffffff", name: "Blanco frio" }, { hex: "#ffd9a0", name: "Blanco calido" },
   { hex: "#ff3b2f", name: "Rojo" }, { hex: "#3b9dff", name: "Azul" }, { hex: "#4ade80", name: "Verde" },
 ];
+// Temperatura de LED blanco (Kelvin -> RGB, aproximacion de cuerpo negro
+// de Tanner Helland — no son colores inventados a ojo). Separado de
+// LED_COLORS: la temperatura es solo para blanco, el color es para LED
+// de color.
+const LIGHT_TEMPS = [
+  { k: 6500, label: "Fría", desc: "Comercial, farmacias, tecnología" },
+  { k: 4000, label: "Neutra", desc: "Oficinas, clínicas, uso general" },
+  { k: 3000, label: "Cálida", desc: "Gastronomía, boutiques, hotelería" },
+];
+function kelvinToHex(kelvin) {
+  const t = kelvin / 100;
+  let r, g, b;
+  if (t <= 66) r = 255;
+  else r = 329.698727446 * Math.pow(t - 60, -0.1332047592);
+  if (t <= 66) g = 99.4708025861 * Math.log(t) - 161.1195681661;
+  else g = 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+  if (t >= 66) b = 255;
+  else if (t <= 19) b = 0;
+  else b = 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+  return "#" + [r, g, b].map((v) => clamp(v).toString(16).padStart(2, "0")).join("");
+}
 const TOOLS = [
   { id: "producto", icon: "product", label: "Producto" },
   { id: "texto", icon: "text", label: "Texto" },
@@ -3056,6 +3077,14 @@ export default function Prototipo() {
       <>
         <div style={s.pTitle}>Luz</div>
         <Stack items={MODES} value={mode} onPick={(m) => setMode(m.id)} />
+        <div style={s.pLabel}>Temperatura (LED blanco)</div>
+        <Seg items={LIGHT_TEMPS.map((t) => ({ id: String(t.k), label: t.label }))}
+          value={String(LIGHT_TEMPS.find((t) => kelvinToHex(t.k) === ledColor)?.k || "")}
+          onPick={(o) => setLedColor(kelvinToHex(Number(o.id)))} cols={3} />
+        <div style={s.pHint}>
+          {LIGHT_TEMPS.find((t) => kelvinToHex(t.k) === ledColor)?.desc
+            || "Elige una temperatura o un color de LED abajo — son excluyentes."}
+        </div>
         <div style={s.pLabel}>Color del LED</div>
         <div style={s.swatches}>
           {LED_COLORS.map((c) => (
