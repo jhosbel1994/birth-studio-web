@@ -512,6 +512,21 @@ qué tocó)*
   como roto. Contador de debug temporal (`wheelHits`, visible en la
   barra de zoom) para confirmar si el evento wheel llega o no en el
   próximo reporte — **sacar una vez confirmado el fix**.
+- 2026-08-19 — zoom RESUELTO — `Prototipo.jsx`: el debug confirmó que
+  `wheelHits` subía y `zoom` cambiaba (450%→45%) pero `S.current.center`
+  quedaba `undefined` (`c=false cam=true`) — `center` solo se seteaba
+  dentro de `if (f)` en `build()`, y `frameObject` devolvía `null`
+  (`Box3.setFromObject` con matrices del mundo desactualizadas dando caja
+  vacía). Fix en 3 capas: (1) el zoom se aplica ahora en el LOOP de
+  render cada cuadro leyendo `S.current.zoom` — ya no depende de que un
+  efecto de React corra en el instante justo con el centro cacheado;
+  (2) el loop recalcula `center` desde `frameTarget` (que `build` setea
+  SIEMPRE, fuera del `if`) cuando falta; (3) `frameObject` fuerza
+  `updateWorldMatrix(true,true)` antes de medir y ya nunca devuelve
+  `null` (cae a la posición del objeto + distancia por defecto). Aplicar
+  el zoom cada cuadro no pelea con el giro (orbit rota `rig`, no la
+  cámara) ni con el arrastre del letrero (mueve `sign.position`, el
+  centro cacheado no se recalcula). Debug temporal removido.
 - 2026-08-18 — `candado-wh` — `Prototipo.jsx`: candado ancho/alto en el
   panel Texto (`whLocked`, íconos `lock`/`unlock`). Abierto, aplica
   `sign.scale.set(anchoM/realW, altoM/realH, 1)` al grupo ya construido

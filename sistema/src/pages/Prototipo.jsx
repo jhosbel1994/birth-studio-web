@@ -1180,8 +1180,19 @@ function buildMallEnv(envGroup, m) {
 }
 
 function frameObject(camera, object, fill = 0.82) {
+  // Forzar matrices del mundo al dia antes de medir: si el objeto se
+  // acaba de crear/mover y su matrixWorld esta desactualizada,
+  // setFromObject puede devolver una caja vacia o mal ubicada, y eso
+  // dejaba el encuadre (y por lo tanto el zoom) sin centro valido.
+  object.updateWorldMatrix(true, true);
   const bb = new THREE.Box3().setFromObject(object);
-  if (bb.isEmpty()) return null;
+  if (bb.isEmpty()) {
+    // Fallback: nunca devolver null si hay un objeto. Sin esto, una caja
+    // vacia dejaba el encuadre sin centro y el zoom sin efecto. Se usa
+    // la posicion del objeto en el mundo con una distancia razonable.
+    const c = object.getWorldPosition(new THREE.Vector3());
+    return { center: c, dist: 4 };
+  }
   const size = bb.getSize(new THREE.Vector3());
   const center = bb.getCenter(new THREE.Vector3());
   const fov = (camera.fov * Math.PI) / 180;
@@ -1531,8 +1542,6 @@ export default function Prototipo() {
   const [invert, setInvert] = useState(false);
   const [detect, setDetect] = useState("alpha");
   const [autoRotate, setAutoRotate] = useState(true);
-  const [wheelHits, setWheelHits] = useState(0); // DEBUG temporal: cuenta eventos "wheel" recibidos, ver zoomBar
-  const [zoomDebug, setZoomDebug] = useState("init"); // DEBUG temporal: distancia real de camara tras applyZoom
   const [zoom, setZoom] = useState(1);
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -1712,7 +1721,6 @@ export default function Prototipo() {
       e.preventDefault();
       const k = Math.exp(-e.deltaY * 0.0016);
       setZoom((z) => Math.max(0.45, Math.min(5, z * k)));
-      setWheelHits((n) => n + 1); // DEBUG temporal
     };
     mount.addEventListener("wheel", onWheel, { passive: false });
 
@@ -1746,6 +1754,23 @@ export default function Prototipo() {
       }
       if (S.current.haloMat) {
         S.current.haloMat.opacity = S.current.haloBase * (0.95 + Math.sin(clock.getElapsedTime() * 1.5) * 0.05);
+      }
+      // Zoom aplicado en cada cuadro, leyendo el valor actual. Es la
+      // fuente de verdad de la posicion de la camara: no depende de que
+      // un efecto de React haya guardado el centro en el momento justo
+      // (eso fallaba y dejaba el zoom sin efecto). Si el centro no esta
+      // cacheado, se recalcula aca mismo desde frameTarget (el letrero),
+      // que build() SIEMPRE deja seteado. Girar la escena mueve 'rig',
+      // no la camara, asi que reaplicar el zoom cada cuadro no pelea con
+      // el giro ni con el arrastre del letrero.
+      if (S.current.frameTarget) {
+        if (!S.current.center) {
+          const f0 = frameObject(camera, S.current.frameTarget, S.current.fill || 0.6);
+          if (f0) { S.current.center = f0.center; S.current.baseDist = f0.dist; }
+        }
+        if (S.current.center) {
+          applyZoom(camera, S.current.center, S.current.baseDist, S.current.zoom || 1);
+        }
       }
       renderer.render(sc, camera);
     };
@@ -1799,19 +1824,11 @@ export default function Prototipo() {
   useEffect(() => { S.current.textAsLightbox = textAsLightbox; }, [textAsLightbox]);
 
   useEffect(() => {
-    // Aplicacion directa e inmediata: nada de interpolar por cuadro en el
-    // loop (eso dependia de que el render loop leyera el valor correcto
-    // en el momento correcto). Cada cambio de zoom mueve la camara ya.
+    // Solo guarda el objetivo. La camara la mueve el loop de render cada
+    // cuadro leyendo S.current.zoom (ver el loop): asi el zoom nunca
+    // depende de que el centro este cacheado en el instante exacto en
+    // que corre este efecto.
     S.current.zoom = zoom;
-    if (S.current.center && S.current.camera) {
-      applyZoom(S.current.camera, S.current.center, S.current.baseDist, zoom);
-      // DEBUG temporal: distancia real resultante, para confirmar si la
-      // camara efectivamente se movio o si el guard nunca se cumple.
-      const realDist = S.current.camera.position.distanceTo(S.current.center);
-      setZoomDebug(`d=${realDist.toFixed(2)} base=${(S.current.baseDist || 0).toFixed(2)}`);
-    } else {
-      setZoomDebug(`sin-centro c=${!!S.current.center} cam=${!!S.current.camera}`);
-    }
   }, [zoom]);
 
   /* -- Construccion de la escena -- */
@@ -3248,7 +3265,7 @@ export default function Prototipo() {
 
             <div style={s.zoomBar}>
               <button onClick={() => setZoom((z) => clampZoom(z / 1.25))} title="Alejar" style={s.zBtn}><Icon name="minus" size={15} /></button>
-              <span style={s.zVal} title="Debug temporal: eventos de rueda recibidos">{Math.round(zoom * 100)}% ({wheelHits}) {zoomDebug}</span>
+              <span style={s.zVal}>{Math.round(zoom * 100)}%</span>
               <button onClick={() => setZoom((z) => clampZoom(z * 1.25))} title="Acercar" style={s.zBtn}><Icon name="plus" size={15} /></button>
               <div style={s.zSep} />
               <button onClick={() => setZoom(1)} title="Encuadrar" style={s.zBtn}><Icon name="reset" size={15} /></button>
