@@ -527,6 +527,20 @@ qué tocó)*
   el zoom cada cuadro no pelea con el giro (orbit rota `rig`, no la
   cámara) ni con el arrastre del letrero (mueve `sign.position`, el
   centro cacheado no se recalcula). Debug temporal removido.
+- 2026-08-19 — zoom REDISEÑADO (`prompt-zoom-debug.md` paso B) —
+  `Prototipo.jsx`: el mecanismo de mover la cámara para hacer zoom
+  (`camera.position.z = center.z + baseDist/zoom`) se reemplaza por
+  `camera.zoom` nativo de `THREE.PerspectiveCamera` (escala la
+  proyección, nunca la posición). `applyZoom(camera, zoom)` ahora solo
+  hace `camera.zoom = zoom; updateProjectionMatrix()` — ya no recibe
+  `center`/`baseDist`. Nueva función `positionCamera(camera, center,
+  dist)` separa el encuadre (posición) del zoom por completo. Con esto
+  el bug de esta sesión (zoom sin efecto porque `center` quedaba
+  `undefined`) queda estructuralmente imposible: el zoom ya no depende
+  de `center` para nada. El loop de render vuelve a no tocar la cámara
+  (se sacó el bloque agregado en el fix anterior, ya no hace falta).
+  `resize()`/`build()`/`captureOriented()` actualizados a la firma
+  nueva de `applyZoom` y al uso de `positionCamera` para reencuadrar.
 - 2026-08-18 — `candado-wh` — `Prototipo.jsx`: candado ancho/alto en el
   panel Texto (`whLocked`, íconos `lock`/`unlock`). Abierto, aplica
   `sign.scale.set(anchoM/realW, altoM/realH, 1)` al grupo ya construido

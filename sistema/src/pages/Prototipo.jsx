@@ -1204,12 +1204,26 @@ function frameObject(camera, object, fill = 0.82) {
   return { center, dist };
 }
 
-/* Coloca la camara aplicando el factor de zoom sobre la distancia base. */
-function applyZoom(camera, center, baseDist, zoom) {
+/* Encuadre base: posiciona la camara mirando al centro, a la distancia
+   calculada por frameObject. NO toca el zoom — son independientes a
+   proposito (ver applyZoom) para que reencuadrar (build/resize) nunca
+   pueda pisar el zoom que puso el usuario, ni al reves. */
+function positionCamera(camera, center, dist) {
   if (!center) return;
-  const d = baseDist / zoom;
-  camera.position.set(center.x, center.y, center.z + d);
+  camera.position.set(center.x, center.y, center.z + dist);
   camera.lookAt(center);
+  camera.updateProjectionMatrix();
+}
+
+/* Zoom puro: escala la proyeccion de la camara (camera.zoom, nativo de
+   THREE.PerspectiveCamera), nunca su posicion. Antes el zoom se hacia
+   moviendo la camara con la misma formula que usa el encuadre — build()
+   tambien mueve la camara, y cualquier reencuadre pisaba el zoom del
+   usuario en cuanto S.current.center quedaba desactualizado o vacio
+   (causa real del bug reportado). Con camera.zoom no hay forma de que
+   una cosa pise a la otra: son dos propiedades separadas de la camara. */
+function applyZoom(camera, zoom) {
+  camera.zoom = zoom;
   camera.updateProjectionMatrix();
 }
 
@@ -1755,23 +1769,9 @@ export default function Prototipo() {
       if (S.current.haloMat) {
         S.current.haloMat.opacity = S.current.haloBase * (0.95 + Math.sin(clock.getElapsedTime() * 1.5) * 0.05);
       }
-      // Zoom aplicado en cada cuadro, leyendo el valor actual. Es la
-      // fuente de verdad de la posicion de la camara: no depende de que
-      // un efecto de React haya guardado el centro en el momento justo
-      // (eso fallaba y dejaba el zoom sin efecto). Si el centro no esta
-      // cacheado, se recalcula aca mismo desde frameTarget (el letrero),
-      // que build() SIEMPRE deja seteado. Girar la escena mueve 'rig',
-      // no la camara, asi que reaplicar el zoom cada cuadro no pelea con
-      // el giro ni con el arrastre del letrero.
-      if (S.current.frameTarget) {
-        if (!S.current.center) {
-          const f0 = frameObject(camera, S.current.frameTarget, S.current.fill || 0.6);
-          if (f0) { S.current.center = f0.center; S.current.baseDist = f0.dist; }
-        }
-        if (S.current.center) {
-          applyZoom(camera, S.current.center, S.current.baseDist, S.current.zoom || 1);
-        }
-      }
+      // El zoom (camera.zoom) es independiente de la posicion: no hace
+      // falta reaplicarlo por cuadro aca, nada mas lo toca salvo el
+      // efecto de [zoom] mas abajo.
       renderer.render(sc, camera);
     };
     loop();
@@ -1786,7 +1786,7 @@ export default function Prototipo() {
         const f = frameObject(camera, S.current.frameTarget, S.current.fill || 0.6);
         if (f) {
           S.current.center = f.center; S.current.baseDist = f.dist;
-          applyZoom(camera, f.center, f.dist, S.current.zoom || 1);
+          positionCamera(camera, f.center, f.dist);
         }
       }
     };
@@ -1824,11 +1824,11 @@ export default function Prototipo() {
   useEffect(() => { S.current.textAsLightbox = textAsLightbox; }, [textAsLightbox]);
 
   useEffect(() => {
-    // Solo guarda el objetivo. La camara la mueve el loop de render cada
-    // cuadro leyendo S.current.zoom (ver el loop): asi el zoom nunca
-    // depende de que el centro este cacheado en el instante exacto en
-    // que corre este efecto.
+    // camera.zoom es independiente de camera.position: este efecto ya
+    // no necesita center/baseDist para nada, asi que no hay forma de
+    // que quede "sin centro" y el zoom deje de tener efecto.
     S.current.zoom = zoom;
+    if (S.current.camera) applyZoom(S.current.camera, zoom);
   }, [zoom]);
 
   /* -- Construccion de la escena -- */
@@ -2271,16 +2271,16 @@ export default function Prototipo() {
       // realmente lo justifica: escena, producto o medidas reales. Un
       // cambio cosmetico (color de LED, material de fachada, acabado)
       // dispara build() igual (esta en sus dependencias) pero no debe
-      // mover la camara si el usuario esta con zoom puesto mirando un
-      // detalle. El boton "Encuadrar" (setZoom(1)) sigue siendo el unico
-      // que devuelve el zoom a 100% de forma explicita.
+      // mover la camara. Esto YA NO afecta al zoom del usuario -
+      // camera.zoom es independiente de camera.position, asi que
+      // reencuadrar (o no) nunca lo pisa ni necesita reaplicarlo.
       const frameSig = [
         scene, product, form, sourceType, genSeq, whLocked,
         Math.round(realW * 1000), Math.round(realH * 1000), Math.round(depthCm), showFacade,
       ].join("|");
       if (S.current.frameSig !== frameSig) {
         S.current.frameSig = frameSig;
-        applyZoom(camera, f.center, f.dist, S.current.zoom || 1);
+        positionCamera(camera, f.center, f.dist);
       }
     }
 
@@ -2317,7 +2317,7 @@ export default function Prototipo() {
       renderer.setSize(tw, th, false);
       camera.aspect = tw / th;
       const f = frameObject(camera, frameTarget || sc, st.fill || 0.6);
-      if (f) applyZoom(camera, f.center, f.dist, st.zoom || 1);
+      if (f) { positionCamera(camera, f.center, f.dist); applyZoom(camera, st.zoom || 1); }
       else camera.updateProjectionMatrix();
       renderer.render(sc, camera);
       return renderer.domElement.toDataURL(mime, quality);
