@@ -27,7 +27,7 @@ avisá acá mismo.
 | 9 | Medidas reales de fachada + aviso de encaje | `medidas-reales` | — | `listo` | De `prompt-seis-mejoras.md` paso 3. Ver Registro |
 | 10 | Temperatura de luz (K → RGB cuerpo negro) | `temp-luz` | — | `listo` | De `prompt-seis-mejoras.md` paso 4. Ver Registro |
 | 11 | Regla de los 10 cm (auto-conversión a caja de luz) | `regla-10cm` | 8, 9 | `listo` | De `prompt-seis-mejoras.md` paso 5. Ver Registro |
-| 12 | Múltiples logos/textos (lista de elementos) | `multi-logo` | 4 (posicionamiento, ✅) | `pendiente` | De `prompt-seis-mejoras.md` paso 6 — mayor cambio de arquitectura, confirmar alcance antes de arrancar |
+| 12 | Múltiples logos/textos (lista de elementos) | `multi-logo` | 4 (posicionamiento, ✅) | `pendiente` | De `prompt-seis-mejoras.md` paso 6. Pausado a pedido del usuario: probar primero los pasos 1-5 en el sistema real antes de arrancar el cambio de arquitectura |
 
 ---
 
