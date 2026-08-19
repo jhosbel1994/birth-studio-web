@@ -769,7 +769,7 @@ const FACADE_STYLES = [
 /* Devuelve un grupo con el local completo. El centro del letrero queda
    en el origen, para que el encuadre y el giro no cambien. */
 function buildStorefront(style, o) {
-  const { signW, signH, standoff, wallMat, night, buildingFloors } = o;
+  const { signW, signH, standoff, wallMat, night, buildingFloors, facadeW, facadeH } = o;
   const g = new THREE.Group();
   const isMall = style === "mall";
 
@@ -777,8 +777,11 @@ function buildStorefront(style, o) {
   // ahi), pero la banda crece si el letrero es mas alto. Local de mall:
   // cielo alto (4-4.5m) en vez de los 2.55m de un local a la calle.
   const bandH = Math.max(signH + 0.35, Math.min(signH * 1.75, isMall ? 2.1 : 1.5));
-  const shopH = isMall ? 4.2 : 2.55;
-  const facW = Math.max(signW * 1.7, 3.8);
+  // facadeW/facadeH: medidas reales de la fachada (metros), cuando el
+  // usuario las fija a mano en vez de dejar que se deriven del letrero.
+  // Sin override, comportamiento identico al de siempre.
+  const shopH = facadeH != null ? Math.max(1.6, facadeH) : (isMall ? 4.2 : 2.55);
+  const facW = facadeW != null ? Math.max(1, facadeW) : Math.max(signW * 1.7, 3.8);
   const upperH = isMall ? 0.5 : 1.9; // mall: solo un remate bajo, sin pano de ventanas
   const zWall = -standoff - 0.07;
   const yBandBot = -bandH / 2;
@@ -1448,6 +1451,9 @@ export default function Prototipo() {
   const [scene, setScene] = useState("fachada");
   const [facadeStyle, setFacadeStyle] = useState("calle");
   const [buildingFloors, setBuildingFloors] = useState(0); // pisos extra bajo el local, solo estilo "esquina"
+  const [facadeAuto, setFacadeAuto] = useState(true); // false = medidas de fachada manuales, no derivadas del letrero
+  const [facadeWidthM, setFacadeWidthM] = useState(6);
+  const [facadeHeightM, setFacadeHeightM] = useState(2.55);
   const [showFacade, setShowFacade] = useState(true);
   const [material, setMaterial] = useState("acanalada");
   const [wallPanelDir, setWallPanelDir] = useState("h");
@@ -1960,6 +1966,7 @@ export default function Prototipo() {
     const envSig = scene === "foto" ? "foto" : !showFacade ? "none" : [
       scene, facadeStyle, material, wallPanelDir, wallPanelSize, finish, wallColor, night,
       facadeStyle === "esquina" ? buildingFloors : 0,
+      facadeAuto ? "auto" : `${Math.round(facadeWidthM * 20)}x${Math.round(facadeHeightM * 20)}`,
       Math.round(realW * 4), Math.round(realH * 4), Math.round(standoff * 50),
     ].join("|");
 
@@ -2021,6 +2028,8 @@ export default function Prototipo() {
           // el local de centro comercial.
           const store = buildStorefront(facadeStyle, {
             signW: realW, signH: realH, standoff, wallMat, night, buildingFloors,
+            facadeW: facadeAuto ? null : facadeWidthM,
+            facadeH: facadeAuto ? null : facadeHeightM,
           });
           envGroup.add(store.group);
           if (store.isMall) buildMallEnv(envGroup, store);
@@ -2225,7 +2234,7 @@ export default function Prototipo() {
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
-  }, [product, form, scene, facadeStyle, buildingFloors, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
+  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, edgeColor, edgeMetal,
       anchoM, altoM, whLocked, depthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
@@ -2979,6 +2988,44 @@ export default function Prototipo() {
                 {facadeStyle === "esquina" && (
                   <Slider label="Pisos de altura" value={buildingFloors} unit="" min={0} max={14} step={1}
                     onChange={setBuildingFloors} />
+                )}
+                <div style={s.pLabel}>Medidas de la fachada</div>
+                <Seg items={[{ id: "auto", label: "Automática" }, { id: "manual", label: "Personalizada" }]}
+                  value={facadeAuto ? "auto" : "manual"} onPick={(o) => setFacadeAuto(o.id === "auto")} />
+                {facadeAuto ? (
+                  <div style={s.pHint}>El ancho del local se calcula solo, a partir del tamaño del letrero.</div>
+                ) : (
+                  <>
+                    <div style={s.fields}>
+                      <Field label="Ancho" value={facadeWidthM} onChange={setFacadeWidthM} />
+                      <Field label="Alto" value={facadeHeightM} onChange={setFacadeHeightM} />
+                    </div>
+                    <div style={s.pHint}>Medida real del muro donde va el letrero — el local se construye a este tamaño, no al revés.</div>
+                    {info && (() => {
+                      const pctW = Math.round((info.realW / facadeWidthM) * 100);
+                      const pctH = Math.round((info.realH / facadeHeightM) * 100);
+                      const pct = Math.max(pctW, pctH);
+                      if (pct > 100) {
+                        return (
+                          <div style={{ ...s.note, borderColor: "#5a2020", color: "#e89088" }}>
+                            El letrero ({info.realW.toFixed(2)}×{info.realH.toFixed(2)} m) no entra en esta
+                            fachada ({facadeWidthM.toFixed(2)}×{facadeHeightM.toFixed(2)} m). Tamaño máximo que
+                            cabe: {pctW > 100 ? `${facadeWidthM.toFixed(2)} m de ancho` : ""}
+                            {pctW > 100 && pctH > 100 ? " / " : ""}
+                            {pctH > 100 ? `${facadeHeightM.toFixed(2)} m de alto` : ""}.
+                          </div>
+                        );
+                      }
+                      if (pct > 80) {
+                        return (
+                          <div style={{ ...s.note, borderColor: "#5a4418", color: "#e0c88c" }}>
+                            Justo: el letrero ocupa {pct}% de la fachada, casi sin aire a los costados.
+                          </div>
+                        );
+                      }
+                      return <div style={s.pHint}>Entra bien: el letrero ocupa {pct}% de la fachada.</div>;
+                    })()}
+                  </>
                 )}
               </>
             )}

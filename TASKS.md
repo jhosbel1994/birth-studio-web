@@ -24,7 +24,7 @@ avisá acá mismo.
 | 6 | Ronda de feedback: zoom directo, ancho de wall panel, esquina en altura | `feedback-r7` | — | `listo` | Ver Registro de cambios |
 | 7 | Zoom v2: separar reencuadre de reaplicar zoom del usuario | `zoom-v2` | — | `listo` | De `prompt-seis-mejoras.md` paso 1. Ver Registro |
 | 8 | Candado ancho/alto en Texto (deformación con aviso) | `candado-wh` | — | `listo` | De `prompt-seis-mejoras.md` paso 2. Ver Registro |
-| 9 | Medidas reales de fachada + aviso de encaje | `medidas-reales` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 3 |
+| 9 | Medidas reales de fachada + aviso de encaje | `medidas-reales` | — | `listo` | De `prompt-seis-mejoras.md` paso 3. Ver Registro |
 | 10 | Temperatura de luz (K → RGB cuerpo negro) | `temp-luz` | — | `pendiente` | De `prompt-seis-mejoras.md` paso 4 |
 | 11 | Regla de los 10 cm (auto-conversión a caja de luz) | `regla-10cm` | 8, 9 | `pendiente` | De `prompt-seis-mejoras.md` paso 5 |
 | 12 | Múltiples logos/textos (lista de elementos) | `multi-logo` | 4 (posicionamiento, ✅) | `pendiente` | De `prompt-seis-mejoras.md` paso 6 — mayor cambio de arquitectura, confirmar alcance antes de arrancar |
@@ -306,6 +306,51 @@ panel Texto (campos + candado + avisos), `frameSig` y dependencias de
 
 ---
 
+## Detalle tarea 9 — `medidas-reales`
+
+**Decisión de compatibilidad:** en vez de invertir por completo el
+cálculo de `facW`/`shopH` (como pide el prompt literalmente), se agregó
+un interruptor "Automática/Personalizada" (`facadeAuto`, default
+`true`). Automática = exactamente el cálculo de siempre (`facW =
+max(signW*1.7, 3.8)`, `shopH = isMall?4.2:2.55`) — cero cambio de
+comportamiento para escenas ya guardadas. Personalizada = el usuario fija
+`facadeWidthM`/`facadeHeightM` y esos valores pasan directo a
+`buildStorefront` como `facadeW`/`facadeH`, con precedencia sobre el
+cálculo derivado del letrero.
+
+**Qué se hizo:**
+- [x] Campos "Ancho"/"Alto" de fachada (metros) en el panel Fachada,
+      solo visibles con "Personalizada" y `scene === "fachada"`
+- [x] `buildStorefront` prioriza `facadeW`/`facadeH` sobre el cálculo
+      derivado del letrero cuando vienen definidos
+- [x] Sin clamping a `>= signW`: si el letrero es más ancho que la
+      fachada elegida, se ve así literalmente en la escena 3D (el aviso
+      de texto es la explicación, no un ajuste silencioso que lo oculte)
+- [x] Aviso de encaje comparando el letrero ya construido (`info.realW`/
+      `realH`) contra `facadeWidthM`/`facadeHeightM`: neutro si ≤80%,
+      ámbar "Justo" si 80-100%, rojo "No entra" con la medida máxima que
+      sí cabe si supera el 100% en cualquier eje
+- [x] Las 6 fachadas existentes (no solo las 5 originales) respetan
+      `facW`/`shopH` sin cambios de código — ya estaban parametrizadas
+      sobre esas dos variables, cambiar su origen no tocó ninguna rama
+- [x] `facadeAuto`/`facadeWidthM`/`facadeHeightM` sumados a `envSig` y a
+      las dependencias de `build()`
+
+**No cubierto a propósito:** el tope normal de banda (`bandH`, crece si
+`signH` lo exige) no se tocó — sigue igual, el prompt no pedía cambiarlo.
+`facadeHeightM` se compara contra el alto del letrero (`info.realH`)
+para el aviso, no contra `bandH` internamente — es la comparación más
+directa/entendible para alguien no técnico, aunque `shopH` y `bandH` son
+conceptos distintos puertas adentro del código.
+
+**Archivos que tocó:** `Prototipo.jsx` — `buildStorefront` (nuevos
+parámetros `facadeW`/`facadeH`), estado nuevo, panel Fachada, `envSig`,
+dependencias de `build()`.
+**Archivos que NO tocó:** las 6 ramas de estilo en sí (siguen usando
+`facW`/`shopH` tal cual, sin saber de dónde vienen).
+
+---
+
 ## Registro de cambios
 
 *(cada agente agrega una línea acá al terminar, formato: fecha — agente —
@@ -376,3 +421,12 @@ qué tocó)*
   sobre 40%; trazo en mm corregido por `relScale`. Fix de bug real:
   `sign.scale.setScalar` en la rama foto (calibración) pisaba la
   deformación no uniforme — cambiado a `multiplyScalar`.
+- 2026-08-18 — `medidas-reales` — `Prototipo.jsx`: `buildStorefront`
+  acepta `facadeW`/`facadeH` opcionales (metros reales), con precedencia
+  sobre el cálculo derivado del letrero cuando el usuario elige
+  "Personalizada" (`facadeAuto=false`) en el panel Fachada. Sin
+  clamping — el letrero se ve literalmente más grande que la fachada si
+  no entra. Aviso de encaje (neutro/ámbar/rojo) comparando
+  `info.realW/realH` contra las medidas de fachada. Default
+  `facadeAuto=true` mantiene el cálculo automático de siempre, cero
+  cambio para escenas existentes.
