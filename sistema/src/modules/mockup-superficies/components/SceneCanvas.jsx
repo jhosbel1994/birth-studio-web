@@ -1,21 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { drawImageQuad, clipToPolygon } from '../utils/warpQuad'
 
 const COLOR_ZONA = { vidrio: '#0058bc', pared: '#bc000a' }
-
-function useImageCache() {
-  const cache = useRef(new Map())
-  return useCallback((url, onLoad) => {
-    if (!url) return null
-    let img = cache.current.get(url)
-    if (img) return img.complete ? img : null
-    img = new Image()
-    img.onload = onLoad
-    img.src = url
-    cache.current.set(url, img)
-    return null
-  }, [])
-}
 
 // Canvas principal: dibuja la foto base + las capas de diseño ya warpeadas
 // (corner-pin) y recortadas a su zona — eso es lo que queda "horneado" en
@@ -31,8 +17,27 @@ export default function SceneCanvas({
   const canvasRef = useRef(null)
   const svgRef = useRef(null)
   const dragRef = useRef(null)
-  const [, forceRedraw] = useState(0)
-  const getImg = useImageCache()
+  const imgCache = useRef(new Map())
+  // Las imagenes (foto base, adhesivos) cargan async — cuando terminan hay
+  // que volver a dibujar. Antes esto pasaba por un contador de estado +
+  // useEffect([redraw]), pero como `redraw` es la MISMA referencia
+  // memoizada mientras fotoUrl/zonas/capas no cambien, el efecto nunca se
+  // volvia a disparar y el canvas quedaba en blanco para siempre (bug
+  // reportado: sube la foto, el boton cambia a "Cambiar foto", pero no se
+  // ve nada). El fix: la carga de imagen llama a redraw() DIRECTO via ref,
+  // sin pasar por el ciclo de render de React.
+  const redrawRef = useRef(() => {})
+
+  const getImg = useCallback((url) => {
+    if (!url) return null
+    let img = imgCache.current.get(url)
+    if (img) return img.complete ? img : null
+    img = new Image()
+    img.onload = () => redrawRef.current()
+    img.src = url
+    imgCache.current.set(url, img)
+    return null
+  }, [])
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
@@ -40,13 +45,13 @@ export default function SceneCanvas({
     const ctx = canvas.getContext('2d')
     canvas.width = fotoW
     canvas.height = fotoH
-    const base = getImg(fotoUrl, () => forceRedraw(n => n + 1))
+    const base = getImg(fotoUrl)
     if (!base) return
     ctx.clearRect(0, 0, fotoW, fotoH)
     ctx.drawImage(base, 0, 0, fotoW, fotoH)
     for (const capa of capas) {
       const zona = zonas.find(z => z.id === capa.zonaId)
-      const img = getImg(capa.imgUrl, () => forceRedraw(n => n + 1))
+      const img = getImg(capa.imgUrl)
       if (!img || !zona) continue
       ctx.save()
       clipToPolygon(ctx, zona.puntos)
@@ -55,6 +60,7 @@ export default function SceneCanvas({
     }
   }, [fotoUrl, fotoW, fotoH, zonas, capas, getImg])
 
+  useEffect(() => { redrawRef.current = redraw }, [redraw])
   useEffect(() => { redraw() }, [redraw])
 
   const puntoDesdeEvento = useCallback((e) => {
