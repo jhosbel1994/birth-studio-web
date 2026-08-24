@@ -9,6 +9,7 @@ import Cotizaciones from './pages/Cotizaciones'
 import Contratos from './pages/Contratos'
 import Gastos from './pages/Gastos'
 import Galeria from './pages/Galeria'
+import MockupVitrina from './modules/mockup-superficies'
 
 // three.js es pesado: la página de Prototipo se carga solo cuando se abre.
 const Prototipo = lazy(() => import('./pages/Prototipo'))
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="contratos" element={<Contratos />} />
         <Route path="gastos" element={<Gastos />} />
         <Route path="galeria" element={<Galeria />} />
+        <Route path="mockup-vitrina" element={<MockupVitrina />} />
         <Route path="prototipo" element={
           <Suspense fallback={<CargandoPagina />}>
             <Prototipo />
