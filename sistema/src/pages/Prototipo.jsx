@@ -1485,6 +1485,10 @@ const TOOLS = [
   { id: "ajustes", icon: "tune", label: "Ajustes" },
 ];
 
+const ZMIN = 0.45;
+const ZMAX = 5;
+const clampZoom = (z) => Math.max(ZMIN, Math.min(ZMAX, z));
+
 export default function Prototipo() {
   const mountRef = useRef(null);
   const S = useRef({});
@@ -1572,8 +1576,25 @@ export default function Prototipo() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const ZMIN = 0.45, ZMAX = 5;
-  const clampZoom = (z) => Math.max(ZMIN, Math.min(ZMAX, z));
+  const setViewerZoom = useCallback((next) => {
+    const base = Number.isFinite(S.current.zoom) ? S.current.zoom : 1;
+    const z = clampZoom(typeof next === "function" ? next(base) : next);
+    S.current.zoom = z;
+    if (S.current.camera) applyZoom(S.current.camera, z);
+    setZoom(z);
+  }, []);
+
+  const resetView = useCallback(() => {
+    const st = S.current;
+    setViewerZoom(1);
+    if (!st.camera || !st.frameTarget) return;
+    const f = frameObject(st.camera, st.frameTarget, st.fill || 0.6);
+    if (!f) return;
+    st.center = f.center;
+    st.baseDist = f.dist;
+    positionCamera(st.camera, f.center, f.dist);
+    applyZoom(st.camera, 1);
+  }, [setViewerZoom]);
 
   /* -- Escena base -- */
   useEffect(() => {
@@ -1712,7 +1733,7 @@ export default function Prototipo() {
         const dist = camera.position.distanceTo(S.current.center || S.current.frameTarget.position);
         const vFov = THREE.MathUtils.degToRad(camera.fov);
         const h = mount.clientHeight || 1;
-        const worldPerPxY = (2 * Math.tan(vFov / 2) * dist) / h;
+        const worldPerPxY = (2 * Math.tan(vFov / 2) * dist) / (h * (camera.zoom || 1));
         const worldPerPxX = worldPerPxY * (camera.aspect || 1);
         S.current.frameTarget.position.x += (p.clientX - lx) * worldPerPxX;
         S.current.frameTarget.position.y -= (p.clientY - ly) * worldPerPxY;
@@ -1734,7 +1755,7 @@ export default function Prototipo() {
     const onWheel = (e) => {
       e.preventDefault();
       const k = Math.exp(-e.deltaY * 0.0016);
-      setZoom((z) => Math.max(0.45, Math.min(5, z * k)));
+      setViewerZoom((z) => z * k);
     };
     mount.addEventListener("wheel", onWheel, { passive: false });
 
@@ -1746,7 +1767,7 @@ export default function Prototipo() {
       if (e.touches.length !== 2 || !pinch) return;
       e.preventDefault();
       const d = dist2(e.touches);
-      setZoom((z) => Math.max(0.45, Math.min(5, z * (d / pinch))));
+      setViewerZoom((z) => z * (d / pinch));
       pinch = d;
     };
     const tEnd = () => { pinch = 0; };
@@ -1787,6 +1808,7 @@ export default function Prototipo() {
         if (f) {
           S.current.center = f.center; S.current.baseDist = f.dist;
           positionCamera(camera, f.center, f.dist);
+          applyZoom(camera, S.current.zoom || 1);
         }
       }
     };
@@ -1817,7 +1839,7 @@ export default function Prototipo() {
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [setViewerZoom]);
 
   useEffect(() => { S.current.autoRotate = autoRotate; }, [autoRotate]);
   useEffect(() => { S.current.calibrating = calibrating; }, [calibrating]);
@@ -2281,6 +2303,7 @@ export default function Prototipo() {
       if (S.current.frameSig !== frameSig) {
         S.current.frameSig = frameSig;
         positionCamera(camera, f.center, f.dist);
+        applyZoom(camera, S.current.zoom || 1);
       }
     }
 
@@ -2358,7 +2381,7 @@ export default function Prototipo() {
       // El zoom solo se encuadra la PRIMERA vez que se entra a Texto —
       // antes se reseteaba en cada letra escrita, y el usuario perdia el
       // zoom que habia puesto (se sentia como un "salto").
-      if (S.current.sourceType !== "texto") setZoom(1);
+      if (S.current.sourceType !== "texto") setViewerZoom(1);
       S.current.sourceType = "texto";
       setSourceType("texto");
       setFileName(name);
@@ -2385,10 +2408,10 @@ export default function Prototipo() {
       setProduct(sug.product);
       if (sug.product === "lightbox") setForm(sug.form);
     }
-    setZoom(1);
+    setViewerZoom(1);
     setFileName(name);
     build();
-  }, [threshold, build]);
+  }, [threshold, build, setViewerZoom]);
 
   // -- Foto real de la fachada --
   // Se lee con FileReader/dataURL (no URL.createObjectURL: los blob URL
@@ -3264,11 +3287,11 @@ export default function Prototipo() {
             {err && <div style={s.errBar}>{err}</div>}
 
             <div style={s.zoomBar}>
-              <button onClick={() => setZoom((z) => clampZoom(z / 1.25))} title="Alejar" style={s.zBtn}><Icon name="minus" size={15} /></button>
+              <button onClick={() => setViewerZoom((z) => z / 1.25)} title="Alejar" style={s.zBtn}><Icon name="minus" size={15} /></button>
               <span style={s.zVal}>{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setZoom((z) => clampZoom(z * 1.25))} title="Acercar" style={s.zBtn}><Icon name="plus" size={15} /></button>
+              <button onClick={() => setViewerZoom((z) => z * 1.25)} title="Acercar" style={s.zBtn}><Icon name="plus" size={15} /></button>
               <div style={s.zSep} />
-              <button onClick={() => setZoom(1)} title="Encuadrar" style={s.zBtn}><Icon name="reset" size={15} /></button>
+              <button onClick={resetView} title="Encuadrar" style={s.zBtn}><Icon name="reset" size={15} /></button>
               <button onClick={() => setAutoRotate((v) => !v)} title="Giro automatico"
                 style={{ ...s.zBtn, ...(autoRotate ? s.zBtnOn : {}) }}><Icon name="spin" size={15} /></button>
             </div>
