@@ -2335,19 +2335,25 @@ export default function Prototipo() {
     if (aspect >= 1) { tw = longSide; th = Math.max(1, Math.round(longSide / aspect)); }
     else { th = longSide; tw = Math.max(1, Math.round(longSide * aspect)); }
     const dpr = renderer.getPixelRatio();
+    // Snapshot COMPLETO de la camara: la captura la mueve/reescala, y si no
+    // se restaura exacto el visor en vivo queda "trabado lejos" tras
+    // Descargar (bug reportado). Guardamos todo y lo devolvemos tal cual.
+    const savePos = camera.position.clone();
+    const saveQuat = camera.quaternion.clone();
+    const saveAspect = camera.aspect;
+    const saveZoom = camera.zoom;
+    const saveNear = camera.near, saveFar = camera.far;
     try {
       renderer.setPixelRatio(1);
       renderer.setSize(tw, th, false);
       camera.aspect = tw / th;
-      // No se recalcula el encuadre con frameObject: usar el aspect real
-      // del letrero (en vez del aspect panoramico del visor) ahi haria
-      // que la distancia saliera distinta a la que se ve en pantalla —
-      // un letrero cuadrado/circular en un visor ancho terminaba con la
-      // camara mucho mas lejos que en vivo (bug reportado: "se ve de
-      // lejos" solo al Descargar/Enviar). Se reutiliza el mismo
-      // centro/distancia ya vigentes en el visor: la imagen exportada
-      // queda con el mismo tamano/zoom que el usuario ve, solo recortada
-      // a las proporciones reales.
+      // El letrero se encuadra reutilizando el MISMO centro/distancia que ya
+      // usa el visor en vivo (st.center / st.baseDist). No se recalcula con
+      // frameObject porque hacerlo con el aspect real del letrero (en vez
+      // del aspect panoramico del visor) alejaba muchisimo la camara para un
+      // letrero cuadrado/circular — la imagen salia "de lejos" aunque en
+      // pantalla se viera bien. Asi la exportacion conserva el encuadre y el
+      // zoom que ve el usuario, solo recortado a las proporciones reales.
       if (st.center && st.baseDist) { positionCamera(camera, st.center, st.baseDist); applyZoom(camera, st.zoom || 1); }
       else camera.updateProjectionMatrix();
       renderer.render(sc, camera);
@@ -2355,6 +2361,15 @@ export default function Prototipo() {
     } catch {
       return null;
     } finally {
+      // Restaurar la camara EXACTA de antes de capturar, no reencuadrar:
+      // reencuadrar podia dejar el visor en otra posicion. restoreSize solo
+      // devuelve el canvas a su tamano real en pantalla.
+      camera.position.copy(savePos);
+      camera.quaternion.copy(saveQuat);
+      camera.aspect = saveAspect;
+      camera.zoom = saveZoom;
+      camera.near = saveNear; camera.far = saveFar;
+      camera.updateProjectionMatrix();
       renderer.setPixelRatio(dpr);
       restoreSize && restoreSize();
     }
