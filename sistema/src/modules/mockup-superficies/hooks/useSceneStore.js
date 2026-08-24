@@ -23,6 +23,7 @@ const ESCENA_VACIA = {
 export default function useSceneStore() {
   const [escena, setEscena] = useState(ESCENA_VACIA)
   const [fotoBlobPendiente, setFotoBlobPendiente] = useState(null)
+  const [capasBlobPendientes, setCapasBlobPendientes] = useState({})
   const [cargandoFoto, setCargandoFoto] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState(null)
@@ -32,7 +33,11 @@ export default function useSceneStore() {
     setError(null)
     setCargandoFoto(true)
     try {
-      const { canvas, w, h } = await loadImageFile(file)
+      const { canvas, w, h } = await conTimeout(
+        loadImageFile(file),
+        15000,
+        'La foto tardó demasiado en procesarse. Prueba con una imagen más liviana.',
+      )
       const blob = await canvasToBlob(canvas)
       setFotoBlobPendiente(blob)
       // Subir foto nueva no borra zonas/capas si ya habia (permite re-tomar
@@ -90,7 +95,14 @@ export default function useSceneStore() {
       zonas: prev.zonas.filter(z => z.id !== zonaId),
       capas: prev.capas.filter(c => c.zonaId !== zonaId),
     }))
-  }, [])
+    setCapasBlobPendientes(prev => {
+      const keep = {}
+      for (const capa of escena.capas) {
+        if (capa.zonaId !== zonaId && prev[capa.id]) keep[capa.id] = prev[capa.id]
+      }
+      return keep
+    })
+  }, [escena.capas])
 
   // ─── CAPAS (diseños con corner-pin) ────────────────────────────────────────
   const addCapa = useCallback(async (zonaId, file) => {
@@ -102,24 +114,25 @@ export default function useSceneStore() {
       // maximo razonable) para que un adhesivo pesado no se cuelgue
       // subiendo — PNG en vez de JPEG para no perder la transparencia del
       // recorte del sticker.
-      const { canvas } = await loadImageFile(file)
-      const blob = await canvasToPngBlob(canvas)
-      const up = await conTimeout(
-        uploadEscenaFoto(new File([blob], 'diseno.png', { type: 'image/png' })),
-        25000,
-        'La subida tardó demasiado. Revisa tu conexión e intenta de nuevo.',
+      const { canvas } = await conTimeout(
+        loadImageFile(file),
+        15000,
+        'El diseño tardó demasiado en procesarse. Prueba con una imagen más liviana.',
       )
+      const blob = await canvasToPngBlob(canvas)
+      const id = crypto.randomUUID()
       const nueva = {
-        id: crypto.randomUUID(), zonaId, imgUrl: up.url,
+        id, zonaId, imgUrl: canvas.toDataURL('image/png'),
         imgW: canvas.width, imgH: canvas.height,
         // Arranca calzado exacto a la zona — "Ajustar a zona" hace lo mismo
         // despues si el usuario lo mueve y se quiere resetear.
         puntos: zona.puntos.map(p => ({ ...p })),
       }
+      setCapasBlobPendientes(prev => ({ ...prev, [id]: blob }))
       setEscena(prev => ({ ...prev, capas: [...prev.capas, nueva] }))
       return nueva.id
     } catch (e) {
-      setError(e?.message || 'No se pudo subir el diseño. Prueba con otro archivo.')
+      setError(e?.message || 'No se pudo cargar el diseño. Prueba con otro archivo.')
     }
   }, [escena.zonas])
 
@@ -147,6 +160,10 @@ export default function useSceneStore() {
 
   const removeCapa = useCallback((capaId) => {
     setEscena(prev => ({ ...prev, capas: prev.capas.filter(c => c.id !== capaId) }))
+    setCapasBlobPendientes(prev => {
+      const { [capaId]: _omitida, ...rest } = prev
+      return rest
+    })
   }, [])
 
   // ─── PERSISTENCIA ───────────────────────────────────────────────────────────
@@ -167,17 +184,30 @@ export default function useSceneStore() {
         fotoUrl = up.url
         storagePath = up.path
       }
+
+      const capas = await Promise.all(escena.capas.map(async (capa) => {
+        const blob = capasBlobPendientes[capa.id]
+        if (!blob) return capa
+        const up = await conTimeout(
+          uploadEscenaFoto(new File([blob], `diseno-${capa.id}.png`, { type: 'image/png' })),
+          25000,
+          'La subida del diseño tardó demasiado. Revisa tu conexión e intenta de nuevo.',
+        )
+        return { ...capa, imgUrl: up.url, storagePath: up.path }
+      }))
+
       const guardada = await conTimeout(
         saveEscena({
           id: escena.id, nombre: escena.nombre.trim(), fotoUrl,
           fotoW: escena.fotoW, fotoH: escena.fotoH, storagePath,
-          esPlantilla: !!escena.esPlantilla, zonas: escena.zonas, capas: escena.capas,
+          esPlantilla: !!escena.esPlantilla, zonas: escena.zonas, capas,
         }),
         25000,
         'Guardar tardó demasiado. Revisa tu conexión e intenta de nuevo.',
       )
       setEscena(prev => ({ ...prev, ...guardada }))
       setFotoBlobPendiente(null)
+      setCapasBlobPendientes({})
       return true
     } catch (e) {
       setError(e?.message || 'No se pudo guardar la escena. Revisa tu conexión.')
@@ -185,11 +215,12 @@ export default function useSceneStore() {
     } finally {
       setGuardando(false)
     }
-  }, [escena, fotoBlobPendiente])
+  }, [escena, fotoBlobPendiente, capasBlobPendientes])
 
   const cargarEscena = useCallback((doc) => {
     setError(null)
     setFotoBlobPendiente(null)
+    setCapasBlobPendientes({})
     setEscena({
       id: doc.id, nombre: doc.nombre || '', fotoUrl: doc.fotoUrl || null,
       fotoW: doc.fotoW || 0, fotoH: doc.fotoH || 0, storagePath: doc.storagePath || null,
@@ -203,6 +234,7 @@ export default function useSceneStore() {
   const cargarComoPlantilla = useCallback((doc) => {
     setError(null)
     setFotoBlobPendiente(null)
+    setCapasBlobPendientes({})
     setEscena({
       id: null, nombre: `${doc.nombre || 'Plantilla'} — copia`,
       fotoUrl: doc.fotoUrl || null, fotoW: doc.fotoW || 0, fotoH: doc.fotoH || 0,
@@ -216,6 +248,7 @@ export default function useSceneStore() {
   const nuevaEscena = useCallback(() => {
     setError(null)
     setFotoBlobPendiente(null)
+    setCapasBlobPendientes({})
     setEscena(ESCENA_VACIA)
   }, [])
 

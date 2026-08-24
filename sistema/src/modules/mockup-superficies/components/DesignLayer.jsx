@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Trash2, Upload, Wand2 } from 'lucide-react'
 
 // Panel lateral del tab "Diseño": subir el adhesivo a una zona, ajustarlo
@@ -9,7 +9,11 @@ export default function DesignLayer({
 }) {
   const fileInputRef = useRef(null)
   const [zonaDestino, setZonaDestino] = useState(zonas[0]?.id || '')
-  const [subiendo, setSubiendo] = useState(false)
+  const [cargando, setCargando] = useState(false)
+
+  useEffect(() => {
+    if (!zonas.some(z => z.id === zonaDestino)) setZonaDestino(zonas[0]?.id || '')
+  }, [zonas, zonaDestino])
 
   if (zonas.length === 0) {
     return (
@@ -21,10 +25,14 @@ export default function DesignLayer({
 
   const handleFile = async (file) => {
     if (!file || !zonaDestino) return
-    setSubiendo(true)
-    const id = await onAddCapa(zonaDestino, file)
-    setSubiendo(false)
-    if (id) onSelectCapa(id)
+    setCargando(true)
+    try {
+      const id = await onAddCapa(zonaDestino, file)
+      if (id) onSelectCapa(id)
+    } finally {
+      setCargando(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   return (
@@ -49,11 +57,11 @@ export default function DesignLayer({
       />
       <button
         onClick={() => fileInputRef.current?.click()}
-        disabled={subiendo}
+        disabled={cargando}
         className="w-full flex items-center justify-center gap-2 bg-white/50 border border-white/60 rounded-full px-4 py-2.5 text-sm font-dm text-on-surface-variant hover:bg-white/80 transition-colors disabled:opacity-50"
       >
         <Upload size={16} />
-        {subiendo ? 'Subiendo…' : 'Subir adhesivo a la zona'}
+        {cargando ? 'Cargando…' : 'Subir adhesivo a la zona'}
       </button>
 
       {capas.length === 0 && (
