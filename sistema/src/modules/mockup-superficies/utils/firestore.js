@@ -22,6 +22,16 @@ const COL = 'mockupsVitrina'
 // la carpeta de Storage.
 const STORAGE_PREFIX = 'galeria'
 
+function mensajeFirebase(e) {
+  if (e?.code === 'permission-denied') {
+    return 'Firebase rechazó el acceso a Mockup Vitrina. Cierra sesión, entra con Google autorizado y confirma que las reglas permitan la colección mockupsVitrina.'
+  }
+  if (e?.code === 'failed-precondition') {
+    return 'Firestore necesita preparar un índice para listar las escenas de Mockup Vitrina.'
+  }
+  return e?.message || 'No se pudo conectar con Firebase para Mockup Vitrina.'
+}
+
 // Espera a que Firebase tenga una sesion activa antes de subir. El sistema
 // marca "logueado" via localStorage (independiente de Firebase Auth), asi
 // que auth.currentUser puede estar vacio aunque la UI diga que hay sesion
@@ -51,12 +61,37 @@ function snapsToArr(snap) {
 }
 
 export async function getEscenas() {
+  await ensureAuth()
   const snap = await getDocs(query(collection(db, COL), orderBy('createdAt', 'desc')))
   return snapsToArr(snap)
 }
 
-export function subscribeEscenas(cb) {
-  return onSnapshot(query(collection(db, COL), orderBy('createdAt', 'desc')), snap => cb(snapsToArr(snap)))
+export function subscribeEscenas(cb, onError) {
+  let cancelled = false
+  let unsubscribe = () => {}
+
+  ensureAuth()
+    .then(() => {
+      if (cancelled) return
+      unsubscribe = onSnapshot(
+        query(collection(db, COL), orderBy('createdAt', 'desc')),
+        snap => cb(snapsToArr(snap)),
+        e => {
+          cb([])
+          onError?.(mensajeFirebase(e))
+        },
+      )
+    })
+    .catch(e => {
+      if (cancelled) return
+      cb([])
+      onError?.(mensajeFirebase(e))
+    })
+
+  return () => {
+    cancelled = true
+    unsubscribe()
+  }
 }
 
 export async function saveEscena(escena) {
@@ -68,6 +103,7 @@ export async function saveEscena(escena) {
 }
 
 export async function deleteEscena(id) {
+  await ensureAuth()
   await deleteDoc(doc(db, COL, id))
 }
 
@@ -83,6 +119,7 @@ export async function uploadEscenaFoto(file) {
 export async function deleteEscenaFoto(storagePath) {
   if (!storagePath) return
   try {
+    await ensureAuth()
     await deleteObject(ref(storage, storagePath))
   } catch {
     // el archivo ya no existe en Storage — no debe bloquear el borrado del doc

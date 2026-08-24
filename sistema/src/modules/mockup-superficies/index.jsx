@@ -25,6 +25,7 @@ export default function MockupVitrina() {
   const [zonaActivaId, setZonaActivaId] = useState(null)
   const [capaActivaId, setCapaActivaId] = useState(null)
   const [guardadoOk, setGuardadoOk] = useState(false)
+  const [errorListado, setErrorListado] = useState(null)
   const {
     escena, cargandoFoto, guardando, error,
     subirFoto, setNombre, setEsPlantilla, guardar, cargarEscena, cargarComoPlantilla, nuevaEscena,
@@ -33,7 +34,13 @@ export default function MockupVitrina() {
   } = useSceneStore()
 
   useEffect(() => {
-    const unsub = subscribeEscenas(setEscenas)
+    const unsub = subscribeEscenas(
+      (docs) => {
+        setEscenas(docs)
+        setErrorListado(null)
+      },
+      setErrorListado,
+    )
     return unsub
   }, [])
 
@@ -84,9 +91,14 @@ export default function MockupVitrina() {
   const handleEliminar = async (e, doc) => {
     e.stopPropagation()
     if (!confirm(`¿Eliminar la escena "${doc.nombre}"?`)) return
-    await deleteEscenaFoto(doc.storagePath)
-    await deleteEscena(doc.id)
-    if (escena.id === doc.id) handleNueva()
+    setErrorListado(null)
+    try {
+      await deleteEscenaFoto(doc.storagePath)
+      await deleteEscena(doc.id)
+      if (escena.id === doc.id) handleNueva()
+    } catch (err) {
+      setErrorListado(err?.message || 'No se pudo eliminar la escena. Revisa tu sesión de Firebase.')
+    }
   }
 
   const handleAddZona = (tipo) => {
@@ -124,7 +136,7 @@ export default function MockupVitrina() {
         </div>
       </div>
 
-      {error && <p className="text-sm font-dm text-primary mb-3">{error}</p>}
+      {(error || errorListado) && <p className="text-sm font-dm text-primary mb-3">{error || errorListado}</p>}
 
       <div className="flex gap-3 md:gap-5">
         {/* Toolbar vertical */}
