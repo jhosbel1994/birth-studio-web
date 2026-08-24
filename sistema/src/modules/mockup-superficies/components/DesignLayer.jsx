@@ -19,6 +19,7 @@ export default function DesignLayer({
   const fileInputRef = useRef(null)
   const [zonaDestino, setZonaDestino] = useState(zonas[0]?.id || '')
   const [cargando, setCargando] = useState(false)
+  const [progreso, setProgreso] = useState(null)
 
   useEffect(() => {
     if (!zonas.some(z => z.id === zonaDestino)) setZonaDestino(zonas[0]?.id || '')
@@ -32,14 +33,22 @@ export default function DesignLayer({
     )
   }
 
-  const handleFile = async (file) => {
-    if (!file || !zonaDestino) return
+  const handleFiles = async (files) => {
+    const lista = Array.from(files || [])
+    if (lista.length === 0 || !zonaDestino) return
     setCargando(true)
+    setProgreso({ actual: 0, total: lista.length })
     try {
-      const id = await onAddCapa(zonaDestino, file)
-      if (id) onSelectCapa(id)
+      let ultimoId = null
+      for (let i = 0; i < lista.length; i += 1) {
+        setProgreso({ actual: i + 1, total: lista.length })
+        const id = await onAddCapa(zonaDestino, lista[i])
+        if (id) ultimoId = id
+      }
+      if (ultimoId) onSelectCapa(ultimoId)
     } finally {
       setCargando(false)
+      setProgreso(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -63,8 +72,9 @@ export default function DesignLayer({
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         className="hidden"
-        onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
+        onChange={e => e.target.files?.length && handleFiles(e.target.files)}
       />
       <button
         onClick={() => fileInputRef.current?.click()}
@@ -72,7 +82,7 @@ export default function DesignLayer({
         className="w-full flex items-center justify-center gap-2 bg-white/50 border border-white/60 rounded-full px-4 py-2.5 text-sm font-dm text-on-surface-variant hover:bg-white/80 transition-colors disabled:opacity-50"
       >
         <Upload size={16} />
-        {cargando ? 'Cargando…' : 'Subir adhesivo a la zona'}
+        {cargando && progreso ? `Cargando ${progreso.actual}/${progreso.total}…` : 'Subir adhesivos a la zona'}
       </button>
 
       <button

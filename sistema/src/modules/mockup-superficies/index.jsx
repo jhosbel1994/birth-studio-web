@@ -7,6 +7,7 @@ import { subscribeEscenas, deleteEscena, deleteEscenaFoto } from './utils/firest
 import SceneCanvas from './components/SceneCanvas'
 import ZoneEditor from './components/ZoneEditor'
 import DesignLayer from './components/DesignLayer'
+import { BUILTIN_TEMPLATES } from './data/templates'
 
 const HERRAMIENTAS = [
   { key: 'escena', label: 'Escena', icon: ImagePlus, disponibleSiempre: true },
@@ -144,7 +145,7 @@ export default function MockupVitrina() {
     return id
   }
 
-  const plantillas = escenas.filter(e => e.esPlantilla)
+  const plantillas = [...BUILTIN_TEMPLATES, ...escenas.filter(e => e.esPlantilla)]
   const misEscenas = escenas.filter(e => !e.esPlantilla)
   const pxZona = medidasZonaPx(zonaActiva)
   const anchoCm = Number(zonaActiva?.anchoCm || 0)
@@ -260,6 +261,11 @@ export default function MockupVitrina() {
                           className="w-full flex items-center gap-2 rounded-xl p-2 text-left hover:bg-white/50 transition-colors">
                           <img src={doc.fotoUrl} alt={doc.nombre} className="w-12 h-12 rounded-lg object-cover shrink-0" />
                           <span className="flex-1 min-w-0 text-xs font-dm font-medium text-on-surface truncate">{doc.nombre}</span>
+                          {doc.builtin && (
+                            <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-[9px] font-dm font-semibold uppercase text-secondary">
+                              Birth
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
