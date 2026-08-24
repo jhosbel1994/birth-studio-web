@@ -32,19 +32,19 @@ export default function MobileHeader() {
       {modalPin && <ModalCambiarPin onClose={() => setModalPin(false)} />}
 
       <header
-        className="mobile-app-header sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl lg:hidden"
+        className="mobile-app-header sticky top-0 z-50 border-b border-white/40 bg-white/40 backdrop-blur-[40px] shadow-sm lg:hidden"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="flex h-14 items-center justify-between px-3">
+        <div className="flex h-14 items-center justify-between px-4">
           <img
-            src="/cotizador/logo-birth.png"
+            src="/cotizador/logo-birth-dark.png"
             alt="Birth Studio"
             className="h-8 w-auto object-contain"
           />
           <button
             type="button"
             onClick={() => setOpen(v => !v)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white active:bg-birth-red"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/50 border border-white/60 text-on-surface active:bg-primary active:text-white"
             aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
             aria-expanded={open}
           >
@@ -53,7 +53,7 @@ export default function MobileHeader() {
         </div>
 
         {open && (
-          <div className="border-t border-white/10 bg-black/80 backdrop-blur-2xl px-3 pb-3 shadow-glass-dark">
+          <div className="border-t border-white/40 bg-white/60 backdrop-blur-[40px] px-3 pb-3 widget-shadow">
             <nav className="grid grid-cols-2 gap-2 py-3">
               {NAV.map(({ to, icon: Icon, label }) => (
                 <NavLink
@@ -61,10 +61,10 @@ export default function MobileHeader() {
                   to={to}
                   onClick={() => setOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-dm font-medium ${
+                    `flex items-center gap-2 rounded-full border px-3 py-3 text-sm font-dm font-medium ${
                       isActive
-                        ? 'border-birth-red bg-birth-red/90 text-white shadow-glow'
-                        : 'border-white/15 bg-white/10 text-white/90'
+                        ? 'border-transparent bg-secondary-container/80 text-on-secondary-container'
+                        : 'border-white/60 bg-white/50 text-on-surface-variant'
                     }`
                   }
                 >
@@ -74,11 +74,11 @@ export default function MobileHeader() {
               ))}
             </nav>
 
-            <div className="grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+            <div className="grid grid-cols-2 gap-2 border-t border-white/40 pt-3">
               <button
                 type="button"
                 onClick={() => { setOpen(false); setModalPin(true) }}
-                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-dm text-white/55"
+                className="flex items-center justify-center gap-2 rounded-full border border-white/60 bg-white/50 px-3 py-2.5 text-xs font-dm text-on-surface-variant"
               >
                 <KeyRound size={15} />
                 Clave
@@ -86,7 +86,7 @@ export default function MobileHeader() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-dm text-white/55"
+                className="flex items-center justify-center gap-2 rounded-full border border-white/60 bg-white/50 px-3 py-2.5 text-xs font-dm text-primary"
               >
                 <LogOut size={15} />
                 Salir
