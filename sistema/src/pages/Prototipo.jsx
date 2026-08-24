@@ -2325,7 +2325,7 @@ export default function Prototipo() {
   /* -- Captura de imagen respetando la orientacion del letrero -- */
   const captureOriented = useCallback((mime = "image/png", quality = 0.92, longSide = 1600) => {
     const st = S.current;
-    const { renderer, camera, sc, restoreSize, frameTarget } = st;
+    const { renderer, camera, sc, restoreSize } = st;
     if (!renderer || !camera || !sc) return null;
     const inf = st.lastInfo;
     const aspect = inf && inf.realW && inf.realH
@@ -2339,8 +2339,16 @@ export default function Prototipo() {
       renderer.setPixelRatio(1);
       renderer.setSize(tw, th, false);
       camera.aspect = tw / th;
-      const f = frameObject(camera, frameTarget || sc, st.fill || 0.6);
-      if (f) { positionCamera(camera, f.center, f.dist); applyZoom(camera, st.zoom || 1); }
+      // No se recalcula el encuadre con frameObject: usar el aspect real
+      // del letrero (en vez del aspect panoramico del visor) ahi haria
+      // que la distancia saliera distinta a la que se ve en pantalla —
+      // un letrero cuadrado/circular en un visor ancho terminaba con la
+      // camara mucho mas lejos que en vivo (bug reportado: "se ve de
+      // lejos" solo al Descargar/Enviar). Se reutiliza el mismo
+      // centro/distancia ya vigentes en el visor: la imagen exportada
+      // queda con el mismo tamano/zoom que el usuario ve, solo recortada
+      // a las proporciones reales.
+      if (st.center && st.baseDist) { positionCamera(camera, st.center, st.baseDist); applyZoom(camera, st.zoom || 1); }
       else camera.updateProjectionMatrix();
       renderer.render(sc, camera);
       return renderer.domElement.toDataURL(mime, quality);
