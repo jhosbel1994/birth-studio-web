@@ -39,3 +39,10 @@ export async function loadImageFile(file) {
 export function canvasToBlob(canvas, quality = 0.9) {
   return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
 }
+
+// PNG (sin perdida, con canal alfa) — usado para los adhesivos/diseños: si
+// se comprimieran como JPEG se perderia la transparencia y el "recorte"
+// del sticker se veria como un rectangulo solido tapando el vidrio.
+export function canvasToPngBlob(canvas) {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+}

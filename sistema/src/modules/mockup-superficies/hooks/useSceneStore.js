@@ -1,7 +1,16 @@
 import { useCallback, useState } from 'react'
 import { saveEscena, uploadEscenaFoto } from '../utils/firestore'
-import { canvasToBlob, loadImageFile } from '../utils/loadImage'
+import { canvasToBlob, canvasToPngBlob, loadImageFile } from '../utils/loadImage'
 import { quadDefault } from '../utils/warpQuad'
+
+// Si Storage no responde (regla de permisos, red caida) el usuario no debe
+// quedar viendo "Subiendo..." para siempre sin ninguna pista.
+function conTimeout(promise, ms, mensaje) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error(mensaje)), ms)),
+  ])
+}
 
 const ESCENA_VACIA = {
   id: null, nombre: '', fotoUrl: null, fotoW: 0, fotoH: 0, storagePath: null,
@@ -89,24 +98,28 @@ export default function useSceneStore() {
     try {
       const zona = escena.zonas.find(z => z.id === zonaId)
       if (!zona) return
-      const up = await uploadEscenaFoto(file)
-      const img = await new Promise((res, rej) => {
-        const im = new Image()
-        im.onload = () => res(im)
-        im.onerror = rej
-        im.src = up.url
-      })
+      // Mismo pipeline que la foto de escena (EXIF + reescalado a un lado
+      // maximo razonable) para que un adhesivo pesado no se cuelgue
+      // subiendo — PNG en vez de JPEG para no perder la transparencia del
+      // recorte del sticker.
+      const { canvas } = await loadImageFile(file)
+      const blob = await canvasToPngBlob(canvas)
+      const up = await conTimeout(
+        uploadEscenaFoto(new File([blob], 'diseno.png', { type: 'image/png' })),
+        25000,
+        'La subida tardó demasiado. Revisa tu conexión e intenta de nuevo.',
+      )
       const nueva = {
         id: crypto.randomUUID(), zonaId, imgUrl: up.url,
-        imgW: img.naturalWidth, imgH: img.naturalHeight,
+        imgW: canvas.width, imgH: canvas.height,
         // Arranca calzado exacto a la zona — "Ajustar a zona" hace lo mismo
         // despues si el usuario lo mueve y se quiere resetear.
         puntos: zona.puntos.map(p => ({ ...p })),
       }
       setEscena(prev => ({ ...prev, capas: [...prev.capas, nueva] }))
       return nueva.id
-    } catch {
-      setError('No se pudo subir el diseño. Prueba con otro archivo.')
+    } catch (e) {
+      setError(e?.message || 'No se pudo subir el diseño. Prueba con otro archivo.')
     }
   }, [escena.zonas])
 
@@ -146,20 +159,28 @@ export default function useSceneStore() {
       let fotoUrl = escena.fotoUrl
       let storagePath = escena.storagePath
       if (fotoBlobPendiente) {
-        const up = await uploadEscenaFoto(new File([fotoBlobPendiente], 'escena.jpg', { type: 'image/jpeg' }))
+        const up = await conTimeout(
+          uploadEscenaFoto(new File([fotoBlobPendiente], 'escena.jpg', { type: 'image/jpeg' })),
+          25000,
+          'La subida de la foto tardó demasiado. Revisa tu conexión e intenta de nuevo.',
+        )
         fotoUrl = up.url
         storagePath = up.path
       }
-      const guardada = await saveEscena({
-        id: escena.id, nombre: escena.nombre.trim(), fotoUrl,
-        fotoW: escena.fotoW, fotoH: escena.fotoH, storagePath,
-        esPlantilla: !!escena.esPlantilla, zonas: escena.zonas, capas: escena.capas,
-      })
+      const guardada = await conTimeout(
+        saveEscena({
+          id: escena.id, nombre: escena.nombre.trim(), fotoUrl,
+          fotoW: escena.fotoW, fotoH: escena.fotoH, storagePath,
+          esPlantilla: !!escena.esPlantilla, zonas: escena.zonas, capas: escena.capas,
+        }),
+        25000,
+        'Guardar tardó demasiado. Revisa tu conexión e intenta de nuevo.',
+      )
       setEscena(prev => ({ ...prev, ...guardada }))
       setFotoBlobPendiente(null)
       return true
-    } catch {
-      setError('No se pudo guardar la escena. Revisa tu conexión.')
+    } catch (e) {
+      setError(e?.message || 'No se pudo guardar la escena. Revisa tu conexión.')
       return false
     } finally {
       setGuardando(false)
