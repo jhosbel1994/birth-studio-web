@@ -3,7 +3,7 @@ import { clp, fechaCorta } from './formatters'
 
 const EMAILJS_SERVICE = 'service_qtcrtcr'
 const EMAILJS_PUBLIC_KEY = 'x6DqzGj_3ceKhk2NQ'
-const EMAILJS_TEMPLATE_COT = 'kvlfwpb'
+const EMAILJS_TEMPLATES_COT = ['kvlfwpb', 'template_cotizacion']
 
 emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY })
 
@@ -150,11 +150,14 @@ export async function enviarCotizacionEmailJS(cotizacion, cliente, emailDestino)
   const nombre = cliente?.nombre || cotizacion.clienteNombre || 'Cliente'
   const asunto = `Cotización #${cotizacion.numero} - Birth Studio SpA`
 
-  return emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE_COT, {
+  const params = {
     to_email: emailDestino,
+    user_email: emailDestino,
+    email: emailDestino,
     to_name: nombre,
     reply_to: EMPRESA.correo,
     from_name: EMPRESA.nombre,
+    from_email: EMPRESA.correo,
     numero: cotizacion.numero,
     subject: asunto,
     asunto,
@@ -162,8 +165,35 @@ export async function enviarCotizacionEmailJS(cotizacion, cliente, emailDestino)
     cuerpo_html: htmlContent,
     cuerpo_texto: textoPlano,
     name: EMPRESA.nombre,
-    email: EMPRESA.correo,
-  })
+    empresa_email: EMPRESA.correo,
+  }
+
+  const errores = []
+  for (const template of EMAILJS_TEMPLATES_COT) {
+    try {
+      return await emailjs.send(EMAILJS_SERVICE, template, params, {
+        publicKey: EMAILJS_PUBLIC_KEY,
+      })
+    } catch (err) {
+      errores.push({ template, err })
+      const status = Number(err?.status || 0)
+      const text = String(err?.text || err?.message || '').toLowerCase()
+      const puedeSerTemplate = status === 400 || status === 404 || text.includes('template')
+      if (!puedeSerTemplate) break
+    }
+  }
+
+  const detalle = errores
+    .map(({ template, err }) => `${template}: ${formatEmailJSError(err)}`)
+    .join(' | ')
+  throw new Error(detalle || 'EmailJS no respondió')
+}
+
+export function formatEmailJSError(err) {
+  if (!err) return 'error desconocido'
+  if (err.text) return err.status ? `${err.status} ${err.text}` : err.text
+  if (err.message) return err.message
+  try { return JSON.stringify(err) } catch { return String(err) }
 }
 
 export function abrirGmailCompose(cotizacion, cliente, emailDestino) {

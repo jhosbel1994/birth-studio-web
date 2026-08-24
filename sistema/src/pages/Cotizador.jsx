@@ -9,7 +9,7 @@ import {
   getPreciosProductos, savePreciosProductos, getMultiplicadoresInstalacion, saveMultiplicadoresInstalacion,
 } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
-import { enviarCotizacionEmailJS, abrirGmailCompose } from '../utils/email'
+import { enviarCotizacionEmailJS, abrirGmailCompose, formatEmailJSError } from '../utils/email'
 import { clp, hoy, sumarDias } from '../utils/formatters'
 import CosteoLetrasPanel from '../components/CosteoLetras/CosteoLetrasPanel'
 import MaterialesPanel from '../components/Materiales/MaterialesPanel'
@@ -1649,8 +1649,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
       setMsgEmail({ tipo: 'ok', texto: `Email enviado a ${emailCliente}` })
       onGuardado()
     } catch (err) {
-      const detalle = err?.text || err?.message || JSON.stringify(err) || 'error desconocido'
-      setMsgEmail({ tipo: 'error', texto: `EmailJS falló: ${detalle}` })
+      setMsgEmail({ tipo: 'error', texto: `EmailJS falló: ${formatEmailJSError(err)}` })
     }
     setLoading(false)
   }

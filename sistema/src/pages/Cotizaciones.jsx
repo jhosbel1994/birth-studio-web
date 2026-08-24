@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { saveCotizacion, deleteCotizacion, saveCliente, getClienteById, subscribeCotizaciones, subscribeClientes, syncPublicStats } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
-import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl } from '../utils/email'
+import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, formatEmailJSError } from '../utils/email'
 import { CATEGORIAS, PRODUCTOS } from '../data/productos'
 import { useLocation } from 'react-router-dom'
 import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
@@ -754,9 +754,9 @@ export default function Cotizaciones() {
       await enviarCotizacionEmailJS(cot, cliente, email)
       setEnvioEstado({ tipo: 'ok', mensaje: `Correo enviado a ${email}` })
       setTimeout(() => setEnvioEstado(null), 2500)
-    } catch {
+    } catch (err) {
       abrirGmailCompose(cot, cliente, email)
-      setEnvioEstado({ tipo: 'error', mensaje: 'EmailJS no respondió. Abrí Gmail con el correo listo para enviar.' })
+      setEnvioEstado({ tipo: 'error', mensaje: `EmailJS falló: ${formatEmailJSError(err)}. Abrí Gmail con el correo listo.` })
     }
   }
 
