@@ -46,12 +46,12 @@ function ModalGasto({ gasto, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-md shadow-xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
+      <div className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full max-w-md shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
           <h2 className="font-barlow text-xl font-bold tracking-wide">
             {gasto?.id ? 'EDITAR GASTO' : 'NUEVO GASTO'}
           </h2>
-          <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
         </div>
 
         <div className="px-5 md:px-6 pt-5">
@@ -70,8 +70,8 @@ function ModalGasto({ gasto, onClose, onSave }) {
             onClick={() => fileRef.current?.click()}
             className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed text-sm font-dm font-medium transition-all ${
               escaneando
-                ? 'border-birth-gray-2 text-birth-gray-3 cursor-not-allowed'
-                : 'border-birth-black text-birth-black hover:bg-birth-gray active:bg-birth-gray-2'
+                ? 'border-white/50 text-on-surface-variant cursor-not-allowed'
+                : 'border-on-surface text-on-surface hover:bg-white/60 active:bg-white/70'
             }`}>
             {escaneando
               ? <><Loader2 size={16} className="animate-spin" /> Analizando boleta...</>
@@ -84,7 +84,7 @@ function ModalGasto({ gasto, onClose, onSave }) {
             <div className={`mt-2 flex items-start gap-2 px-3 py-2 rounded text-xs font-dm ${
               scanStatus === 'ok'
                 ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-birth-red border border-red-200'
+                : 'bg-red-50 text-primary border border-red-200'
             }`}>
               {scanStatus === 'ok'
                 ? <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
@@ -98,41 +98,41 @@ function ModalGasto({ gasto, onClose, onSave }) {
         <form onSubmit={e => { e.preventDefault(); if (!form.descripcion || !form.monto) return; onSave(form) }}
           className="p-5 md:p-6 pt-4 space-y-4">
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Descripción *</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Descripción *</label>
             <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)} required
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Monto *</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Monto *</label>
               <input type="number" min="0" value={form.monto} onChange={e => set('monto', parseFloat(e.target.value) || '')} required
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" placeholder="0" />
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" placeholder="0" />
             </div>
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Fecha</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Fecha</label>
               <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Categoría</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Categoría</label>
             <select value={form.categoria} onChange={e => set('categoria', e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black bg-white">
+              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
               {CATEGORIAS_GASTO.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Notas</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Notas</label>
             <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
+              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface resize-none" />
           </div>
           <div className="flex gap-3 pt-2 pb-safe">
             <button type="submit"
-              className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
+              className="flex-1 bg-primary text-on-primary py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
               {gasto?.id ? 'Guardar cambios' : 'Registrar gasto'}
             </button>
             <button type="button" onClick={onClose}
-              className="px-5 border border-birth-gray-2 rounded text-sm font-dm text-birth-gray-4 hover:border-birth-black transition-colors">
+              className="px-5 border border-white/60 bg-white/40 rounded-full text-sm font-dm text-on-surface-variant hover:border-primary transition-colors">
               Cancelar
             </button>
           </div>
@@ -149,36 +149,36 @@ function ModalPago({ cotizaciones, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-md shadow-xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
+      <div className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full max-w-md shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
           <h2 className="font-barlow text-xl font-bold tracking-wide">REGISTRAR PAGO</h2>
-          <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
         </div>
         <form onSubmit={e => { e.preventDefault(); if (!form.monto) return; onSave(form) }} className="p-5 md:p-6 space-y-4">
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Cotización (opcional)</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Cotización (opcional)</label>
             <select value={form.cotizacionId} onChange={e => set('cotizacionId', e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black bg-white">
+              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
               <option value="">Sin vincular</option>
               {cots.map(c => <option key={c.id} value={c.id}>#{c.numero} — {c.clienteNombre} ({clp(c.total)})</option>)}
             </select>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Monto *</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Monto *</label>
               <input type="number" min="0" value={form.monto} onChange={e => set('monto', parseFloat(e.target.value) || '')} required
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
             </div>
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Fecha</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Fecha</label>
               <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Tipo</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Tipo</label>
             <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black bg-white">
+              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
               <option value="anticipo">Anticipo</option>
               <option value="saldo">Saldo</option>
               <option value="total">Pago total</option>
@@ -186,17 +186,17 @@ function ModalPago({ cotizaciones, onClose, onSave }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Notas</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Notas</label>
             <input value={form.notas} onChange={e => set('notas', e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
           </div>
           <div className="flex gap-3 pt-2 pb-safe">
             <button type="submit"
-              className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
+              className="flex-1 bg-primary text-on-primary py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
               Registrar ingreso
             </button>
             <button type="button" onClick={onClose}
-              className="px-5 border border-birth-gray-2 rounded text-sm font-dm text-birth-gray-4 hover:border-birth-black transition-colors">
+              className="px-5 border border-white/60 bg-white/40 rounded-full text-sm font-dm text-on-surface-variant hover:border-primary transition-colors">
               Cancelar
             </button>
           </div>
@@ -265,12 +265,12 @@ export default function Gastos() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 md:mb-8">
         <div>
-          <h1 className="font-barlow text-3xl md:text-4xl font-bold text-birth-black tracking-wide">GASTOS & FINANZAS</h1>
-          <p className="text-birth-gray-3 text-xs md:text-sm font-dm mt-1">Seguimiento de ingresos y gastos</p>
+          <h1 className="font-barlow text-3xl md:text-4xl font-bold text-on-surface tracking-wide">GASTOS & FINANZAS</h1>
+          <p className="text-on-surface-variant text-xs md:text-sm font-dm mt-1">Seguimiento de ingresos y gastos</p>
         </div>
         <div className="flex gap-2">
           <select value={mesFiltro} onChange={e => setMesFiltro(e.target.value)}
-            className="border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm bg-white focus:outline-none focus:border-birth-black">
+            className="border border-white/60 rounded-full px-4 py-2 text-sm font-dm bg-white/50 focus:outline-none focus:border-primary focus:bg-white">
             {meses.map(m => {
               const [y, mo] = m.split('-')
               const label = new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
@@ -282,26 +282,26 @@ export default function Gastos() {
 
       {/* Resumen del mes */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
-        <div className="bg-white border border-birth-gray-2 rounded p-4 md:p-5">
+        <div className="glass-panel rounded-widget p-4 md:p-5">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp size={16} className="text-green-500" />
-            <p className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Ingresos</p>
+            <p className="text-xs text-on-surface-variant font-dm uppercase tracking-wider">Ingresos</p>
           </div>
           <p className="font-barlow text-2xl md:text-3xl font-bold text-green-700">{clp(totalIngresos)}</p>
         </div>
-        <div className="bg-white border border-birth-gray-2 rounded p-4 md:p-5">
+        <div className="glass-panel rounded-widget p-4 md:p-5">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingDown size={16} className="text-birth-red" />
-            <p className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Gastos</p>
+            <TrendingDown size={16} className="text-primary" />
+            <p className="text-xs text-on-surface-variant font-dm uppercase tracking-wider">Gastos</p>
           </div>
-          <p className="font-barlow text-2xl md:text-3xl font-bold text-birth-red">{clp(totalGastos)}</p>
+          <p className="font-barlow text-2xl md:text-3xl font-bold text-primary">{clp(totalGastos)}</p>
         </div>
-        <div className="bg-white border border-birth-gray-2 rounded p-4 md:p-5">
+        <div className="glass-panel rounded-widget p-4 md:p-5">
           <div className="flex items-center gap-2 mb-1">
-            <DollarSign size={16} className={ganancia >= 0 ? 'text-green-500' : 'text-birth-red'} />
-            <p className="text-xs text-birth-gray-4 font-dm uppercase tracking-wider">Ganancia neta</p>
+            <DollarSign size={16} className={ganancia >= 0 ? 'text-green-500' : 'text-primary'} />
+            <p className="text-xs text-on-surface-variant font-dm uppercase tracking-wider">Ganancia neta</p>
           </div>
-          <p className={`font-barlow text-2xl md:text-3xl font-bold ${ganancia >= 0 ? 'text-green-700' : 'text-birth-red'}`}>{clp(ganancia)}</p>
+          <p className={`font-barlow text-2xl md:text-3xl font-bold ${ganancia >= 0 ? 'text-green-700' : 'text-primary'}`}>{clp(ganancia)}</p>
         </div>
       </div>
 
@@ -312,42 +312,42 @@ export default function Gastos() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="flex gap-1 overflow-x-auto">
               <button onClick={() => setTab('gastos')}
-                className={`px-4 py-2 rounded text-sm font-dm border transition-colors ${tab === 'gastos' ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+                className={`px-4 py-2 rounded-full text-sm font-dm border transition-colors ${tab === 'gastos' ? 'bg-primary text-on-primary border-primary' : 'bg-white/50 text-on-surface-variant border-white/60 hover:border-primary'}`}>
                 Gastos ({gastosMes.length})
               </button>
               <button onClick={() => setTab('ingresos')}
-                className={`px-4 py-2 rounded text-sm font-dm border transition-colors ${tab === 'ingresos' ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+                className={`px-4 py-2 rounded-full text-sm font-dm border transition-colors ${tab === 'ingresos' ? 'bg-primary text-on-primary border-primary' : 'bg-white/50 text-on-surface-variant border-white/60 hover:border-primary'}`}>
                 Ingresos ({pagosMes.length})
               </button>
             </div>
             <button
               onClick={() => tab === 'gastos' ? setModalGasto({}) : setModalPago(true)}
-              className="flex items-center justify-center gap-2 bg-birth-black text-white px-4 py-2.5 rounded text-sm font-dm hover:bg-birth-red transition-colors">
+              className="flex items-center justify-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-full text-sm font-dm hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
               <Plus size={14} /> {tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'}
             </button>
           </div>
 
-          <div className="bg-white border border-birth-gray-2 rounded">
+          <div className="glass-panel rounded-widget overflow-hidden">
             {tab === 'gastos' ? (
               gastosMes.length === 0 ? (
-                <div className="py-16 text-center text-birth-gray-3 text-sm font-dm">Sin gastos este mes</div>
+                <div className="py-16 text-center text-on-surface-variant text-sm font-dm">Sin gastos este mes</div>
               ) : (
                 <>
-                <div className="md:hidden divide-y divide-birth-gray-2">
+                <div className="md:hidden divide-y divide-white/40">
                   {[...gastosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(g => (
                     <div key={g.id} className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="font-dm font-semibold text-sm text-birth-black truncate">{g.descripcion}</p>
-                          <p className="text-xs text-birth-gray-3 mt-1 font-dm">{fechaCorta(g.fecha)}</p>
-                          <span className="inline-block mt-2 bg-birth-gray px-2 py-0.5 rounded text-[11px] font-dm text-birth-gray-4">{g.categoria}</span>
+                          <p className="font-dm font-semibold text-sm text-on-surface truncate">{g.descripcion}</p>
+                          <p className="text-xs text-on-surface-variant mt-1 font-dm">{fechaCorta(g.fecha)}</p>
+                          <span className="inline-block mt-2 bg-white/60 px-2 py-0.5 rounded text-[11px] font-dm text-on-surface-variant">{g.categoria}</span>
                         </div>
-                        <p className="font-barlow text-lg font-bold text-birth-red shrink-0">{clp(g.monto)}</p>
+                        <p className="font-barlow text-lg font-bold text-primary shrink-0">{clp(g.monto)}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id) } }}
-                        className="mt-4 h-10 w-full rounded border border-birth-gray-2 text-xs font-dm text-birth-red flex items-center justify-center gap-2 active:border-birth-red"
+                        className="mt-4 h-10 w-full rounded border border-white/50 text-xs font-dm text-primary flex items-center justify-center gap-2 active:border-primary"
                       >
                         <Trash2 size={14} /> Eliminar gasto
                       </button>
@@ -356,26 +356,26 @@ export default function Gastos() {
                 </div>
                 <table className="hidden md:table w-full text-sm font-dm">
                   <thead>
-                    <tr className="border-b border-birth-gray-2">
-                      <th className="text-left px-5 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Descripción</th>
-                      <th className="text-left px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Categoría</th>
-                      <th className="text-left px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Fecha</th>
-                      <th className="text-right px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Monto</th>
+                    <tr className="border-b border-white/50">
+                      <th className="text-left px-5 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Descripción</th>
+                      <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Categoría</th>
+                      <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Fecha</th>
+                      <th className="text-right px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Monto</th>
                       <th className="px-5 py-3"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {[...gastosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(g => (
-                      <tr key={g.id} className="border-b border-birth-gray-2 hover:bg-birth-gray">
+                      <tr key={g.id} className="border-b border-white/50 hover:bg-white/60">
                         <td className="px-5 py-3 font-medium">{g.descripcion}</td>
                         <td className="px-3 py-3">
-                          <span className="bg-birth-gray px-2 py-0.5 rounded text-xs">{g.categoria}</span>
+                          <span className="bg-white/60 px-2 py-0.5 rounded text-xs">{g.categoria}</span>
                         </td>
-                        <td className="px-3 py-3 text-birth-gray-4">{fechaCorta(g.fecha)}</td>
-                        <td className="px-3 py-3 text-right font-medium text-birth-red">{clp(g.monto)}</td>
+                        <td className="px-3 py-3 text-on-surface-variant">{fechaCorta(g.fecha)}</td>
+                        <td className="px-3 py-3 text-right font-medium text-primary">{clp(g.monto)}</td>
                         <td className="px-5 py-3">
                           <button onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id) } }}
-                            className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray">
+                            className="p-1.5 text-on-surface-variant hover:text-primary rounded hover:bg-white/60">
                             <Trash2 size={14} />
                           </button>
                         </td>
@@ -387,26 +387,26 @@ export default function Gastos() {
               )
             ) : (
               pagosMes.length === 0 ? (
-                <div className="py-16 text-center text-birth-gray-3 text-sm font-dm">Sin ingresos este mes</div>
+                <div className="py-16 text-center text-on-surface-variant text-sm font-dm">Sin ingresos este mes</div>
               ) : (
                 <>
-                <div className="md:hidden divide-y divide-birth-gray-2">
+                <div className="md:hidden divide-y divide-white/40">
                   {[...pagosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(p => {
                     const cot = cotizaciones.find(c => c.id === p.cotizacionId)
                     return (
                       <div key={p.id} className="p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="font-dm font-semibold text-sm text-birth-black truncate">{p.notas || 'Ingreso registrado'}</p>
-                            <p className="text-xs text-birth-gray-3 mt-1 font-dm">{fechaCorta(p.fecha)}{cot ? ` · #${cot.numero}` : ''}</p>
-                            <span className="inline-block mt-2 bg-birth-gray px-2 py-0.5 rounded text-[11px] font-dm text-birth-gray-4 capitalize">{p.tipo}</span>
+                            <p className="font-dm font-semibold text-sm text-on-surface truncate">{p.notas || 'Ingreso registrado'}</p>
+                            <p className="text-xs text-on-surface-variant mt-1 font-dm">{fechaCorta(p.fecha)}{cot ? ` · #${cot.numero}` : ''}</p>
+                            <span className="inline-block mt-2 bg-white/60 px-2 py-0.5 rounded text-[11px] font-dm text-on-surface-variant capitalize">{p.tipo}</span>
                           </div>
                           <p className="font-barlow text-lg font-bold text-green-700 shrink-0">{clp(p.monto)}</p>
                         </div>
                         <button
                           type="button"
                           onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id) } }}
-                          className="mt-4 h-10 w-full rounded border border-birth-gray-2 text-xs font-dm text-birth-red flex items-center justify-center gap-2 active:border-birth-red"
+                          className="mt-4 h-10 w-full rounded border border-white/50 text-xs font-dm text-primary flex items-center justify-center gap-2 active:border-primary"
                         >
                           <Trash2 size={14} /> Eliminar ingreso
                         </button>
@@ -416,12 +416,12 @@ export default function Gastos() {
                 </div>
                 <table className="hidden md:table w-full text-sm font-dm">
                   <thead>
-                    <tr className="border-b border-birth-gray-2">
-                      <th className="text-left px-5 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Notas</th>
-                      <th className="text-left px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Cotización</th>
-                      <th className="text-left px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Tipo</th>
-                      <th className="text-left px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Fecha</th>
-                      <th className="text-right px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Monto</th>
+                    <tr className="border-b border-white/50">
+                      <th className="text-left px-5 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Notas</th>
+                      <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Cotización</th>
+                      <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Tipo</th>
+                      <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Fecha</th>
+                      <th className="text-right px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Monto</th>
                       <th className="px-5 py-3"></th>
                     </tr>
                   </thead>
@@ -429,17 +429,17 @@ export default function Gastos() {
                     {[...pagosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(p => {
                       const cot = cotizaciones.find(c => c.id === p.cotizacionId)
                       return (
-                        <tr key={p.id} className="border-b border-birth-gray-2 hover:bg-birth-gray">
+                        <tr key={p.id} className="border-b border-white/50 hover:bg-white/60">
                           <td className="px-5 py-3 font-medium">{p.notas || '—'}</td>
-                          <td className="px-3 py-3 text-birth-gray-4">{cot ? `#${cot.numero}` : '—'}</td>
+                          <td className="px-3 py-3 text-on-surface-variant">{cot ? `#${cot.numero}` : '—'}</td>
                           <td className="px-3 py-3">
-                            <span className="bg-birth-gray px-2 py-0.5 rounded text-xs capitalize">{p.tipo}</span>
+                            <span className="bg-white/60 px-2 py-0.5 rounded text-xs capitalize">{p.tipo}</span>
                           </td>
-                          <td className="px-3 py-3 text-birth-gray-4">{fechaCorta(p.fecha)}</td>
+                          <td className="px-3 py-3 text-on-surface-variant">{fechaCorta(p.fecha)}</td>
                           <td className="px-3 py-3 text-right font-medium text-green-700">{clp(p.monto)}</td>
                           <td className="px-5 py-3">
                             <button onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id) } }}
-                              className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray">
+                              className="p-1.5 text-on-surface-variant hover:text-primary rounded hover:bg-white/60">
                               <Trash2 size={14} />
                             </button>
                           </td>
@@ -455,12 +455,12 @@ export default function Gastos() {
         </div>
 
         {/* Gastos por categoría */}
-        <div className="bg-white border border-birth-gray-2 rounded">
-          <div className="px-5 py-4 border-b border-birth-gray-2">
+        <div className="glass-panel rounded-widget overflow-hidden">
+          <div className="px-5 py-4 border-b border-white/40">
             <h3 className="font-barlow font-bold text-base tracking-wide">GASTOS POR CATEGORÍA</h3>
           </div>
           {porCategoria.length === 0 ? (
-            <div className="py-10 text-center text-birth-gray-3 text-sm font-dm">Sin datos</div>
+            <div className="py-10 text-center text-on-surface-variant text-sm font-dm">Sin datos</div>
           ) : (
             <div className="p-4 space-y-3">
               {porCategoria.map(({ cat, total }) => {
@@ -468,11 +468,11 @@ export default function Gastos() {
                 return (
                   <div key={cat}>
                     <div className="flex justify-between text-sm font-dm mb-1">
-                      <span className="text-birth-gray-4">{cat}</span>
+                      <span className="text-on-surface-variant">{cat}</span>
                       <span className="font-medium">{clp(total)}</span>
                     </div>
-                    <div className="h-1.5 bg-birth-gray-2 rounded-full overflow-hidden">
-                      <div className="h-full bg-birth-black rounded-full" style={{ width: `${pct}%` }} />
+                    <div className="h-1.5 bg-white/70 rounded-full overflow-hidden">
+                      <div className="h-full bg-on-surface rounded-full" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 )

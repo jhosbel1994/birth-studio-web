@@ -28,64 +28,64 @@ function Modal({ cliente, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
+      <div className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
           <h2 className="font-barlow text-xl font-bold tracking-wide">{cliente?.id ? 'MODIFICAR CLIENTE' : 'NUEVO CLIENTE'}</h2>
-          <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
         </div>
         <form onSubmit={e => { e.preventDefault(); if (!form.nombre.trim()) return; onSave(form) }} className="p-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Nombre *</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Nombre *</label>
               <input value={form.nombre} onChange={e => set('nombre', e.target.value)} required
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Apellido</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Apellido</label>
               <input value={form.apellido || ''} onChange={e => set('apellido', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Empresa</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Empresa</label>
               <input value={form.empresa} onChange={e => set('empresa', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">RUT empresa</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">RUT empresa</label>
               <input value={form.rut} onChange={e => set('rut', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" placeholder="76.123.456-7" />
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" placeholder="76.123.456-7" />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Dirección</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Dirección</label>
             <input value={form.direccion || ''} onChange={e => set('direccion', e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" placeholder="Av. O'Higgins 123, Talca" />
+              className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" placeholder="Av. O'Higgins 123, Talca" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Correo</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Correo</label>
               <input type="email" value={form.correo} onChange={e => set('correo', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Teléfono</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Teléfono</label>
               <input value={form.telefono} onChange={e => set('telefono', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" placeholder="+56 9 1234 5678" />
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" placeholder="+56 9 1234 5678" />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Notas</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Notas</label>
             <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black resize-none" />
+              className="w-full border border-white/60 bg-white/50 rounded-2xl px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white resize-none" />
           </div>
           <div className="flex gap-3 pt-2 pb-safe">
-            <button type="submit" className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
+            <button type="submit" className="flex-1 bg-primary text-on-primary py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
               {cliente?.id ? 'Guardar cambios' : 'Crear cliente'}
             </button>
             <button type="button" onClick={onClose}
-              className="px-5 border border-birth-gray-2 rounded text-sm font-dm text-birth-gray-4 hover:border-birth-black transition-colors">
+              className="px-5 border border-white/60 bg-white/40 rounded-full text-sm font-dm text-on-surface-variant hover:border-primary transition-colors">
               Cancelar
             </button>
           </div>
@@ -100,18 +100,18 @@ function CardMenu({ cliente, onClose, onEditar, onEliminar }) {
   const nombreCompleto = [cliente.nombre, cliente.apellido].filter(Boolean).join(' ')
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={onClose}>
-      <div className="bg-white w-full md:max-w-xs rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="px-4 py-3 border-b border-birth-gray-2">
-          <p className="font-barlow font-bold text-birth-black">{nombreCompleto}</p>
-          {cliente.empresa && <p className="text-xs text-birth-gray-3 font-dm">{cliente.empresa}</p>}
+      <div className="glass-panel bg-white/90 w-full md:max-w-xs rounded-t-[32px] md:rounded-widget shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-4 py-3 border-b border-white/40">
+          <p className="font-barlow font-bold text-on-surface">{nombreCompleto}</p>
+          {cliente.empresa && <p className="text-xs text-on-surface-variant font-dm">{cliente.empresa}</p>}
         </div>
         <button onClick={onEditar}
-          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-birth-gray active:bg-birth-gray-2 transition-colors text-birth-black">
-          <Edit2 size={16} className="text-birth-gray-4" />
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/50 active:bg-white/70 transition-colors text-on-surface">
+          <Edit2 size={16} className="text-on-surface-variant" />
           <span className="text-sm font-dm font-medium">Modificar contacto</span>
         </button>
         <button onClick={onEliminar}
-          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-red-50 active:bg-red-100 transition-colors text-birth-red border-t border-birth-gray-2">
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-red-50 active:bg-red-100 transition-colors text-primary border-t border-white/40">
           <Trash2 size={16} />
           <span className="text-sm font-dm font-medium">Eliminar permanentemente</span>
         </button>
@@ -131,23 +131,23 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4"
       onClick={onClose}>
-      <div className="bg-white rounded-t-2xl md:rounded w-full md:max-w-lg max-h-[92vh] md:max-h-[85vh] overflow-y-auto shadow-xl"
+      <div className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full md:max-w-lg max-h-[92vh] md:max-h-[85vh] overflow-y-auto shadow-xl"
         onClick={e => e.stopPropagation()}>
 
         {/* Header: nombre + botones contacto + X */}
-        <div className="px-4 pt-4 pb-3 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
+        <div className="px-4 pt-4 pb-3 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="min-w-0">
               <h2 className="font-barlow text-xl font-bold tracking-wide leading-tight">{nombreCompleto}</h2>
-              {cliente.empresa && <p className="text-xs text-birth-gray-4 font-dm mt-0.5 truncate">{cliente.empresa}</p>}
+              {cliente.empresa && <p className="text-xs text-on-surface-variant font-dm mt-0.5 truncate">{cliente.empresa}</p>}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button onClick={() => onEdit(cliente)}
-                className="p-2 text-birth-gray-3 hover:text-birth-black rounded-full hover:bg-birth-gray" title="Modificar">
+                className="p-2 text-on-surface-variant hover:text-on-surface rounded-full hover:bg-white/50" title="Modificar">
                 <Edit2 size={16} />
               </button>
               <button onClick={onClose}
-                className="p-2 text-birth-gray-3 hover:text-birth-black rounded-full hover:bg-birth-gray">
+                className="p-2 text-on-surface-variant hover:text-on-surface rounded-full hover:bg-white/50">
                 <X size={18} />
               </button>
             </div>
@@ -163,13 +163,13 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
             )}
             {cliente.correo && (
               <a href={`mailto:${cliente.correo}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-birth-gray border border-birth-gray-2 text-birth-black text-xs font-dm font-medium active:bg-birth-gray-2">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 text-on-surface text-xs font-dm font-medium active:bg-white/70">
                 <Mail size={13} /> Correo
               </a>
             )}
             {cliente.telefono && (
               <a href={`tel:${cliente.telefono}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-birth-gray border border-birth-gray-2 text-birth-black text-xs font-dm font-medium active:bg-birth-gray-2">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 text-on-surface text-xs font-dm font-medium active:bg-white/70">
                 <Phone size={13} /> Llamar
               </a>
             )}
@@ -179,11 +179,11 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
         <div className="p-4 md:p-5 space-y-5 pb-safe">
           {/* Datos */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm font-dm">
-            {cliente.rut && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">RUT empresa</span><p className="mt-0.5">{cliente.rut}</p></div>}
-            {(cliente.direccion || cliente.ciudad) && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Dirección</span><p className="mt-0.5">{cliente.direccion || cliente.ciudad}</p></div>}
-            {cliente.correo && <div className="col-span-2"><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Correo</span><p className="mt-0.5 truncate">{cliente.correo}</p></div>}
-            {cliente.telefono && <div><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Teléfono</span><p className="mt-0.5">{cliente.telefono}</p></div>}
-            {cliente.notas && <div className="col-span-2"><span className="text-birth-gray-4 text-[10px] uppercase tracking-wider block">Notas</span><p className="mt-0.5 text-birth-gray-4 text-sm">{cliente.notas}</p></div>}
+            {cliente.rut && <div><span className="text-on-surface-variant text-[10px] uppercase tracking-wider block">RUT empresa</span><p className="mt-0.5">{cliente.rut}</p></div>}
+            {(cliente.direccion || cliente.ciudad) && <div><span className="text-on-surface-variant text-[10px] uppercase tracking-wider block">Dirección</span><p className="mt-0.5">{cliente.direccion || cliente.ciudad}</p></div>}
+            {cliente.correo && <div className="col-span-2"><span className="text-on-surface-variant text-[10px] uppercase tracking-wider block">Correo</span><p className="mt-0.5 truncate">{cliente.correo}</p></div>}
+            {cliente.telefono && <div><span className="text-on-surface-variant text-[10px] uppercase tracking-wider block">Teléfono</span><p className="mt-0.5">{cliente.telefono}</p></div>}
+            {cliente.notas && <div className="col-span-2"><span className="text-on-surface-variant text-[10px] uppercase tracking-wider block">Notas</span><p className="mt-0.5 text-on-surface-variant text-sm">{cliente.notas}</p></div>}
           </div>
 
           {/* Historial de cotizaciones */}
@@ -191,31 +191,31 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-barlow font-bold text-base tracking-wide">HISTORIAL</h3>
               <button onClick={() => onNuevaCotizacion(cliente)}
-                className="flex items-center gap-1 text-xs bg-birth-black text-white px-3 py-1.5 rounded hover:bg-birth-red transition-colors font-dm">
+                className="flex items-center gap-1 text-xs bg-primary text-on-primary px-3 py-1.5 rounded-full hover:bg-primary-container transition-colors font-dm">
                 <Plus size={12} /> Nueva cotización
               </button>
             </div>
             {historial.length === 0 ? (
-              <p className="text-sm text-birth-gray-3 font-dm">Sin cotizaciones aún.</p>
+              <p className="text-sm text-on-surface-variant font-dm">Sin cotizaciones aún.</p>
             ) : (
               <div className="space-y-2">
                 {historial.map(c => {
                   const est = ESTADOS[c.estado] || ESTADOS.por_aceptar
                   return (
-                    <div key={c.id} className="flex items-center gap-3 p-3 bg-birth-gray rounded-lg">
+                    <div key={c.id} className="flex items-center gap-3 p-3 bg-white/50 rounded-2xl">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium font-dm">#{c.numero}</p>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${est.color}`}>{est.label}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${est.color}`}>{est.label}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-0.5">
-                          <p className="text-xs text-birth-gray-3 font-dm">{fechaCorta(c.createdAt)}</p>
+                          <p className="text-xs text-on-surface-variant font-dm">{fechaCorta(c.createdAt)}</p>
                           <p className="text-sm font-medium font-dm">{clp(c.total)}</p>
                         </div>
                       </div>
                       <button
                         onClick={() => generarCotizacionPDF(c, cliente, 'download')}
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded bg-white border border-birth-gray-2 text-xs font-dm text-birth-black hover:border-birth-black active:bg-birth-gray transition-colors"
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/60 border border-white/60 text-xs font-dm text-on-surface hover:border-primary active:bg-white/80 transition-colors"
                         title="Descargar PDF">
                         <Download size={13} /> PDF
                       </button>
@@ -227,22 +227,22 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
           </div>
 
           {/* Botón eliminar cliente */}
-          <div className="pt-2 border-t border-birth-gray-2">
+          <div className="pt-2 border-t border-white/40">
             {!confirmEliminar ? (
               <button onClick={() => setConfirmEliminar(true)}
-                className="w-full py-3 rounded border border-birth-red text-birth-red text-sm font-dm font-medium hover:bg-red-50 active:bg-red-100 transition-colors flex items-center justify-center gap-2">
+                className="w-full py-3 rounded-full border border-primary text-primary text-sm font-dm font-medium hover:bg-red-50 active:bg-red-100 transition-colors flex items-center justify-center gap-2">
                 <Trash2 size={15} /> Eliminar cliente
               </button>
             ) : (
               <div className="space-y-2">
-                <p className="text-sm text-center font-dm text-birth-gray-4">¿Eliminar a <strong>{nombreCompleto}</strong> permanentemente?</p>
+                <p className="text-sm text-center font-dm text-on-surface-variant">¿Eliminar a <strong>{nombreCompleto}</strong> permanentemente?</p>
                 <div className="flex gap-2">
                   <button onClick={() => setConfirmEliminar(false)}
-                    className="flex-1 py-2.5 rounded border border-birth-gray-2 text-sm font-dm text-birth-gray-4 hover:border-birth-black">
+                    className="flex-1 py-2.5 rounded-full border border-white/60 text-sm font-dm text-on-surface-variant hover:border-primary">
                     Cancelar
                   </button>
                   <button onClick={() => onDelete(cliente.id)}
-                    className="flex-1 py-2.5 rounded bg-birth-red text-white text-sm font-dm font-medium hover:bg-red-700">
+                    className="flex-1 py-2.5 rounded-full bg-primary text-on-primary text-sm font-dm font-medium hover:bg-red-700">
                     Sí, eliminar
                   </button>
                 </div>
@@ -326,27 +326,27 @@ export default function Clientes() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-5 md:mb-8">
         <div>
-          <h1 className="font-barlow text-3xl md:text-4xl font-bold text-birth-black tracking-wide">CLIENTES</h1>
-          <p className="text-birth-gray-3 text-xs md:text-sm font-dm mt-1">{clientes.length} clientes registrados</p>
+          <h1 className="font-barlow text-3xl md:text-4xl font-bold text-on-surface tracking-wide">CLIENTES</h1>
+          <p className="text-on-surface-variant text-xs md:text-sm font-dm mt-1">{clientes.length} clientes registrados</p>
         </div>
         <button onClick={() => setModal('nuevo')}
-          className="flex items-center gap-2 bg-birth-black text-white px-3 md:px-5 py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
+          className="flex items-center gap-2 bg-primary text-on-primary px-3 md:px-5 py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
           <Plus size={16} /> <span className="hidden sm:inline">Nuevo</span> cliente
         </button>
       </div>
 
       {/* Búsqueda */}
       <div className="relative mb-5 max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-birth-gray-3" />
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" />
         <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
           placeholder="Buscar por nombre o empresa..."
-          className="w-full pl-9 pr-4 py-2.5 border border-birth-gray-2 rounded text-sm font-dm focus:outline-none focus:border-birth-black bg-white" />
+          className="w-full pl-10 pr-4 py-2.5 border border-white/60 rounded-full text-sm font-dm focus:outline-none focus:border-primary bg-white/50 focus:bg-white" />
       </div>
 
       {/* Mobile cards */}
       {filtrados.length === 0 ? (
-        <div className="md:hidden bg-white border border-birth-gray-2 rounded py-16 text-center">
-          <p className="text-birth-gray-3 text-sm font-dm">{busqueda ? 'Sin resultados' : 'Aún no hay clientes.'}</p>
+        <div className="md:hidden glass-panel rounded-widget py-16 text-center">
+          <p className="text-on-surface-variant text-sm font-dm">{busqueda ? 'Sin resultados' : 'Aún no hay clientes.'}</p>
         </div>
       ) : (
         <div className="md:hidden space-y-3">
@@ -354,56 +354,56 @@ export default function Clientes() {
             const nCot = cotizaciones.filter(ct => ct.clienteId === c.id).length
             const nombreCompleto = [c.nombre, c.apellido].filter(Boolean).join(' ')
             return (
-              <div key={c.id} className="bg-white border border-birth-gray-2 rounded-xl overflow-hidden">
+              <div key={c.id} className="glass-panel rounded-widget overflow-hidden">
                 {/* Info principal — clic abre ficha */}
                 <button type="button" onClick={() => setFicha(c)}
-                  className="w-full p-4 text-left active:bg-birth-gray transition-colors">
+                  className="w-full p-4 text-left active:bg-white/50 transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="font-dm font-semibold text-birth-black truncate">{nombreCompleto}</p>
-                      <p className="text-xs text-birth-gray-4 mt-0.5 truncate">{c.empresa || c.direccion || '—'}</p>
+                      <p className="font-dm font-semibold text-on-surface truncate">{nombreCompleto}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5 truncate">{c.empresa || c.direccion || '—'}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="bg-birth-gray text-birth-black px-2 py-0.5 rounded text-[11px] font-dm">
+                      <span className="bg-white/60 text-on-surface px-2 py-0.5 rounded-full text-[11px] font-dm">
                         {nCot} cot.
                       </span>
                       {/* Botón 3 puntos */}
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); setCardMenu(c) }}
-                        className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded active:bg-birth-gray">
+                        className="p-1.5 text-on-surface-variant hover:text-on-surface rounded-full active:bg-white/60">
                         <MoreVertical size={16} />
                       </button>
                     </div>
                   </div>
                   {(c.telefono || c.correo) && (
                     <div className="mt-2 space-y-0.5">
-                      {c.telefono && <p className="flex items-center gap-2 text-xs text-birth-gray-4 font-dm"><Phone size={11} className="text-birth-gray-3" />{c.telefono}</p>}
-                      {c.correo && <p className="flex items-center gap-2 text-xs text-birth-gray-4 font-dm truncate"><Mail size={11} className="text-birth-gray-3 shrink-0" /><span className="truncate">{c.correo}</span></p>}
+                      {c.telefono && <p className="flex items-center gap-2 text-xs text-on-surface-variant font-dm"><Phone size={11} className="text-on-surface-variant" />{c.telefono}</p>}
+                      {c.correo && <p className="flex items-center gap-2 text-xs text-on-surface-variant font-dm truncate"><Mail size={11} className="text-on-surface-variant shrink-0" /><span className="truncate">{c.correo}</span></p>}
                     </div>
                   )}
                 </button>
 
                 {/* Botones de contacto rápido */}
                 {(c.telefono || c.correo) && (
-                  <div className={`border-t border-birth-gray-2 grid divide-x divide-birth-gray-2 ${
+                  <div className={`border-t border-white/40 grid divide-x divide-white/40 ${
                     c.telefono && c.correo ? 'grid-cols-3' : 'grid-cols-2'
                   }`}>
                     {c.telefono && (
                       <a href={whatsappUrl(c.telefono)} target="_blank" rel="noopener noreferrer"
-                        className="py-2.5 flex flex-col items-center gap-1 text-[#25D366] active:bg-birth-gray text-[10px] font-dm">
+                        className="py-2.5 flex flex-col items-center gap-1 text-[#25D366] active:bg-white/50 text-[10px] font-dm">
                         <WhatsAppIcon size={15} /><span>WhatsApp</span>
                       </a>
                     )}
                     {c.correo && (
                       <a href={`mailto:${c.correo}`}
-                        className="py-2.5 flex flex-col items-center gap-1 text-birth-gray-4 active:bg-birth-gray text-[10px] font-dm">
+                        className="py-2.5 flex flex-col items-center gap-1 text-on-surface-variant active:bg-white/50 text-[10px] font-dm">
                         <Mail size={15} /><span>Correo</span>
                       </a>
                     )}
                     {c.telefono && (
                       <a href={`tel:${c.telefono}`}
-                        className="py-2.5 flex flex-col items-center gap-1 text-birth-gray-4 active:bg-birth-gray text-[10px] font-dm">
+                        className="py-2.5 flex flex-col items-center gap-1 text-on-surface-variant active:bg-white/50 text-[10px] font-dm">
                         <Phone size={15} /><span>Llamar</span>
                       </a>
                     )}
@@ -416,20 +416,20 @@ export default function Clientes() {
       )}
 
       {/* Tabla desktop */}
-      <div className="hidden md:block bg-white border border-birth-gray-2 rounded">
+      <div className="hidden md:block glass-panel rounded-widget overflow-hidden">
         {filtrados.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-birth-gray-3 text-sm font-dm">{busqueda ? 'Sin resultados' : 'Aún no hay clientes.'}</p>
+            <p className="text-on-surface-variant text-sm font-dm">{busqueda ? 'Sin resultados' : 'Aún no hay clientes.'}</p>
           </div>
         ) : (
           <table className="w-full text-sm font-dm">
             <thead>
-              <tr className="border-b border-birth-gray-2">
-                <th className="text-left px-5 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Nombre</th>
-                <th className="text-left px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Empresa</th>
-                <th className="text-left px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Dirección</th>
-                <th className="text-left px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Teléfono</th>
-                <th className="text-center px-3 py-3 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Cot.</th>
+              <tr>
+                <th className="text-left px-5 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Nombre</th>
+                <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Empresa</th>
+                <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Dirección</th>
+                <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Teléfono</th>
+                <th className="text-center px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Cot.</th>
                 <th className="px-5 py-3"></th>
               </tr>
             </thead>
@@ -438,31 +438,31 @@ export default function Clientes() {
                 const nCot = cotizaciones.filter(ct => ct.clienteId === c.id).length
                 const nombreCompleto = [c.nombre, c.apellido].filter(Boolean).join(' ')
                 return (
-                  <tr key={c.id} className="border-b border-birth-gray-2 hover:bg-birth-gray cursor-pointer transition-colors" onClick={() => setFicha(c)}>
-                    <td className="px-5 py-3 font-medium text-birth-black">{nombreCompleto}</td>
-                    <td className="px-3 py-3 text-birth-gray-4">{c.empresa || '—'}</td>
-                    <td className="px-3 py-3 text-birth-gray-4">{c.direccion || c.ciudad || '—'}</td>
-                    <td className="px-3 py-3 text-birth-gray-4">{c.telefono || '—'}</td>
+                  <tr key={c.id} className="hover:bg-white/50 cursor-pointer transition-colors" onClick={() => setFicha(c)}>
+                    <td className="px-5 py-3 font-medium text-on-surface">{nombreCompleto}</td>
+                    <td className="px-3 py-3 text-on-surface-variant">{c.empresa || '—'}</td>
+                    <td className="px-3 py-3 text-on-surface-variant">{c.direccion || c.ciudad || '—'}</td>
+                    <td className="px-3 py-3 text-on-surface-variant">{c.telefono || '—'}</td>
                     <td className="px-3 py-3 text-center">
-                      <span className="inline-block bg-birth-gray px-2 py-0.5 rounded text-xs font-medium">{nCot}</span>
+                      <span className="inline-block bg-white/60 px-2 py-0.5 rounded-full text-xs font-medium">{nCot}</span>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
                         {c.correo && (
-                          <a href={`mailto:${c.correo}`} className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray" title="Correo">
+                          <a href={`mailto:${c.correo}`} className="p-1.5 text-on-surface-variant hover:text-on-surface rounded-full hover:bg-white/60" title="Correo">
                             <Mail size={14} />
                           </a>
                         )}
                         {c.telefono && (
                           <a href={whatsappUrl(c.telefono)} target="_blank" rel="noopener noreferrer"
-                            className="p-1.5 text-[#25D366] hover:opacity-70 rounded hover:bg-birth-gray" title="WhatsApp">
+                            className="p-1.5 text-[#25D366] hover:opacity-70 rounded-full hover:bg-white/60" title="WhatsApp">
                             <WhatsAppIcon size={14} />
                           </a>
                         )}
-                        <button onClick={() => { setEditando(c); setModal('edit') }} className="p-1.5 text-birth-gray-3 hover:text-birth-black rounded hover:bg-birth-gray" title="Modificar">
+                        <button onClick={() => { setEditando(c); setModal('edit') }} className="p-1.5 text-on-surface-variant hover:text-on-surface rounded-full hover:bg-white/60" title="Modificar">
                           <Edit2 size={14} />
                         </button>
-                        <button onClick={() => { if (confirm('¿Eliminar?')) handleDelete(c.id) }} className="p-1.5 text-birth-gray-3 hover:text-birth-red rounded hover:bg-birth-gray" title="Eliminar">
+                        <button onClick={() => { if (confirm('¿Eliminar?')) handleDelete(c.id) }} className="p-1.5 text-on-surface-variant hover:text-primary rounded-full hover:bg-white/60" title="Eliminar">
                           <Trash2 size={14} />
                         </button>
                       </div>

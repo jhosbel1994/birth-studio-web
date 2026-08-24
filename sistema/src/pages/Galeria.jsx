@@ -73,10 +73,10 @@ function FormSubida({ onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-white rounded-t-2xl md:rounded w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-birth-gray-2 sticky top-0 bg-white rounded-t-2xl md:rounded-t">
+      <div className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
           <h2 className="font-barlow text-xl font-bold tracking-wide">NUEVA FOTO</h2>
-          <button onClick={onClose} className="text-birth-gray-3 hover:text-birth-black"><X size={18} /></button>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
@@ -84,14 +84,14 @@ function FormSubida({ onClose, onSaved }) {
             onDrop={onDrop}
             onDragOver={e => e.preventDefault()}
             onClick={() => inputRef.current?.click()}
-            className="border-2 border-dashed border-birth-gray-3 rounded p-6 text-center cursor-pointer hover:border-birth-black transition-colors overflow-hidden"
+            className="border-2 border-dashed border-on-surface-variant/40 rounded p-6 text-center cursor-pointer hover:border-on-surface transition-colors overflow-hidden"
           >
             {preview ? (
               <img src={preview} alt="" className="mx-auto max-h-48 rounded object-contain" />
             ) : (
               <>
-                <Upload size={20} className="mx-auto mb-2 text-birth-gray-3" />
-                <p className="text-sm font-dm text-birth-gray-4">Arrastra una foto aquí o haz clic para elegir</p>
+                <Upload size={20} className="mx-auto mb-2 text-on-surface-variant" />
+                <p className="text-sm font-dm text-on-surface-variant">Arrastra una foto aquí o haz clic para elegir</p>
               </>
             )}
             <input ref={inputRef} type="file" accept="image/*" className="hidden"
@@ -99,65 +99,65 @@ function FormSubida({ onClose, onSaved }) {
           </div>
           {preview && (
             <button type="button" onClick={() => inputRef.current?.click()}
-              className="text-xs font-dm text-birth-gray-4 hover:text-birth-black">
+              className="text-xs font-dm text-on-surface-variant hover:text-on-surface">
               Cambiar imagen
             </button>
           )}
 
-          {error && <p className="text-birth-red text-xs font-dm">{error}</p>}
+          {error && <p className="text-primary text-xs font-dm">{error}</p>}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Categoría</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Categoría</label>
               <select value={form.categoria} onChange={e => set('categoria', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black bg-white">
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
                 {CATEGORIAS_GALERIA.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Orden</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Orden</label>
               <input type="number" value={form.orden} onChange={e => set('orden', e.target.value)}
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm font-dm text-birth-gray-4 py-1">
+          <label className="flex items-center gap-2 text-sm font-dm text-on-surface-variant py-1">
             <input type="checkbox" checked={form.destacada} onChange={e => set('destacada', e.target.checked)}
-              className="w-4 h-4 accent-birth-red" />
+              className="w-4 h-4 accent-primary" />
             Destacada — aparece en el banner del home
           </label>
 
-          <p className="text-[11px] font-dm text-birth-gray-3 uppercase tracking-wider pt-1">Texto opcional sobre la foto (banner)</p>
+          <p className="text-[11px] font-dm text-on-surface-variant uppercase tracking-wider pt-1">Texto opcional sobre la foto (banner)</p>
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Título</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Título</label>
             <input value={form.titulo} onChange={e => set('titulo', e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
           </div>
           <div>
-            <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Descripción</label>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Descripción</label>
             <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Texto botón</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Texto botón</label>
               <input value={form.textoBoton} onChange={e => set('textoBoton', e.target.value)} placeholder="Cotizar ahora"
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
             </div>
             <div>
-              <label className="block text-xs text-birth-gray-4 mb-1 font-dm uppercase tracking-wider">Link botón</label>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Link botón</label>
               <input value={form.linkBoton} onChange={e => set('linkBoton', e.target.value)} placeholder="#cotizacion"
-                className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
             </div>
           </div>
 
           <div className="flex gap-3 pt-2 pb-safe">
             <button type="submit" disabled={subiendo}
-              className="flex-1 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors disabled:opacity-60">
+              className="flex-1 bg-primary text-on-primary py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors disabled:opacity-60 shadow-lg shadow-primary/20">
               {subiendo ? 'Subiendo...' : 'Subir foto'}
             </button>
             <button type="button" onClick={onClose}
-              className="px-5 border border-birth-gray-2 rounded text-sm font-dm text-birth-gray-4 hover:border-birth-black transition-colors">
+              className="px-5 border border-white/60 bg-white/40 rounded-full text-sm font-dm text-on-surface-variant hover:border-primary transition-colors">
               Cancelar
             </button>
           </div>
@@ -194,44 +194,44 @@ export default function Galeria() {
 
       <div className="flex items-center justify-between gap-3 mb-5 md:mb-8">
         <div>
-          <h1 className="font-barlow text-3xl md:text-4xl font-bold text-birth-black tracking-wide">GALERÍA</h1>
-          <p className="text-birth-gray-3 text-xs md:text-sm font-dm mt-1">{items.length} fotos · alimenta el banner y el catálogo del sitio público</p>
+          <h1 className="font-barlow text-3xl md:text-4xl font-bold text-on-surface tracking-wide">GALERÍA</h1>
+          <p className="text-on-surface-variant text-xs md:text-sm font-dm mt-1">{items.length} fotos · alimenta el banner y el catálogo del sitio público</p>
         </div>
         <button onClick={() => setModal(true)}
-          className="flex items-center gap-2 bg-birth-black text-white px-3 md:px-5 py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors">
+          className="flex items-center gap-2 bg-primary text-on-primary px-3 md:px-5 py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
           <Plus size={16} /> <span className="hidden sm:inline">Nueva</span> foto
         </button>
       </div>
 
       <div className="mb-5 max-w-xs">
         <select value={filtro} onChange={e => setFiltro(e.target.value)}
-          className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black bg-white">
+          className="w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50 focus:bg-white">
           <option value="">Todas las categorías</option>
           {CATEGORIAS_GALERIA.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
       {filtrados.length === 0 ? (
-        <div className="bg-white border border-birth-gray-2 rounded py-16 text-center">
-          <p className="text-birth-gray-3 text-sm font-dm">{filtro ? 'Sin resultados' : 'Aún no hay imágenes.'}</p>
+        <div className="glass-panel rounded-widget py-16 text-center">
+          <p className="text-on-surface-variant text-sm font-dm">{filtro ? 'Sin resultados' : 'Aún no hay imágenes.'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filtrados.map(item => (
-            <div key={item.id} className="bg-white border border-birth-gray-2 rounded overflow-hidden group relative">
+            <div key={item.id} className="glass-panel rounded-widget overflow-hidden group relative">
               <img src={item.url} alt={item.titulo || item.categoria} className="w-full aspect-square object-cover" />
               {item.destacada && (
-                <span className="absolute top-2 left-2 flex items-center gap-1 bg-birth-red text-white text-[10px] px-2 py-0.5 rounded font-dm">
+                <span className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-white text-[10px] px-2 py-0.5 rounded font-dm">
                   <Star size={10} fill="currentColor" /> Destacada
                 </span>
               )}
               <button onClick={() => handleDelete(item)}
-                className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full text-birth-gray-3 hover:text-birth-red transition-colors">
+                className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full text-on-surface-variant hover:text-primary transition-colors">
                 <Trash2 size={14} />
               </button>
               <div className="p-2.5 space-y-0.5">
                 <p className="text-xs font-dm font-medium truncate">{item.titulo || item.categoria}</p>
-                <p className="text-[10px] text-birth-gray-3 font-dm">{item.categoria} · orden {item.orden}</p>
+                <p className="text-[10px] text-on-surface-variant font-dm">{item.categoria} · orden {item.orden}</p>
               </div>
             </div>
           ))}
