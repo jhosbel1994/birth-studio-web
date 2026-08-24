@@ -17,6 +17,29 @@ const ESCENA_VACIA = {
   esPlantilla: false, zonas: [], capas: [],
 }
 
+const CAPA_DEFAULTS = {
+  acabado: 'impreso-opaco',
+  opacidad: 0.88,
+  luz: 0.22,
+  textura: 0.5,
+}
+
+function normalizarZona(zona) {
+  return {
+    ...zona,
+    anchoCm: zona.anchoCm || '',
+    altoCm: zona.altoCm || '',
+  }
+}
+
+function normalizarCapa(capa) {
+  return {
+    ...CAPA_DEFAULTS,
+    ...capa,
+    puntos: capa.puntos || [],
+  }
+}
+
 // Estado local de la escena actualmente abierta en el editor. No toca ningun
 // store global del sistema (Regla Cero) — vive solo mientras el modulo esta
 // montado. La persistencia real vive en Firestore via utils/firestore.js.
@@ -69,6 +92,8 @@ export default function useSceneStore() {
         id,
         nombre: tipo === 'vidrio' ? `Ventanal ${prev.zonas.filter(z => z.tipo === 'vidrio').length + 1}` : 'Zona pared',
         tipo,
+        anchoCm: '',
+        altoCm: '',
         puntos: quadDefault((w - zw) / 2, (h - zh) / 2, zw, zh),
       }
       return { ...prev, zonas: [...prev.zonas, nueva] }
@@ -87,6 +112,13 @@ export default function useSceneStore() {
 
   const setZonaNombre = useCallback((zonaId, nombre) => {
     setEscena(prev => ({ ...prev, zonas: prev.zonas.map(z => z.id === zonaId ? { ...z, nombre } : z) }))
+  }, [])
+
+  const setZonaMedidas = useCallback((zonaId, medidas) => {
+    setEscena(prev => ({
+      ...prev,
+      zonas: prev.zonas.map(z => z.id === zonaId ? { ...z, ...medidas } : z),
+    }))
   }, [])
 
   const removeZona = useCallback((zonaId) => {
@@ -124,6 +156,7 @@ export default function useSceneStore() {
       const nueva = {
         id, zonaId, imgUrl: canvas.toDataURL('image/png'),
         imgW: canvas.width, imgH: canvas.height,
+        ...CAPA_DEFAULTS,
         // Arranca calzado exacto a la zona — "Ajustar a zona" hace lo mismo
         // despues si el usuario lo mueve y se quiere resetear.
         puntos: zona.puntos.map(p => ({ ...p })),
@@ -134,6 +167,24 @@ export default function useSceneStore() {
     } catch (e) {
       setError(e?.message || 'No se pudo cargar el diseño. Prueba con otro archivo.')
     }
+  }, [escena.zonas])
+
+  const addCapaMaterial = useCallback((zonaId, acabado = 'empavonado-sin-diseno') => {
+    setError(null)
+    const zona = escena.zonas.find(z => z.id === zonaId)
+    if (!zona) return
+    const id = crypto.randomUUID()
+    const nueva = {
+      id, zonaId, imgUrl: null, imgW: 0, imgH: 0,
+      ...CAPA_DEFAULTS,
+      acabado,
+      opacidad: acabado.includes('empavonado') ? 0.58 : CAPA_DEFAULTS.opacidad,
+      luz: 0.35,
+      textura: 0.7,
+      puntos: zona.puntos.map(p => ({ ...p })),
+    }
+    setEscena(prev => ({ ...prev, capas: [...prev.capas, nueva] }))
+    return id
   }, [escena.zonas])
 
   const updateCapaPunto = useCallback((capaId, idx, punto) => {
@@ -156,6 +207,13 @@ export default function useSceneStore() {
         capas: prev.capas.map(c => c.id === capaId ? { ...c, puntos: zona.puntos.map(p => ({ ...p })) } : c),
       }
     })
+  }, [])
+
+  const updateCapaProps = useCallback((capaId, patch) => {
+    setEscena(prev => ({
+      ...prev,
+      capas: prev.capas.map(c => c.id === capaId ? { ...c, ...patch } : c),
+    }))
   }, [])
 
   const removeCapa = useCallback((capaId) => {
@@ -224,7 +282,7 @@ export default function useSceneStore() {
     setEscena({
       id: doc.id, nombre: doc.nombre || '', fotoUrl: doc.fotoUrl || null,
       fotoW: doc.fotoW || 0, fotoH: doc.fotoH || 0, storagePath: doc.storagePath || null,
-      esPlantilla: !!doc.esPlantilla, zonas: doc.zonas || [], capas: doc.capas || [],
+      esPlantilla: !!doc.esPlantilla, zonas: (doc.zonas || []).map(normalizarZona), capas: (doc.capas || []).map(normalizarCapa),
     })
   }, [])
 
@@ -240,7 +298,7 @@ export default function useSceneStore() {
       fotoUrl: doc.fotoUrl || null, fotoW: doc.fotoW || 0, fotoH: doc.fotoH || 0,
       storagePath: doc.storagePath || null,
       esPlantilla: false,
-      zonas: (doc.zonas || []).map(z => ({ ...z, puntos: z.puntos.map(p => ({ ...p })) })),
+      zonas: (doc.zonas || []).map(z => normalizarZona({ ...z, puntos: z.puntos.map(p => ({ ...p })) })),
       capas: [],
     })
   }, [])
@@ -255,7 +313,7 @@ export default function useSceneStore() {
   return {
     escena, cargandoFoto, guardando, error,
     subirFoto, setNombre, setEsPlantilla, guardar, cargarEscena, cargarComoPlantilla, nuevaEscena,
-    addZona, updateZonaPunto, setZonaNombre, removeZona,
-    addCapa, updateCapaPunto, ajustarCapaAZona, removeCapa,
+    addZona, updateZonaPunto, setZonaNombre, setZonaMedidas, removeZona,
+    addCapa, addCapaMaterial, updateCapaPunto, ajustarCapaAZona, updateCapaProps, removeCapa,
   }
 }

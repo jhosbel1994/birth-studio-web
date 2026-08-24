@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import { Trash2, Upload, Wand2 } from 'lucide-react'
+import { Plus, Trash2, Upload, Wand2 } from 'lucide-react'
+
+const ACABADOS = [
+  { value: 'impreso-opaco', label: 'Vinil impreso' },
+  { value: 'microperforado', label: 'Microperforado' },
+  { value: 'empavonado-troquelado', label: 'Empavonado troquelado' },
+  { value: 'empavonado-sin-diseno', label: 'Empavonado sin diseño' },
+  { value: 'vinil-corte', label: 'Vinil de corte' },
+]
 
 // Panel lateral del tab "Diseño": subir el adhesivo a una zona, ajustarlo
 // automaticamente a los 4 puntos de la zona, o afinarlo a mano arrastrando
 // sus propias esquinas en SceneCanvas.
 export default function DesignLayer({
-  zonas, capas, capaActivaId, onSelectCapa, onAddCapa, onAjustarAZona, onRemoveCapa,
+  zonas, capas, capaActivaId, onSelectCapa, onAddCapa, onAddCapaMaterial,
+  onAjustarAZona, onUpdateCapaProps, onRemoveCapa,
 }) {
   const fileInputRef = useRef(null)
   const [zonaDestino, setZonaDestino] = useState(zonas[0]?.id || '')
@@ -34,6 +43,8 @@ export default function DesignLayer({
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
+
+  const capaActiva = capas.find(c => c.id === capaActivaId)
 
   return (
     <div className="flex flex-col gap-3">
@@ -64,6 +75,17 @@ export default function DesignLayer({
         {cargando ? 'Cargando…' : 'Subir adhesivo a la zona'}
       </button>
 
+      <button
+        onClick={() => {
+          const id = onAddCapaMaterial(zonaDestino, 'empavonado-sin-diseno')
+          if (id) onSelectCapa(id)
+        }}
+        className="w-full flex items-center justify-center gap-2 bg-white/40 border border-white/60 rounded-full px-4 py-2.5 text-sm font-dm text-on-surface-variant hover:bg-white/80 transition-colors"
+      >
+        <Plus size={15} />
+        Empavonado sin diseño
+      </button>
+
       {capas.length === 0 && (
         <p className="text-xs font-dm text-on-surface-variant/60">Aún no hay diseños colocados.</p>
       )}
@@ -79,8 +101,17 @@ export default function DesignLayer({
                 capaActivaId === c.id ? 'bg-secondary-container/60' : 'hover:bg-white/50 bg-white/30'
               }`}
             >
-              <img src={c.imgUrl} alt="" className="w-10 h-10 rounded-lg object-contain bg-white/60 shrink-0" />
+              {c.imgUrl ? (
+                <img src={c.imgUrl} alt="" className="w-10 h-10 rounded-lg object-contain bg-white/60 shrink-0" />
+              ) : (
+                <span className="w-10 h-10 rounded-lg shrink-0 border border-white/70 bg-white/60 backdrop-blur flex items-center justify-center text-[10px] font-dm text-secondary">
+                  Frost
+                </span>
+              )}
               <span className="flex-1 min-w-0 text-xs font-dm text-on-surface truncate">{zona?.nombre || 'Zona eliminada'}</span>
+              <span className="text-[10px] font-dm text-on-surface-variant/60 truncate max-w-[70px]">
+                {ACABADOS.find(a => a.value === c.acabado)?.label || 'Vinil'}
+              </span>
               <button
                 onClick={e => { e.stopPropagation(); onAjustarAZona(c.id) }}
                 title="Ajustar a zona"
@@ -100,10 +131,49 @@ export default function DesignLayer({
         })}
       </div>
 
-      {capaActivaId && (
-        <p className="text-[11px] font-dm text-on-surface-variant/70">
-          Arrastra las 4 esquinas verdes sobre la foto para calzar el adhesivo con el ángulo real del vidrio.
-        </p>
+      {capaActiva && (
+        <div className="space-y-3 rounded-xl bg-white/30 p-3">
+          <div>
+            <label className="text-[10px] font-dm font-semibold uppercase tracking-wide text-on-surface-variant">Acabado</label>
+            <select
+              value={capaActiva.acabado || 'impreso-opaco'}
+              onChange={e => onUpdateCapaProps(capaActiva.id, { acabado: e.target.value })}
+              className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-xs font-dm focus:outline-none focus:border-primary bg-white/50"
+            >
+              {ACABADOS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-[10px] font-dm font-semibold uppercase tracking-wide text-on-surface-variant">
+              <span>Opacidad</span>
+              <span>{Math.round((capaActiva.opacidad ?? 0.88) * 100)}%</span>
+            </div>
+            <input
+              type="range" min="0.1" max="1" step="0.01"
+              value={capaActiva.opacidad ?? 0.88}
+              onChange={e => onUpdateCapaProps(capaActiva.id, { opacidad: Number(e.target.value) })}
+              className="w-full accent-secondary"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-[10px] font-dm font-semibold uppercase tracking-wide text-on-surface-variant">
+              <span>Textura</span>
+              <span>{Math.round((capaActiva.textura ?? 0.5) * 100)}%</span>
+            </div>
+            <input
+              type="range" min="0" max="1" step="0.01"
+              value={capaActiva.textura ?? 0.5}
+              onChange={e => onUpdateCapaProps(capaActiva.id, { textura: Number(e.target.value) })}
+              className="w-full accent-secondary"
+            />
+          </div>
+
+          <p className="text-[11px] font-dm text-on-surface-variant/70">
+            Arrastra las 4 esquinas verdes sobre la foto para calzar el adhesivo con el ángulo real del vidrio.
+          </p>
+        </div>
       )}
     </div>
   )

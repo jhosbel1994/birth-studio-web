@@ -3,6 +3,118 @@ import { drawImageQuad, clipToPolygon } from '../utils/warpQuad'
 
 const COLOR_ZONA = { vidrio: '#0058bc', pared: '#bc000a' }
 
+function polygonPath(ctx, puntos) {
+  ctx.beginPath()
+  puntos.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
+  ctx.closePath()
+}
+
+function polygonBounds(puntos) {
+  const xs = puntos.map(p => p.x)
+  const ys = puntos.map(p => p.y)
+  return {
+    x: Math.min(...xs),
+    y: Math.min(...ys),
+    w: Math.max(...xs) - Math.min(...xs),
+    h: Math.max(...ys) - Math.min(...ys),
+  }
+}
+
+function drawPerforation(ctx, puntos, textura = 0.5) {
+  const b = polygonBounds(puntos)
+  const step = Math.max(7, Math.min(b.w, b.h) * 0.035)
+  const r = step * (0.18 + textura * 0.16)
+  ctx.save()
+  clipToPolygon(ctx, puntos)
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'
+  for (let y = b.y - step; y <= b.y + b.h + step; y += step) {
+    for (let x = b.x - step; x <= b.x + b.w + step; x += step) {
+      ctx.beginPath()
+      ctx.arc(x + ((Math.round(y / step) % 2) * step * 0.5), y, r, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+  ctx.restore()
+}
+
+function drawFrostNoise(ctx, puntos, textura = 0.5) {
+  const b = polygonBounds(puntos)
+  const lines = Math.max(10, Math.round((b.w + b.h) / 36))
+  ctx.save()
+  clipToPolygon(ctx, puntos)
+  ctx.globalAlpha = 0.12 + textura * 0.16
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineWidth = Math.max(1, Math.min(b.w, b.h) * 0.004)
+  for (let i = 0; i < lines; i += 1) {
+    const y = b.y + (b.h * i) / lines
+    ctx.beginPath()
+    ctx.moveTo(b.x - b.w * 0.2, y + Math.sin(i) * 8)
+    ctx.lineTo(b.x + b.w * 1.2, y + Math.cos(i * 1.7) * 8)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+function renderCapa(ctx, base, img, capa, zona, fotoW, fotoH) {
+  const acabado = capa.acabado || 'impreso-opaco'
+  const opacidad = capa.opacidad ?? 0.88
+  const luz = capa.luz ?? 0.22
+  const textura = capa.textura ?? 0.5
+  const layer = document.createElement('canvas')
+  layer.width = fotoW
+  layer.height = fotoH
+  const lctx = layer.getContext('2d')
+
+  lctx.save()
+  clipToPolygon(lctx, zona.puntos)
+
+  if (acabado.includes('empavonado')) {
+    lctx.filter = `blur(${2 + textura * 4}px) saturate(0.65)`
+    lctx.globalAlpha = 0.65
+    lctx.drawImage(base, 0, 0, fotoW, fotoH)
+    lctx.filter = 'none'
+    lctx.globalAlpha = acabado === 'empavonado-sin-diseno' ? 0.52 + textura * 0.18 : 0.26 + textura * 0.12
+    lctx.fillStyle = '#f7fbff'
+    polygonPath(lctx, zona.puntos)
+    lctx.fill()
+  }
+
+  if (img) {
+    lctx.globalAlpha = acabado === 'empavonado-troquelado' ? 0.74 : 1
+    if (acabado === 'vinil-corte') lctx.filter = 'contrast(1.15) saturate(1.2)'
+    if (acabado === 'microperforado') lctx.filter = 'contrast(1.05) saturate(0.95)'
+    drawImageQuad(lctx, img, capa.puntos)
+    lctx.filter = 'none'
+  }
+
+  if (!img && !acabado.includes('empavonado')) {
+    lctx.globalAlpha = 0.35
+    lctx.fillStyle = zona.tipo === 'pared' ? '#ffffff' : '#dceffc'
+    polygonPath(lctx, zona.puntos)
+    lctx.fill()
+  }
+
+  lctx.restore()
+
+  if (acabado === 'microperforado') drawPerforation(lctx, zona.puntos, textura)
+  if (acabado.includes('empavonado')) drawFrostNoise(lctx, zona.puntos, textura)
+
+  if (luz > 0) {
+    lctx.save()
+    clipToPolygon(lctx, zona.puntos)
+    lctx.globalCompositeOperation = zona.tipo === 'pared' ? 'multiply' : 'source-atop'
+    lctx.globalAlpha = luz * (zona.tipo === 'pared' ? 0.55 : 0.32)
+    lctx.drawImage(base, 0, 0, fotoW, fotoH)
+    lctx.restore()
+  }
+
+  ctx.save()
+  ctx.globalAlpha = opacidad
+  ctx.drawImage(layer, 0, 0)
+  ctx.restore()
+}
+
 // Canvas principal: dibuja la foto base + las capas de diseño ya warpeadas
 // (corner-pin) y recortadas a su zona — eso es lo que queda "horneado" en
 // los pixeles, listo para exportar mas adelante. Los contornos/handles de
@@ -12,6 +124,8 @@ const COLOR_ZONA = { vidrio: '#0058bc', pared: '#bc000a' }
 export default function SceneCanvas({
   fotoUrl, fotoW, fotoH, zonas = [], capas = [],
   herramienta, zonaActivaId, capaActivaId,
+  zoom = 1, mostrarGuias = true, calidad = 'alta',
+  onZoomChange,
   onZonaPuntoChange, onCapaPuntoChange,
 }) {
   const canvasRef = useRef(null)
@@ -48,17 +162,16 @@ export default function SceneCanvas({
     const base = getImg(fotoUrl)
     if (!base) return
     ctx.clearRect(0, 0, fotoW, fotoH)
+    ctx.imageSmoothingEnabled = calidad !== 'rapida'
+    ctx.imageSmoothingQuality = calidad === 'rapida' ? 'low' : 'high'
     ctx.drawImage(base, 0, 0, fotoW, fotoH)
     for (const capa of capas) {
       const zona = zonas.find(z => z.id === capa.zonaId)
-      const img = getImg(capa.imgUrl)
-      if (!img || !zona) continue
-      ctx.save()
-      clipToPolygon(ctx, zona.puntos)
-      drawImageQuad(ctx, img, capa.puntos)
-      ctx.restore()
+      const img = capa.imgUrl ? getImg(capa.imgUrl) : null
+      if (!zona || (capa.imgUrl && !img)) continue
+      renderCapa(ctx, base, img, capa, zona, fotoW, fotoH)
     }
-  }, [fotoUrl, fotoW, fotoH, zonas, capas, getImg])
+  }, [fotoUrl, fotoW, fotoH, zonas, capas, getImg, calidad])
 
   useEffect(() => { redrawRef.current = redraw }, [redraw])
   useEffect(() => { redraw() }, [redraw])
@@ -102,11 +215,35 @@ export default function SceneCanvas({
   }
 
   const handleR = fotoW * 0.011
+  const mostrarZonas = herramienta === 'zonas' || herramienta === 'escala'
+  const mostrarCapa = ['diseno', 'acabado', 'luz'].includes(herramienta)
 
   return (
-    <div className="flex h-full items-center justify-center overflow-auto p-4">
-      <div className="relative inline-block max-w-full">
-        <canvas ref={canvasRef} className="block max-w-full h-auto rounded-2xl shadow-lg" />
+    <div className="relative flex h-full items-center justify-center overflow-auto p-4">
+      <div className="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-full border border-white/60 bg-white/80 px-2 py-1 shadow-sm backdrop-blur">
+        <button
+          type="button"
+          onClick={() => onZoomChange?.(Math.max(0.35, Number((zoom - 0.1).toFixed(2))))}
+          className="h-7 w-7 rounded-full text-sm font-dm text-on-surface-variant hover:bg-white"
+          title="Alejar"
+        >
+          -
+        </button>
+        <span className="min-w-[46px] text-center text-[11px] font-dm font-medium text-on-surface-variant">{Math.round(zoom * 100)}%</span>
+        <button
+          type="button"
+          onClick={() => onZoomChange?.(Math.min(2.5, Number((zoom + 0.1).toFixed(2))))}
+          className="h-7 w-7 rounded-full text-sm font-dm text-on-surface-variant hover:bg-white"
+          title="Acercar"
+        >
+          +
+        </button>
+      </div>
+      <div
+        className="relative inline-block"
+        style={{ width: `${fotoW * zoom}px`, maxWidth: zoom <= 1 ? '100%' : 'none' }}
+      >
+        <canvas ref={canvasRef} className="block h-auto w-full rounded-2xl shadow-lg" />
         <svg
           ref={svgRef}
           viewBox={`0 0 ${fotoW} ${fotoH}`}
@@ -114,7 +251,7 @@ export default function SceneCanvas({
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
-          {herramienta === 'zonas' && zonas.map(z => (
+          {mostrarGuias && mostrarZonas && zonas.map(z => (
             <g key={z.id}>
               <polygon
                 points={z.puntos.map(p => `${p.x},${p.y}`).join(' ')}
@@ -135,7 +272,7 @@ export default function SceneCanvas({
             </g>
           ))}
 
-          {herramienta === 'diseno' && capas.filter(c => c.id === capaActivaId).map(c => (
+          {mostrarGuias && mostrarCapa && capas.filter(c => c.id === capaActivaId).map(c => (
             <g key={c.id}>
               <polygon
                 points={c.puntos.map(p => `${p.x},${p.y}`).join(' ')}

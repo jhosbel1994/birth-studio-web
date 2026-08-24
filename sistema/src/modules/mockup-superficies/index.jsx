@@ -12,11 +12,31 @@ const HERRAMIENTAS = [
   { key: 'escena', label: 'Escena', icon: ImagePlus, disponibleSiempre: true },
   { key: 'zonas', label: 'Zonas', icon: LayoutGrid, requiere: 'foto' },
   { key: 'diseno', label: 'Diseño', icon: PenTool, requiere: 'zona' },
-  { key: 'escala', label: 'Escala', icon: Ruler, disponible: false },
-  { key: 'acabado', label: 'Acabado', icon: Sparkles, disponible: false },
-  { key: 'luz', label: 'Luz', icon: SunMedium, disponible: false },
-  { key: 'ajustes', label: 'Ajustes', icon: Settings2, disponible: false },
+  { key: 'escala', label: 'Escala', icon: Ruler, requiere: 'zona' },
+  { key: 'acabado', label: 'Acabado', icon: Sparkles, requiere: 'zona' },
+  { key: 'luz', label: 'Luz', icon: SunMedium, requiere: 'capa' },
+  { key: 'ajustes', label: 'Ajustes', icon: Settings2, requiere: 'foto' },
 ]
+
+const ACABADOS = [
+  { value: 'impreso-opaco', label: 'Vinil impreso opaco' },
+  { value: 'microperforado', label: 'Microperforado' },
+  { value: 'empavonado-troquelado', label: 'Empavonado troquelado' },
+  { value: 'empavonado-sin-diseno', label: 'Empavonado sin diseño' },
+  { value: 'vinil-corte', label: 'Vinil de corte' },
+]
+
+function distancia(a, b) {
+  return Math.hypot((b?.x || 0) - (a?.x || 0), (b?.y || 0) - (a?.y || 0))
+}
+
+function medidasZonaPx(zona) {
+  if (!zona?.puntos?.length) return { ancho: 0, alto: 0 }
+  return {
+    ancho: (distancia(zona.puntos[0], zona.puntos[1]) + distancia(zona.puntos[3], zona.puntos[2])) / 2,
+    alto: (distancia(zona.puntos[0], zona.puntos[3]) + distancia(zona.puntos[1], zona.puntos[2])) / 2,
+  }
+}
 
 export default function MockupVitrina() {
   const fileInputRef = useRef(null)
@@ -26,11 +46,14 @@ export default function MockupVitrina() {
   const [capaActivaId, setCapaActivaId] = useState(null)
   const [guardadoOk, setGuardadoOk] = useState(false)
   const [errorListado, setErrorListado] = useState(null)
+  const [zoom, setZoom] = useState(1)
+  const [mostrarGuias, setMostrarGuias] = useState(true)
+  const [calidad, setCalidad] = useState('alta')
   const {
     escena, cargandoFoto, guardando, error,
     subirFoto, setNombre, setEsPlantilla, guardar, cargarEscena, cargarComoPlantilla, nuevaEscena,
-    addZona, updateZonaPunto, setZonaNombre, removeZona,
-    addCapa, updateCapaPunto, ajustarCapaAZona, removeCapa,
+    addZona, updateZonaPunto, setZonaNombre, setZonaMedidas, removeZona,
+    addCapa, addCapaMaterial, updateCapaPunto, ajustarCapaAZona, updateCapaProps, removeCapa,
   } = useSceneStore()
 
   useEffect(() => {
@@ -46,11 +69,16 @@ export default function MockupVitrina() {
 
   const tieneFoto = !!escena.fotoUrl
   const tieneZona = escena.zonas.length > 0
+  const tieneCapa = escena.capas.length > 0
+  const zonaActiva = escena.zonas.find(z => z.id === zonaActivaId) || escena.zonas[0]
+  const capaActiva = escena.capas.find(c => c.id === capaActivaId) || escena.capas[0]
+  const zonaCapaActiva = escena.zonas.find(z => z.id === capaActiva?.zonaId)
 
   const disponible = (h) => {
     if (h.disponibleSiempre) return true
     if (h.requiere === 'foto') return tieneFoto
     if (h.requiere === 'zona') return tieneZona
+    if (h.requiere === 'capa') return tieneCapa
     return !!h.disponible
   }
 
@@ -111,8 +139,17 @@ export default function MockupVitrina() {
     return id
   }
 
+  const handleAddCapaMaterial = (zonaId, acabado) => {
+    const id = addCapaMaterial(zonaId, acabado)
+    return id
+  }
+
   const plantillas = escenas.filter(e => e.esPlantilla)
   const misEscenas = escenas.filter(e => !e.esPlantilla)
+  const pxZona = medidasZonaPx(zonaActiva)
+  const anchoCm = Number(zonaActiva?.anchoCm || 0)
+  const altoCm = Number(zonaActiva?.altoCm || 0)
+  const m2 = anchoCm > 0 && altoCm > 0 ? (anchoCm * altoCm) / 10000 : 0
 
   return (
     <div className="px-2.5 py-3 md:p-6 lg:p-8">
@@ -169,7 +206,9 @@ export default function MockupVitrina() {
           <SceneCanvas
             fotoUrl={escena.fotoUrl} fotoW={escena.fotoW} fotoH={escena.fotoH}
             zonas={escena.zonas} capas={escena.capas}
-            herramienta={herramienta} zonaActivaId={zonaActivaId} capaActivaId={capaActivaId}
+            herramienta={herramienta} zonaActivaId={zonaActivaId || zonaActiva?.id} capaActivaId={capaActivaId || capaActiva?.id}
+            zoom={zoom} mostrarGuias={mostrarGuias} calidad={calidad}
+            onZoomChange={setZoom}
             onZonaPuntoChange={updateZonaPunto}
             onCapaPuntoChange={updateCapaPunto}
           />
@@ -265,13 +304,164 @@ export default function MockupVitrina() {
             <DesignLayer
               zonas={escena.zonas} capas={escena.capas} capaActivaId={capaActivaId}
               onSelectCapa={setCapaActivaId} onAddCapa={handleAddCapa}
+              onAddCapaMaterial={handleAddCapaMaterial}
               onAjustarAZona={ajustarCapaAZona}
+              onUpdateCapaProps={updateCapaProps}
               onRemoveCapa={(id) => { removeCapa(id); if (capaActivaId === id) setCapaActivaId(null) }}
             />
           )}
 
-          {['escala', 'acabado', 'luz', 'ajustes'].includes(herramienta) && (
-            <p className="text-xs font-dm text-on-surface-variant/60">Próximamente.</p>
+          {herramienta === 'escala' && zonaActiva && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Zona a medir</label>
+                <select
+                  value={zonaActiva.id}
+                  onChange={e => setZonaActivaId(e.target.value)}
+                  className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                >
+                  {escena.zonas.map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs font-dm text-on-surface-variant">
+                  Ancho cm
+                  <input
+                    type="number" min="0" value={zonaActiva.anchoCm || ''}
+                    onChange={e => setZonaMedidas(zonaActiva.id, { anchoCm: e.target.value })}
+                    className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                  />
+                </label>
+                <label className="text-xs font-dm text-on-surface-variant">
+                  Alto cm
+                  <input
+                    type="number" min="0" value={zonaActiva.altoCm || ''}
+                    onChange={e => setZonaMedidas(zonaActiva.id, { altoCm: e.target.value })}
+                    className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                  />
+                </label>
+              </div>
+              <div className="rounded-xl bg-white/35 p-3 text-xs font-dm text-on-surface-variant">
+                <p>Imagen: {Math.round(pxZona.ancho)} × {Math.round(pxZona.alto)} px</p>
+                <p className="mt-1 font-semibold text-on-surface">Área real: {m2 ? `${m2.toFixed(2)} m²` : 'ingresa ancho y alto'}</p>
+              </div>
+            </div>
+          )}
+
+          {herramienta === 'acabado' && (
+            <div className="space-y-4">
+              {!capaActiva && (
+                <>
+                  <p className="text-xs font-dm text-on-surface-variant/70">Sube un adhesivo o crea un empavonado sin diseño para activar acabados.</p>
+                  {zonaActiva && (
+                    <button
+                      onClick={() => {
+                        const id = handleAddCapaMaterial(zonaActiva.id, 'empavonado-sin-diseno')
+                        if (id) setCapaActivaId(id)
+                      }}
+                      className="w-full rounded-full bg-white/50 px-4 py-2.5 text-sm font-dm text-on-surface-variant hover:bg-white/80"
+                    >
+                      Crear empavonado sin diseño
+                    </button>
+                  )}
+                </>
+              )}
+              {capaActiva && (
+                <>
+                  <div>
+                    <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Capa</label>
+                    <select
+                      value={capaActiva.id}
+                      onChange={e => setCapaActivaId(e.target.value)}
+                      className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                    >
+                      {escena.capas.map(c => {
+                        const z = escena.zonas.find(zona => zona.id === c.zonaId)
+                        return <option key={c.id} value={c.id}>{z?.nombre || 'Zona'} · {ACABADOS.find(a => a.value === c.acabado)?.label || 'Vinil'}</option>
+                      })}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Acabado</label>
+                    <select
+                      value={capaActiva.acabado || 'impreso-opaco'}
+                      onChange={e => updateCapaProps(capaActiva.id, { acabado: e.target.value })}
+                      className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                    >
+                      {ACABADOS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">
+                      <span>Opacidad</span><span>{Math.round((capaActiva.opacidad ?? 0.88) * 100)}%</span>
+                    </div>
+                    <input type="range" min="0.1" max="1" step="0.01" value={capaActiva.opacidad ?? 0.88}
+                      onChange={e => updateCapaProps(capaActiva.id, { opacidad: Number(e.target.value) })}
+                      className="w-full accent-secondary" />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">
+                      <span>Textura</span><span>{Math.round((capaActiva.textura ?? 0.5) * 100)}%</span>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.01" value={capaActiva.textura ?? 0.5}
+                      onChange={e => updateCapaProps(capaActiva.id, { textura: Number(e.target.value) })}
+                      className="w-full accent-secondary" />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {herramienta === 'luz' && capaActiva && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-white/35 p-3 text-xs font-dm text-on-surface-variant">
+                <p className="font-semibold text-on-surface">{zonaCapaActiva?.nombre || 'Capa activa'}</p>
+                <p className="mt-1">Integra el adhesivo con sombras/reflejos de la foto.</p>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">
+                  <span>Integración con luz</span><span>{Math.round((capaActiva.luz ?? 0.22) * 100)}%</span>
+                </div>
+                <input type="range" min="0" max="1" step="0.01" value={capaActiva.luz ?? 0.22}
+                  onChange={e => updateCapaProps(capaActiva.id, { luz: Number(e.target.value) })}
+                  className="w-full accent-secondary" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => updateCapaProps(capaActiva.id, { luz: 0.12 })} className="rounded-full bg-white/45 px-3 py-2 text-xs font-dm">Suave</button>
+                <button onClick={() => updateCapaProps(capaActiva.id, { luz: 0.45 })} className="rounded-full bg-white/45 px-3 py-2 text-xs font-dm">Realista</button>
+              </div>
+            </div>
+          )}
+
+          {herramienta === 'ajustes' && (
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">
+                  <span>Zoom</span><span>{Math.round(zoom * 100)}%</span>
+                </div>
+                <input type="range" min="0.35" max="2.5" step="0.05" value={zoom}
+                  onChange={e => setZoom(Number(e.target.value))}
+                  className="w-full accent-secondary" />
+              </div>
+              <label className="flex items-center justify-between gap-3 text-sm font-dm text-on-surface-variant">
+                Mostrar guías
+                <input type="checkbox" checked={mostrarGuias} onChange={e => setMostrarGuias(e.target.checked)} />
+              </label>
+              <div>
+                <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Calidad de vista</label>
+                <select
+                  value={calidad}
+                  onChange={e => setCalidad(e.target.value)}
+                  className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                >
+                  <option value="alta">Alta</option>
+                  <option value="rapida">Rápida</option>
+                </select>
+              </div>
+              <button onClick={() => setZoom(1)} className="w-full rounded-full bg-white/50 px-4 py-2.5 text-sm font-dm text-on-surface-variant hover:bg-white/80">
+                Restablecer zoom
+              </button>
+            </div>
           )}
         </div>
       </div>
