@@ -22,16 +22,33 @@ function polygonBounds(puntos) {
 
 function drawPerforation(ctx, puntos, textura = 0.5) {
   const b = polygonBounds(puntos)
-  const step = Math.max(7, Math.min(b.w, b.h) * 0.035)
-  const r = step * (0.18 + textura * 0.16)
+  const step = Math.max(5, Math.min(9, Math.min(b.w, b.h) * 0.018))
+  // Microperforado real: la grafica queda casi completa y solo una trama
+  // fina de orificios deja ver el interior. El slider mueve la apertura
+  // aprox. entre 7% y 13%, con 10% como punto medio.
+  const openArea = 0.07 + textura * 0.06
+  const r = step * Math.sqrt(openArea / Math.PI)
   ctx.save()
   clipToPolygon(ctx, puntos)
   ctx.globalCompositeOperation = 'destination-out'
-  ctx.fillStyle = 'rgba(0,0,0,0.7)'
+  ctx.fillStyle = '#000'
   for (let y = b.y - step; y <= b.y + b.h + step; y += step) {
     for (let x = b.x - step; x <= b.x + b.w + step; x += step) {
       ctx.beginPath()
       ctx.arc(x + ((Math.round(y / step) % 2) * step * 0.5), y, r, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+  ctx.restore()
+
+  ctx.save()
+  clipToPolygon(ctx, puntos)
+  ctx.globalAlpha = 0.12
+  ctx.fillStyle = '#111'
+  for (let y = b.y - step; y <= b.y + b.h + step; y += step) {
+    for (let x = b.x - step; x <= b.x + b.w + step; x += step) {
+      ctx.beginPath()
+      ctx.arc(x + ((Math.round(y / step) % 2) * step * 0.5), y, Math.max(0.55, r * 0.55), 0, Math.PI * 2)
       ctx.fill()
     }
   }
@@ -58,7 +75,7 @@ function drawFrostNoise(ctx, puntos, textura = 0.5) {
 
 function renderCapa(ctx, base, img, capa, zona, fotoW, fotoH) {
   const acabado = capa.acabado || 'impreso-opaco'
-  const opacidad = capa.opacidad ?? 0.88
+  const opacidad = acabado === 'microperforado' ? (capa.opacidad ?? 0.96) : (capa.opacidad ?? 0.88)
   const luz = capa.luz ?? 0.22
   const textura = capa.textura ?? 0.5
   const layer = document.createElement('canvas')

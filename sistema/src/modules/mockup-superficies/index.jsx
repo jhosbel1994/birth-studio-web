@@ -39,6 +39,13 @@ function medidasZonaPx(zona) {
   }
 }
 
+function propsAcabado(value) {
+  if (value === 'microperforado') return { acabado: value, opacidad: 0.96, textura: 0.5, luz: 0.12 }
+  if (value === 'empavonado-sin-diseno') return { acabado: value, opacidad: 0.58, textura: 0.7, luz: 0.35 }
+  if (value === 'empavonado-troquelado') return { acabado: value, opacidad: 0.72, textura: 0.65, luz: 0.3 }
+  return { acabado: value }
+}
+
 export default function MockupVitrina() {
   const fileInputRef = useRef(null)
   const [escenas, setEscenas] = useState([])
@@ -391,7 +398,7 @@ export default function MockupVitrina() {
                     <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Acabado</label>
                     <select
                       value={capaActiva.acabado || 'impreso-opaco'}
-                      onChange={e => updateCapaProps(capaActiva.id, { acabado: e.target.value })}
+                      onChange={e => updateCapaProps(capaActiva.id, propsAcabado(e.target.value))}
                       className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
                     >
                       {ACABADOS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}

@@ -9,6 +9,13 @@ const ACABADOS = [
   { value: 'vinil-corte', label: 'Vinil de corte' },
 ]
 
+function propsAcabado(value) {
+  if (value === 'microperforado') return { acabado: value, opacidad: 0.96, textura: 0.5, luz: 0.12 }
+  if (value === 'empavonado-sin-diseno') return { acabado: value, opacidad: 0.58, textura: 0.7, luz: 0.35 }
+  if (value === 'empavonado-troquelado') return { acabado: value, opacidad: 0.72, textura: 0.65, luz: 0.3 }
+  return { acabado: value }
+}
+
 // Panel lateral del tab "Diseño": subir el adhesivo a una zona, ajustarlo
 // automaticamente a los 4 puntos de la zona, o afinarlo a mano arrastrando
 // sus propias esquinas en SceneCanvas.
@@ -147,7 +154,7 @@ export default function DesignLayer({
             <label className="text-[10px] font-dm font-semibold uppercase tracking-wide text-on-surface-variant">Acabado</label>
             <select
               value={capaActiva.acabado || 'impreso-opaco'}
-              onChange={e => onUpdateCapaProps(capaActiva.id, { acabado: e.target.value })}
+              onChange={e => onUpdateCapaProps(capaActiva.id, propsAcabado(e.target.value))}
               className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-xs font-dm focus:outline-none focus:border-primary bg-white/50"
             >
               {ACABADOS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
