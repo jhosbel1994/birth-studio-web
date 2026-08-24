@@ -18,6 +18,12 @@ export default {
         barlow: ['"Barlow Condensed"', 'sans-serif'],
         dm: ['"DM Sans"', 'sans-serif'],
       },
+      boxShadow: {
+        glass: '0 8px 32px rgba(10,10,10,0.08)',
+        'glass-sm': '0 4px 16px rgba(10,10,10,0.06)',
+        'glass-dark': '0 8px 32px rgba(0,0,0,0.35)',
+        glow: '0 0 24px rgba(232,0,13,0.35)',
+      },
     },
   },
   plugins: [],

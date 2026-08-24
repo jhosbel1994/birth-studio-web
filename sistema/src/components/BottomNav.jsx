@@ -13,7 +13,7 @@ const NAV = [
 export default function BottomNav() {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 bg-birth-black border-t border-white/10 lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-black/70 backdrop-blur-2xl border-t border-white/10 lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="grid grid-cols-6 px-1.5 pt-1">
@@ -29,8 +29,8 @@ export default function BottomNav() {
           >
             {({ isActive }) => (
               <>
-                <span className={`flex h-7 w-8 items-center justify-center rounded-md ${
-                  isActive ? 'bg-birth-red text-white' : 'bg-transparent'
+                <span className={`flex h-7 w-8 items-center justify-center rounded-lg ${
+                  isActive ? 'bg-birth-red/90 text-white shadow-glow' : 'bg-transparent'
                 }`}>
                   <Icon size={17} strokeWidth={2} />
                 </span>

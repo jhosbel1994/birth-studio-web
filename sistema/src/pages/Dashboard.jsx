@@ -9,7 +9,7 @@ import {
 
 function StatCard({ label, value, sub, color, icon: Icon }) {
   return (
-    <div className="bg-white border border-birth-gray-2 p-4 rounded">
+    <div className="bg-white/60 backdrop-blur-xl border border-white/60 shadow-glass-sm p-4 rounded-2xl">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] text-birth-gray-4 font-dm uppercase tracking-wider mb-1">{label}</p>
@@ -17,8 +17,8 @@ function StatCard({ label, value, sub, color, icon: Icon }) {
           {sub && <p className="text-[11px] text-birth-gray-3 mt-0.5 font-dm">{sub}</p>}
         </div>
         {Icon && (
-          <div className="p-1.5 bg-birth-gray rounded">
-            <Icon size={16} className="text-birth-gray-3" />
+          <div className="p-1.5 bg-white/50 backdrop-blur border border-white/60 rounded-xl">
+            <Icon size={16} className="text-birth-gray-4" />
           </div>
         )}
       </div>
@@ -42,10 +42,10 @@ function MobileQuickNav({ navigate }) {
           key={to}
           type="button"
           onClick={() => navigate(to)}
-          className={`h-12 rounded-md border flex items-center justify-center gap-2 text-sm font-dm font-medium ${
+          className={`h-12 rounded-xl border flex items-center justify-center gap-2 text-sm font-dm font-medium ${
             primary
-              ? 'col-span-2 bg-birth-red border-birth-red text-white'
-              : 'bg-white border-birth-gray-2 text-birth-black active:border-birth-black'
+              ? 'col-span-2 bg-birth-red/90 border-birth-red text-white shadow-glow'
+              : 'bg-white/60 backdrop-blur-xl border-white/60 text-birth-black active:border-birth-black shadow-glass-sm'
           }`}
         >
           <Icon size={17} strokeWidth={2} />
@@ -127,8 +127,8 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Últimas cotizaciones */}
-        <div className="lg:col-span-2 bg-white border border-birth-gray-2 rounded">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-birth-gray-2">
+        <div className="lg:col-span-2 bg-white/60 backdrop-blur-xl border border-white/60 shadow-glass-sm rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-birth-gray-2/60">
             <h2 className="font-barlow text-base md:text-lg font-bold tracking-wide">ÚLTIMAS COTIZACIONES</h2>
             <button onClick={() => navigate('/cotizaciones')} className="text-xs text-birth-red font-dm">Ver todas →</button>
           </div>
@@ -137,7 +137,7 @@ export default function Dashboard() {
           ) : (
             <>
               {/* Mobile cards */}
-              <div className="md:hidden divide-y divide-birth-gray-2">
+              <div className="md:hidden divide-y divide-birth-gray-2/60">
                 {ultimas5.map(c => {
                   const est = ESTADOS[c.estado] || ESTADOS.por_aceptar
                   return (
@@ -158,7 +158,7 @@ export default function Dashboard() {
               <div className="hidden md:block">
                 <table className="w-full text-sm font-dm">
                   <thead>
-                    <tr className="border-b border-birth-gray-2">
+                    <tr className="border-b border-birth-gray-2/60">
                       <th className="text-left px-4 py-2.5 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Número</th>
                       <th className="text-left px-3 py-2.5 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Cliente</th>
                       <th className="text-right px-3 py-2.5 text-xs text-birth-gray-4 font-medium uppercase tracking-wider">Total</th>
@@ -169,7 +169,7 @@ export default function Dashboard() {
                     {ultimas5.map(c => {
                       const est = ESTADOS[c.estado] || ESTADOS.por_aceptar
                       return (
-                        <tr key={c.id} className="border-b border-birth-gray-2 hover:bg-birth-gray cursor-pointer" onClick={() => navigate('/cotizaciones')}>
+                        <tr key={c.id} className="border-b border-birth-gray-2/60 hover:bg-white/50 cursor-pointer transition-colors" onClick={() => navigate('/cotizaciones')}>
                           <td className="px-4 py-3 font-medium text-birth-black">#{c.numero}</td>
                           <td className="px-3 py-3 text-birth-gray-4">{c.clienteNombre || '—'}</td>
                           <td className="px-3 py-3 text-right font-medium">{clp(c.total)}</td>
@@ -187,14 +187,14 @@ export default function Dashboard() {
         </div>
 
         {/* Próximas entregas */}
-        <div className="bg-white border border-birth-gray-2 rounded">
-          <div className="px-4 py-3 border-b border-birth-gray-2">
+        <div className="bg-white/60 backdrop-blur-xl border border-white/60 shadow-glass-sm rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-birth-gray-2/60">
             <h2 className="font-barlow text-base font-bold tracking-wide">PRÓXIMAS ENTREGAS</h2>
           </div>
           {proximas.length === 0 ? (
             <p className="px-4 py-10 text-center text-birth-gray-3 text-sm font-dm">Sin fechas programadas</p>
           ) : (
-            <div className="divide-y divide-birth-gray-2">
+            <div className="divide-y divide-birth-gray-2/60">
               {proximas.map(c => {
                 const dias = Math.ceil((new Date(c.fechaEntrega) - new Date()) / 86400000)
                 return (
