@@ -203,6 +203,68 @@ export async function saveMultiplicadoresInstalacion(valores) {
   await setDoc(doc(db, 'settings', MULTIPLICADORES_ID), { valores }, { merge: true })
 }
 
+// ─── MULTIPLICADOR POR ÍTEM (override individual, 2.0–4.0) ───────────────────
+// Cada ítem del catálogo puede fijar su propio multiplicador. Si existe un
+// valor guardado acá, manda sobre el multiplicador de instalación de la
+// sección. Mapa `{ itemId: valor }`, mismo patrón que preciosProductos.
+const MULT_PRODUCTOS_ID = 'multiplicadoresProductos'
+
+export async function getMultiplicadoresProductos() {
+  const snap = await getDoc(doc(db, 'settings', MULT_PRODUCTOS_ID))
+  return snap.exists() ? (snap.data().valores || {}) : {}
+}
+
+export async function saveMultiplicadoresProductos(valores) {
+  await setDoc(doc(db, 'settings', MULT_PRODUCTOS_ID), { valores }, { merge: true })
+}
+
+// ─── SECCIONES PERSONALIZADAS DEL CATÁLOGO ───────────────────────────────────
+// Categorías creadas por el usuario, se suman a las de data/productos.js.
+// Shape: { id, label, createdAt }
+export async function getCatalogoSecciones() {
+  const snap = await getDocs(collection(db, 'catalogoSecciones'))
+  return snapsToArr(snap)
+}
+
+export function subscribeCatalogoSecciones(cb) {
+  return onSnapshot(collection(db, 'catalogoSecciones'), snap => cb(snapsToArr(snap)))
+}
+
+export async function saveCatalogoSeccion(seccion) {
+  const id = seccion.id || crypto.randomUUID()
+  const data = { ...seccion, id, createdAt: seccion.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'catalogoSecciones', id), data)
+  return data
+}
+
+export async function deleteCatalogoSeccion(id) {
+  await deleteDoc(doc(db, 'catalogoSecciones', id))
+}
+
+// ─── ÍTEMS PERSONALIZADOS DEL CATÁLOGO ───────────────────────────────────────
+// Ítems creados por el usuario dentro de cualquier sección (semilla o
+// personalizada). Se fusionan con PRODUCTOS[categoria] al renderizar.
+// Shape: { id, categoria, nombre, precio, unidad, aplicaMultiplicador, multiplicador, createdAt }
+export async function getCatalogoItems() {
+  const snap = await getDocs(collection(db, 'catalogoItems'))
+  return snapsToArr(snap)
+}
+
+export function subscribeCatalogoItems(cb) {
+  return onSnapshot(collection(db, 'catalogoItems'), snap => cb(snapsToArr(snap)))
+}
+
+export async function saveCatalogoItem(item) {
+  const id = item.id || crypto.randomUUID()
+  const data = { ...item, id, createdAt: item.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'catalogoItems', id), data)
+  return data
+}
+
+export async function deleteCatalogoItem(id) {
+  await deleteDoc(doc(db, 'catalogoItems', id))
+}
+
 // ─── MATERIALES (base de datos de materiales para cotizaciones) ──────────────
 export async function getMateriales() {
   const snap = await getDocs(query(collection(db, 'materiales'), orderBy('nombre', 'asc')))

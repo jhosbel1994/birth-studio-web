@@ -7,6 +7,9 @@ import {
 import {
   getClientes, saveCliente, saveCotizacion, getClienteById, getMiscelaneos, saveMiscelaneo, deleteMiscelaneo,
   getPreciosProductos, savePreciosProductos, getMultiplicadoresInstalacion, saveMultiplicadoresInstalacion,
+  getMultiplicadoresProductos, saveMultiplicadoresProductos,
+  getCatalogoItems, saveCatalogoItem, deleteCatalogoItem,
+  getCatalogoSecciones, saveCatalogoSeccion, deleteCatalogoSeccion,
 } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, formatEmailJSError } from '../utils/email'
@@ -26,6 +29,18 @@ import {
 // consume sin necesidad de pasarlos por props en cada nivel.
 const PreciosContext = createContext({ precios: {}, setPrecio: () => {} })
 const MultiplicadoresContext = createContext({ multiplicadores: MULTIPLICADORES, setValorMultiplicador: () => {} })
+
+// Multiplicador por ítem individual (override 2.0–4.0). Si el ítem tiene un
+// valor guardado acá, manda sobre el multiplicador de instalación de la sección.
+const MultProductosContext = createContext({ multProductos: {}, setMultProducto: () => {} })
+
+// Catálogo personalizado por el usuario: ítems y secciones extra que se
+// fusionan con el catálogo semilla (data/productos.js), + sus CRUD.
+const CatalogoContext = createContext({
+  catalogoItems: [], catalogoSecciones: [],
+  addItem: () => {}, removeItem: () => {},
+  addSeccion: () => {}, removeSeccion: () => {},
+})
 
 // Fila de instalación reutilizable: botones ×valor (clic = seleccionar,
 // doble clic = editar el valor guardado). Reemplaza los bloques repetidos
@@ -167,30 +182,34 @@ function ProductoFila({ producto, multiplicador }) {
   const [added, setAdded] = useState(false)
   const [editandoPrecio, setEditandoPrecio] = useState(false)
   const [precioInput, setPrecioInput] = useState('')
+  const [editandoMult, setEditandoMult] = useState(false)
+  const [multInput, setMultInput] = useState('')
   const { precios, setPrecio } = useContext(PreciosContext)
+  const { multProductos, setMultProducto } = useContext(MultProductosContext)
+  const { removeItem } = useContext(CatalogoContext)
 
   const u = producto.unidad
   const precioBase = precios[producto.id] ?? producto.precio
   const tieneOverride = precios[producto.id] != null && precios[producto.id] !== producto.precio
 
+  // Multiplicador efectivo del ítem: override individual guardado > default del
+  // ítem (si es personalizado) > multiplicador de instalación de la sección.
+  const multDefault = producto.multiplicador ?? multiplicador
+  const multItem = producto.aplicaMultiplicador ? (multProductos[producto.id] ?? multDefault) : 1
+  const tieneMultOverride = producto.aplicaMultiplicador && multProductos[producto.id] != null
+
   let total = 0
   if (u === 'm2') {
     const area = parseFloat(d1 || 0) * parseFloat(d2 || 0)
-    if (area > 0) total = producto.aplicaMultiplicador
-      ? Math.round(area * precioBase * multiplicador)
-      : Math.round(area * precioBase)
+    if (area > 0) total = Math.round(area * precioBase * multItem)
   } else if (u === 'ml') {
     const ml = parseFloat(d1 || 0)
-    if (ml > 0) total = producto.aplicaMultiplicador
-      ? Math.round(ml * precioBase * multiplicador)
-      : Math.round(ml * precioBase)
+    if (ml > 0) total = Math.round(ml * precioBase * multItem)
   } else if (u === 'libre') {
     total = parseFloat(d1 || 0)
   } else {
     const qty = parseFloat(d1 || 0) || 1
-    if (precioBase > 0) total = producto.aplicaMultiplicador
-      ? Math.round(qty * precioBase * multiplicador)
-      : Math.round(qty * precioBase)
+    if (precioBase > 0) total = Math.round(qty * precioBase * multItem)
   }
 
   const canAdd = total > 0
@@ -199,6 +218,13 @@ function ProductoFila({ producto, multiplicador }) {
     const v = parseFloat(precioInput)
     if (!isNaN(v) && v >= 0) setPrecio(producto.id, v)
     setEditandoPrecio(false)
+  }
+
+  // Guarda el multiplicador individual del ítem (limitado a 2.0–4.0).
+  const guardarMult = () => {
+    const v = parseFloat(multInput)
+    if (!isNaN(v) && v >= 2 && v <= 4) setMultProducto(producto.id, Math.round(v * 10) / 10)
+    setEditandoMult(false)
   }
 
   const handleAdd = () => {
@@ -244,7 +270,25 @@ function ProductoFila({ producto, multiplicador }) {
                 {clp(precioBase)}/{u === 'libre' ? 'libre' : u}
               </button>
               {tieneOverride && <span className="ml-1 text-primary" title="Precio modificado">●</span>}
-              {producto.aplicaMultiplicador && <span className="ml-1 text-primary">×{multiplicador}</span>}
+              {producto.aplicaMultiplicador && (
+                editandoMult ? (
+                  <input
+                    type="number" min="2" max="4" step="0.1" autoFocus value={multInput}
+                    onChange={e => setMultInput(e.target.value)}
+                    onBlur={guardarMult}
+                    onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                    onClick={e => e.stopPropagation()}
+                    className="w-12 ml-1 text-center border border-primary rounded px-1 py-0.5 text-[11px] font-dm focus:outline-none"
+                  />
+                ) : (
+                  <button type="button"
+                    onClick={() => { setMultInput(String(multItem)); setEditandoMult(true) }}
+                    title="Multiplicador de este ítem (2.0–4.0). Clic para editar."
+                    className="ml-1 text-primary hover:underline font-semibold">
+                    ×{multItem}{tieneMultOverride && <span title="Multiplicador propio">*</span>}
+                  </button>
+                )
+              )}
             </p>
           )
         )}
@@ -288,6 +332,16 @@ function ProductoFila({ producto, multiplicador }) {
           className={`w-8 h-8 flex items-center justify-center rounded shrink-0 transition-all ${canAdd ? 'bg-primary text-white hover:bg-red-700' : 'bg-white/50-2 text-on-surface-variant cursor-not-allowed'}`}>
           <Plus size={14} />
         </button>
+
+        {/* Borrar (solo ítems personalizados) */}
+        {producto.custom && (
+          <button
+            onClick={() => { if (confirm(`¿Borrar "${producto.nombre}"?`)) removeItem(producto.id) }}
+            title="Borrar ítem personalizado"
+            className="w-8 h-8 flex items-center justify-center rounded shrink-0 text-on-surface-variant hover:bg-red-50 hover:text-primary transition-all">
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -674,12 +728,120 @@ function AfichesAcrilicosPanel() {
   )
 }
 
+// ─── FORMULARIO PARA AGREGAR ÍTEM PERSONALIZADO A UNA SECCIÓN ──────────────
+const UNIDADES_ITEM = [
+  { v: 'm2', label: 'm² (ancho × alto)' },
+  { v: 'ml', label: 'metro lineal' },
+  { v: 'unidad', label: 'unidad' },
+  { v: 'plancha', label: 'plancha' },
+  { v: 'set', label: 'set' },
+  { v: 'hora', label: 'hora' },
+  { v: 'dia', label: 'día' },
+  { v: 'libre', label: 'precio libre' },
+]
+
+function AgregarItemForm({ categoria, defaultMult }) {
+  const { addItem } = useContext(CatalogoContext)
+  const [abierto, setAbierto] = useState(false)
+  const [nombre, setNombre] = useState('')
+  const [precio, setPrecio] = useState('')
+  const [unidad, setUnidad] = useState('m2')
+  const [aplicaMult, setAplicaMult] = useState(true)
+  const [mult, setMult] = useState(String(defaultMult ?? 2.5))
+  const [guardando, setGuardando] = useState(false)
+
+  const reset = () => {
+    setNombre(''); setPrecio(''); setUnidad('m2')
+    setAplicaMult(true); setMult(String(defaultMult ?? 2.5))
+  }
+
+  const submit = async () => {
+    const p = parseFloat(precio)
+    if (!nombre.trim() || isNaN(p) || p < 0) return
+    let m = parseFloat(mult)
+    if (isNaN(m)) m = 2
+    m = Math.min(4, Math.max(2, Math.round(m * 10) / 10))
+    setGuardando(true)
+    try {
+      await addItem({
+        categoria,
+        nombre: nombre.trim(),
+        precio: Math.round(p),
+        unidad,
+        aplicaMultiplicador: aplicaMult,
+        multiplicador: aplicaMult ? m : null,
+      })
+      reset()
+      setAbierto(false)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <div className="px-4 py-3 border-t border-white/50">
+        <button onClick={() => setAbierto(true)}
+          className="flex items-center gap-2 text-sm font-dm font-medium text-primary hover:underline">
+          <Plus size={15} /> Agregar ítem a esta sección
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-4 py-3 border-t border-white/50 bg-white/50 flex flex-col gap-2">
+      <p className="text-xs font-dm uppercase tracking-wider text-on-surface-variant">Nuevo ítem personalizado</p>
+      <input value={nombre} onChange={e => setNombre(e.target.value)} autoFocus
+        placeholder="Nombre del ítem (ej. Vinil fundido premium)"
+        className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+      <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-1">
+          <span className="text-on-surface-variant text-xs">$</span>
+          <input type="number" min="0" value={precio} onChange={e => setPrecio(e.target.value)}
+            placeholder="Precio base (costo)"
+            className="w-32 border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+        </div>
+        <select value={unidad} onChange={e => setUnidad(e.target.value)}
+          className="border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface">
+          {UNIDADES_ITEM.map(u => <option key={u.v} value={u.v}>{u.label}</option>)}
+        </select>
+        <label className="flex items-center gap-1.5 text-sm font-dm text-on-surface cursor-pointer">
+          <input type="checkbox" checked={aplicaMult} onChange={e => setAplicaMult(e.target.checked)} />
+          Aplica multiplicador
+        </label>
+        {aplicaMult && (
+          <div className="flex items-center gap-1">
+            <span className="text-on-surface-variant text-xs">×</span>
+            <input type="number" min="2" max="4" step="0.1" value={mult} onChange={e => setMult(e.target.value)}
+              className="w-16 text-center border border-white/50 rounded px-1 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2 mt-1">
+        <button onClick={submit} disabled={guardando || !nombre.trim() || precio === ''}
+          className="flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-full text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 transition-colors">
+          <Save size={14} /> {guardando ? 'Guardando…' : 'Guardar ítem'}
+        </button>
+        <button onClick={() => { reset(); setAbierto(false) }}
+          className="text-sm font-dm text-on-surface-variant hover:text-on-surface px-2">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── PANEL DE PRODUCTOS GENÉRICO ──────────────────────────────────────────
 function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
-  const productos = PRODUCTOS[categoria] || []
+  const { catalogoItems } = useContext(CatalogoContext)
   const [query, setQuery] = useState('')
 
-  if (!productos.length) return <p className="p-4 text-sm text-on-surface-variant font-dm">Sin productos en esta categoría.</p>
+  const seed = PRODUCTOS[categoria] || []
+  const custom = catalogoItems
+    .filter(i => i.categoria === categoria)
+    .map(i => ({ ...i, custom: true }))
+  const productos = [...seed, ...custom]
 
   const tieneMultiplicador = productos.some(p => p.aplicaMultiplicador)
   const filtrados = query.trim()
@@ -709,10 +871,13 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
           <span className="w-8"></span>
         </div>
       </div>
-      {filtrados.length === 0
-        ? <p className="p-4 text-sm text-on-surface-variant font-dm">Sin resultados para "{query}"</p>
-        : filtrados.map(p => <ProductoFila key={p.id} producto={p} multiplicador={multiplicador} />)
+      {productos.length === 0
+        ? <p className="p-4 text-sm text-on-surface-variant font-dm">Sección vacía. Agrega tu primer ítem abajo.</p>
+        : filtrados.length === 0
+          ? <p className="p-4 text-sm text-on-surface-variant font-dm">Sin resultados para "{query}"</p>
+          : filtrados.map(p => <ProductoFila key={p.id} producto={p} multiplicador={multiplicador} />)
       }
+      <AgregarItemForm categoria={categoria} defaultMult={multiplicador} />
     </div>
   )
 }
@@ -1503,29 +1668,62 @@ function BusquedaGlobalPanel({ resultados, query, multiplicador }) {
 
 // ─── VISTA CUADRÍCULA ─────────────────────────────────────────────────────
 function CuadriculaPanel({ categoria, setCategoria, multiplicador, setMultiplicador }) {
-  function conteo(catId) { return (PRODUCTOS[catId] || []).length }
+  const { catalogoSecciones, catalogoItems, addSeccion, removeSeccion } = useContext(CatalogoContext)
+
+  const categoriasTodas = [
+    ...CATEGORIAS,
+    ...catalogoSecciones.map(s => ({ id: s.id, label: s.label, custom: true })),
+  ]
+  const conteo = (catId) =>
+    (PRODUCTOS[catId] || []).length + catalogoItems.filter(i => i.categoria === catId).length
+
+  const crearSeccion = async () => {
+    const label = window.prompt('Nombre de la nueva sección:')
+    if (!label || !label.trim()) return
+    const sec = await addSeccion({ label: label.trim() })
+    setCategoria(sec.id)
+  }
+
+  const borrarSeccion = async (e, id, label) => {
+    e.stopPropagation()
+    if (!confirm(`¿Borrar la sección "${label}" y todos sus ítems personalizados?`)) return
+    await removeSeccion(id)
+    if (categoria === id) setCategoria('acrilico')
+  }
+
   return (
     <div className="flex-1 overflow-y-auto space-y-3 pb-2">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 px-2.5">
-        {CATEGORIAS.map(cat => {
+        {categoriasTodas.map(cat => {
           const activa = cat.id === categoria
           const n = conteo(cat.id)
           return (
             <button key={cat.id} onClick={() => setCategoria(cat.id)}
-              className={`text-left p-3 rounded border transition-all ${activa ? 'bg-on-surface border-on-surface' : 'bg-white border-white/50 hover:border-on-surface'}`}>
-              <p className={`text-sm font-dm font-semibold leading-tight ${activa ? 'text-white' : 'text-on-surface'}`}>
+              className={`relative text-left p-3 rounded border transition-all ${activa ? 'bg-on-surface border-on-surface' : 'bg-white border-white/50 hover:border-on-surface'}`}>
+              <p className={`text-sm font-dm font-semibold leading-tight pr-4 ${activa ? 'text-white' : 'text-on-surface'}`}>
                 {cat.label}
               </p>
               {n > 0 && <p className={`text-[11px] mt-0.5 font-dm ${activa ? 'text-white/60' : 'text-on-surface-variant'}`}>{n} productos</p>}
+              {cat.custom && (
+                <span onClick={(e) => borrarSeccion(e, cat.id, cat.label)}
+                  title="Borrar sección"
+                  className={`absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded ${activa ? 'text-white/70 hover:text-white hover:bg-white/20' : 'text-on-surface-variant hover:text-primary hover:bg-red-50'}`}>
+                  <X size={13} />
+                </span>
+              )}
             </button>
           )
         })}
+        <button onClick={crearSeccion}
+          className="text-left p-3 rounded border border-dashed border-primary text-primary hover:bg-red-50 transition-all flex items-center gap-1.5">
+          <Plus size={15} /> <span className="text-sm font-dm font-semibold">Nueva sección</span>
+        </button>
       </div>
       {categoria && (
         <div className="mx-2.5 bg-white rounded border border-white/50">
           <div className="px-4 py-2.5 border-b border-white/50 bg-white/50 sticky top-0">
             <h3 className="font-barlow text-sm font-bold tracking-wider text-on-surface uppercase">
-              {CATEGORIAS.find(c => c.id === categoria)?.label}
+              {categoriasTodas.find(c => c.id === categoria)?.label}
             </h3>
           </div>
           <CategoriaPanel categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
@@ -1893,10 +2091,16 @@ export default function Cotizador() {
   const [globalQuery, setGlobalQuery] = useState('')
   const [precios, setPreciosState] = useState({})
   const [multiplicadoresOverride, setMultiplicadoresOverride] = useState({})
+  const [multProductos, setMultProductosState] = useState({})
+  const [catalogoItems, setCatalogoItems] = useState([])
+  const [catalogoSecciones, setCatalogoSecciones] = useState([])
 
   useEffect(() => {
     getPreciosProductos().then(setPreciosState)
     getMultiplicadoresInstalacion().then(setMultiplicadoresOverride)
+    getMultiplicadoresProductos().then(setMultProductosState)
+    getCatalogoItems().then(setCatalogoItems)
+    getCatalogoSecciones().then(setCatalogoSecciones)
   }, [])
 
   const setPrecio = (id, valor) => {
@@ -1915,17 +2119,78 @@ export default function Cotizador() {
     })
   }
 
+  // Multiplicador por ítem individual (2.0–4.0). Persiste en Firestore.
+  const setMultProducto = (id, valor) => {
+    setMultProductosState(prev => {
+      const next = { ...prev }
+      if (valor == null) delete next[id]
+      else next[id] = valor
+      saveMultiplicadoresProductos(next).catch(() => {})
+      return next
+    })
+  }
+
+  // CRUD del catálogo personalizado (ítems y secciones)
+  const addItem = async (item) => {
+    const guardado = await saveCatalogoItem(item)
+    setCatalogoItems(prev => {
+      const sinDup = prev.filter(i => i.id !== guardado.id)
+      return [...sinDup, guardado]
+    })
+    return guardado
+  }
+  const removeItem = async (id) => {
+    await deleteCatalogoItem(id)
+    setCatalogoItems(prev => prev.filter(i => i.id !== id))
+  }
+  const addSeccion = async (seccion) => {
+    const guardada = await saveCatalogoSeccion(seccion)
+    setCatalogoSecciones(prev => [...prev.filter(s => s.id !== guardada.id), guardada])
+    return guardada
+  }
+  const removeSeccion = async (id) => {
+    // Borra la sección y sus ítems personalizados
+    await deleteCatalogoSeccion(id)
+    const suyos = catalogoItems.filter(i => i.categoria === id)
+    await Promise.all(suyos.map(i => deleteCatalogoItem(i.id).catch(() => {})))
+    setCatalogoSecciones(prev => prev.filter(s => s.id !== id))
+    setCatalogoItems(prev => prev.filter(i => i.categoria !== id))
+  }
+
+  // Crea una sección nueva (pide el nombre) y la deja seleccionada.
+  const crearSeccion = async () => {
+    const label = window.prompt('Nombre de la nueva sección:')
+    if (!label || !label.trim()) return
+    const sec = await addSeccion({ label: label.trim() })
+    setCategoria(sec.id)
+  }
+
   const multiplicadoresEfectivos = MULTIPLICADORES.map(m => ({
     ...m, valor: multiplicadoresOverride[m.id] ?? m.valor,
   }))
 
+  // Catálogo completo = categorías semilla + secciones personalizadas
+  const categoriasTodas = [
+    ...CATEGORIAS,
+    ...catalogoSecciones.map(s => ({ id: s.id, label: s.label, custom: true })),
+  ]
+
+  const q = normalizar(globalQuery.trim())
   const busquedaGlobal = globalQuery.trim()
-    ? Object.entries(PRODUCTOS).flatMap(([catId, prods]) => {
-        const cat = CATEGORIAS.find(c => c.id === catId)
-        return prods
-          .filter(p => normalizar(p.nombre).includes(normalizar(globalQuery.trim())))
-          .map(p => ({ ...p, catId, catLabel: cat?.label || catId }))
-      })
+    ? [
+        ...Object.entries(PRODUCTOS).flatMap(([catId, prods]) => {
+          const cat = categoriasTodas.find(c => c.id === catId)
+          return prods
+            .filter(p => normalizar(p.nombre).includes(q))
+            .map(p => ({ ...p, catId, catLabel: cat?.label || catId }))
+        }),
+        ...catalogoItems
+          .filter(i => normalizar(i.nombre).includes(q))
+          .map(i => {
+            const cat = categoriasTodas.find(c => c.id === i.categoria)
+            return { ...i, custom: true, catId: i.categoria, catLabel: cat?.label || i.categoria }
+          }),
+      ]
     : []
 
   const cargarClientes = () => getClientes().then(setClientes)
@@ -1946,6 +2211,8 @@ export default function Cotizador() {
   return (
     <PreciosContext.Provider value={{ precios, setPrecio }}>
     <MultiplicadoresContext.Provider value={{ multiplicadores: multiplicadoresEfectivos, setValorMultiplicador }}>
+    <MultProductosContext.Provider value={{ multProductos, setMultProducto }}>
+    <CatalogoContext.Provider value={{ catalogoItems, catalogoSecciones, addItem, removeItem, addSeccion, removeSeccion }}>
     <div className="h-[100dvh] flex flex-col overflow-hidden">
       {modal && (
         <ModalCrearCotizacion
@@ -2049,7 +2316,7 @@ export default function Cotizador() {
             {/* Chips de categoría (scroll horizontal) */}
             <div className="flex gap-2 overflow-x-auto px-2.5 py-2.5 shrink-0 scrollbar-none"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {CATEGORIAS.map(cat => (
+              {categoriasTodas.map(cat => (
                 <button key={cat.id} onClick={() => setCategoria(cat.id)}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-dm border transition-colors ${
                     categoria === cat.id
@@ -2059,6 +2326,10 @@ export default function Cotizador() {
                   {cat.label}
                 </button>
               ))}
+              <button onClick={crearSeccion}
+                className="shrink-0 px-3 py-1.5 rounded-full text-xs font-dm border border-dashed border-primary text-primary hover:bg-red-50 transition-colors">
+                + Sección
+              </button>
             </div>
             {/* Productos */}
             <div className="flex-1 overflow-y-auto glass-panel mx-2.5 rounded-widget mb-2">
@@ -2088,19 +2359,25 @@ export default function Cotizador() {
         {/* Categorías — lista o cuadrícula */}
         <div className={`glass-panel rounded-widget overflow-y-auto ${vistaMode === 'cuadricula' ? 'col-span-3' : 'col-span-2'}`}>
           {vistaMode === 'lista' ? (
-            CATEGORIAS.map(cat => (
-              <button key={cat.id} onClick={() => setCategoria(cat.id)}
-                className={`w-full text-left px-3 py-2.5 text-sm font-dm border-l-2 transition-all ${
-                  categoria === cat.id
-                    ? 'border-primary bg-white/50 font-medium text-on-surface'
-                    : 'border-transparent text-on-surface-variant hover:bg-white/50 hover:text-on-surface'
-                }`}>
-                {cat.label}
+            <>
+              {categoriasTodas.map(cat => (
+                <button key={cat.id} onClick={() => setCategoria(cat.id)}
+                  className={`w-full text-left px-3 py-2.5 text-sm font-dm border-l-2 transition-all ${
+                    categoria === cat.id
+                      ? 'border-primary bg-white/50 font-medium text-on-surface'
+                      : 'border-transparent text-on-surface-variant hover:bg-white/50 hover:text-on-surface'
+                  }`}>
+                  {cat.label}
+                </button>
+              ))}
+              <button onClick={crearSeccion}
+                className="w-full text-left px-3 py-2.5 text-sm font-dm border-l-2 border-transparent text-primary hover:bg-white/50 transition-all">
+                + Nueva sección
               </button>
-            ))
+            </>
           ) : (
             <div className="grid grid-cols-2 gap-1.5 p-2">
-              {CATEGORIAS.map(cat => {
+              {categoriasTodas.map(cat => {
                 const activa = cat.id === categoria
                 return (
                   <button key={cat.id} onClick={() => setCategoria(cat.id)}
@@ -2109,6 +2386,10 @@ export default function Cotizador() {
                   </button>
                 )
               })}
+              <button onClick={crearSeccion}
+                className="text-left p-2.5 rounded border border-dashed border-primary text-primary hover:bg-red-50 transition-all">
+                <p className="text-xs font-dm font-semibold leading-tight">+ Nueva sección</p>
+              </button>
             </div>
           )}
         </div>
@@ -2122,7 +2403,7 @@ export default function Cotizador() {
               </p>
             ) : (
               <h2 className="font-barlow text-sm font-bold tracking-wider text-on-surface uppercase">
-                {CATEGORIAS.find(c => c.id === categoria)?.label}
+                {categoriasTodas.find(c => c.id === categoria)?.label}
               </h2>
             )}
           </div>
@@ -2149,6 +2430,8 @@ export default function Cotizador() {
         </div>
       </div>
     </div>
+    </CatalogoContext.Provider>
+    </MultProductosContext.Provider>
     </MultiplicadoresContext.Provider>
     </PreciosContext.Provider>
   )
