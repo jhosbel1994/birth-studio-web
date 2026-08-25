@@ -1180,6 +1180,105 @@ function buildMallEnv(envGroup, m) {
   }
 }
 
+function buildReceptionInterior(envGroup, opts) {
+  const { wallW, wallH, floorY, standoff, night, signW, signH } = opts;
+  const wallZ = -standoff + 0.006;
+  const addBox = (w, h, d, mat, x, y, z) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    envGroup.add(mesh);
+    return mesh;
+  };
+  const addPlane = (w, h, mat, x, y, z) => {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    mesh.position.set(x, y, z);
+    mesh.receiveShadow = true;
+    envGroup.add(mesh);
+    return mesh;
+  };
+
+  const white = new THREE.MeshStandardMaterial({ color: 0xf7f8f8, roughness: 0.38, metalness: 0.03 });
+  const softGrey = new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.58, metalness: 0.02 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x17191d, roughness: 0.46, metalness: 0.08 });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0xc9f0ff, roughness: 0.2, metalness: 0.03, transparent: true, opacity: night ? 0.34 : 0.25,
+    emissive: new THREE.Color(night ? 0x24475b : 0x86c9dc), emissiveIntensity: night ? 0.16 : 0.1,
+  });
+  const plaque = new THREE.MeshStandardMaterial({
+    color: 0xffffff, roughness: 0.18, metalness: 0.02, transparent: true, opacity: 0.24,
+    emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 0.18 : 0.05,
+  });
+  const plantMat = new THREE.MeshStandardMaterial({ color: 0x2f7a43, roughness: 0.82 });
+  const potMat = new THREE.MeshStandardMaterial({ color: 0xf1f1ee, roughness: 0.64 });
+
+  const doorX = -wallW * 0.39;
+  addBox(0.72, 1.82, 0.035, dark, doorX, floorY + 0.91, wallZ);
+  addBox(0.82, 1.94, 0.045, softGrey, doorX, floorY + 0.97, wallZ - 0.012);
+  addBox(0.08, 0.02, 0.045, new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.2 }), doorX + 0.24, floorY + 0.96, wallZ + 0.018);
+
+  const blindX = wallW * 0.36;
+  addPlane(wallW * 0.22, 1.86, glass, blindX, floorY + 1.58, wallZ + 0.01);
+  const slatMat = new THREE.MeshStandardMaterial({ color: 0x9ed4e5, roughness: 0.42, metalness: 0.02 });
+  for (let i = -4; i <= 4; i++) {
+    addBox(0.045, 1.92, 0.028, slatMat, blindX + i * wallW * 0.027, floorY + 1.58, wallZ + 0.025);
+  }
+
+  const counterW = Math.min(wallW * 0.76, 5.6);
+  const counterH = 0.7;
+  const counterD = 0.72;
+  const counterZ = Math.min(wallW * 0.26, 1.28) - standoff;
+  addBox(counterW, counterH, counterD, white, 0, floorY + counterH / 2, counterZ);
+  addBox(counterW * 0.98, 0.06, counterD + 0.04, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.18, metalness: 0.02 }),
+    0, floorY + counterH + 0.03, counterZ);
+  const lightPanel = addBox(counterW * 0.38, 0.13, 0.018, new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 0.9 : 0.28,
+    roughness: 0.28,
+  }), -counterW * 0.22, floorY + 0.26, counterZ + counterD / 2 + 0.012);
+  lightPanel.castShadow = false;
+
+  const panelW = Math.max(signW * 1.45, 1.0);
+  const panelH = Math.max(signH * 1.9, 0.48);
+  addBox(panelW, panelH, 0.028, plaque, 0, wallH * 0.12, wallZ + 0.004);
+
+  const potGeo = new THREE.CylinderGeometry(0.12, 0.16, 0.26, 18);
+  const leafGeo = new THREE.SphereGeometry(0.16, 14, 10);
+  const makePlant = (x, z, scale = 1) => {
+    const pot = new THREE.Mesh(potGeo, potMat);
+    pot.scale.set(scale, scale, scale);
+    pot.position.set(x, floorY + 0.13 * scale, z);
+    pot.castShadow = true; pot.receiveShadow = true;
+    envGroup.add(pot);
+    for (let i = 0; i < 5; i++) {
+      const leaf = new THREE.Mesh(leafGeo, plantMat);
+      leaf.scale.set(scale * (0.75 + i * 0.05), scale * (0.8 + (i % 2) * 0.18), scale * 0.6);
+      leaf.position.set(x + (i - 2) * 0.07 * scale, floorY + (0.32 + i * 0.045) * scale, z + (i % 2) * 0.04);
+      leaf.castShadow = true;
+      envGroup.add(leaf);
+    }
+  };
+  makePlant(-counterW * 0.48, counterZ + counterD * 0.54, 0.9);
+  makePlant(counterW * 0.5, counterZ + counterD * 0.42, 0.78);
+
+  const ceiling = addBox(wallW, 0.06, wallW * 0.46, new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.82 }),
+    0, wallH / 2 + 0.02, wallW * 0.22 - standoff);
+  ceiling.castShadow = false;
+  const lumMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 1.3 : 0.55,
+    roughness: 0.42,
+  });
+  [-0.28, 0.18].forEach((ratio) => {
+    const lum = addBox(0.38, 0.026, 0.22, lumMat, wallW * ratio, wallH / 2 - 0.015, 0.18 - standoff);
+    lum.castShadow = false;
+    const spot = new THREE.SpotLight(0xffffff, night ? 1.4 : 0.82, wallW * 1.5, Math.PI / 4, 0.7, 1.2);
+    spot.position.set(wallW * ratio, wallH / 2 - 0.05, 0.24 - standoff);
+    spot.target.position.set(wallW * ratio * 0.4, floorY + 0.45, counterZ);
+    envGroup.add(spot);
+    envGroup.add(spot.target);
+  });
+}
+
 function frameObject(camera, object, fill = 0.82) {
   // Forzar matrices del mundo al dia antes de medir: si el objeto se
   // acaba de crear/mover y su matrixWorld esta desactualizada,
@@ -1507,6 +1606,8 @@ export default function Prototipo() {
 
   const [tool, setTool] = useState("producto");
   const [fileName, setFileName] = useState(null);
+  const [logoQueue, setLogoQueue] = useState([]);
+  const [activeLogoId, setActiveLogoId] = useState(null);
   const [product, setProduct] = useState("letters");
   const [form, setForm] = useState("rect");
   const [suggested, setSuggested] = useState(null);
@@ -2106,6 +2207,7 @@ export default function Prototipo() {
           skirt.position.set(0, floorY + 0.055, -standoff + 0.005);
           skirt.receiveShadow = true;
           envGroup.add(skirt);
+          buildReceptionInterior(envGroup, { wallW, wallH, floorY, standoff, night, signW: realW, signH: realH });
           S.current.envMeta = { type: "interior", wallH };
         } else {
           // Fachada externa: local completo + su entorno — calle
@@ -2562,12 +2664,10 @@ export default function Prototipo() {
     img.src = dataUrl;
   }, [loadCanvas]);
 
-  const handleFile = useCallback((file) => {
-    if (!file) return;
-    setErr(null);
+  const readLogoFile = useCallback((file) => new Promise((resolve, reject) => {
     const isSvg = file.type === "image/svg+xml" || /\.svg$/i.test(file.name);
     const reader = new FileReader();
-    reader.onerror = () => setErr("No se pudo leer el archivo.");
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
     if (isSvg) {
       reader.onload = () => {
         let svg = String(reader.result);
@@ -2575,14 +2675,45 @@ export default function Prototipo() {
           const vb = svg.match(/viewBox\s*=\s*["']\s*([-\d.]+)\s+([-\d.]+)\s+([\d.]+)\s+([\d.]+)/i);
           svg = svg.replace(/<svg/i, `<svg width="${vb ? vb[3] : 800}" height="${vb ? vb[4] : 800}"`);
         }
-        loadFromDataUrl("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg), file.name);
+        resolve({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          name: file.name,
+          dataUrl: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg),
+        });
       };
       reader.readAsText(file);
     } else {
-      reader.onload = () => loadFromDataUrl(String(reader.result), file.name);
+      reader.onload = () => resolve({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: file.name,
+        dataUrl: String(reader.result),
+      });
       reader.readAsDataURL(file);
     }
+  }), []);
+
+  const loadLogoAsset = useCallback((asset) => {
+    if (!asset) return;
+    setActiveLogoId(asset.id);
+    loadFromDataUrl(asset.dataUrl, asset.name);
   }, [loadFromDataUrl]);
+
+  const handleFiles = useCallback(async (files) => {
+    const list = Array.from(files || []).filter((file) => (
+      file && (file.type.startsWith("image/") || /\.svg$/i.test(file.name))
+    ));
+    if (!list.length) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const assets = await Promise.all(list.map(readLogoFile));
+      setLogoQueue((prev) => [...prev, ...assets]);
+      loadLogoAsset(assets[0]);
+    } catch {
+      setErr("No se pudieron leer algunos logos.");
+      setBusy(false);
+    }
+  }, [loadLogoAsset, readLogoFile]);
 
   const loadSample = useCallback(() => {
     const c = document.createElement("canvas");
@@ -2815,6 +2946,23 @@ export default function Prototipo() {
               ? "Tu logo parece una placa entera. Como corporea se cortaria en muchas piezas."
               : "Tu logo tiene piezas separadas. Como caja se imprime todo sobre una placa."}
           </div>
+        )}
+        {logoQueue.length > 0 && (
+          <>
+            <div style={s.pLabel}>Logos cargados ({logoQueue.length})</div>
+            <div style={s.logoList}>
+              {logoQueue.map((asset, idx) => {
+                const active = activeLogoId === asset.id;
+                return (
+                  <button key={asset.id} type="button" onClick={() => loadLogoAsset(asset)}
+                    style={{ ...s.logoItem, ...(active ? s.logoItemOn : {}) }}>
+                    <span style={s.logoIndex}>{idx + 1}</span>
+                    <span style={s.logoName}>{asset.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
         {product === "lightbox" && (
           <>
@@ -3355,11 +3503,11 @@ export default function Prototipo() {
           <div style={s.topActions}>
             <label style={s.upload}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files?.[0]); }}>
-              <input type="file" accept="image/*" style={{ display: "none" }}
-                onChange={(e) => handleFile(e.target.files?.[0])} />
+              onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}>
+              <input type="file" multiple accept="image/*,.svg" style={{ display: "none" }}
+                onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
               <Icon name="upload" size={16} />
-              <span style={s.uploadTxt}>{fileName ? fileName.slice(0, 22) : "Subir logo"}</span>
+              <span style={s.uploadTxt}>{logoQueue.length > 1 ? `${logoQueue.length} logos` : fileName ? fileName.slice(0, 22) : "Subir logos"}</span>
             </label>
             <button onClick={loadSample} style={s.flatBtn}>Ejemplo</button>
             <div style={s.divider} />
@@ -3580,6 +3728,21 @@ const s = {
     marginTop: 7, fontSize: 9.5, color: DIM, lineHeight: 1.45,
     background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 8px",
   },
+  logoList: {
+    display: "grid", gridTemplateColumns: "1fr", gap: 5, maxHeight: 152, overflowY: "auto",
+    paddingRight: 2,
+  },
+  logoItem: {
+    display: "grid", gridTemplateColumns: "22px 1fr", alignItems: "center", gap: 7,
+    width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, background: "rgba(255,255,255,0.48)",
+    color: TXT, padding: "6px 7px", cursor: "pointer", textAlign: "left",
+  },
+  logoItemOn: { borderColor: BLUE, background: "rgba(47,139,239,0.13)", color: "#0755B8" },
+  logoIndex: {
+    width: 20, height: 20, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
+    background: "rgba(255,255,255,0.72)", fontSize: 9, fontWeight: 800,
+  },
+  logoName: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9.5, fontWeight: 600 },
   warnNote: { borderColor: "rgba(217,147,32,0.36)", color: "#7A4F00", background: "rgba(255,248,231,0.76)" },
   dangerNote: { borderColor: "rgba(198,0,16,0.34)", color: RED, background: "rgba(255,247,247,0.82)" },
   seg: { display: "grid", gap: 3 },
