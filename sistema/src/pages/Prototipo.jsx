@@ -1103,6 +1103,29 @@ function buildCar(hex) {
   return g;
 }
 
+/* Árbol simple (tronco + copa de esferas) para flanquear la fachada del
+   galpón, como los árboles de la foto real. */
+function buildTree(h = 3.4) {
+  const g = new THREE.Group();
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b4636, roughness: 0.9 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f6b34, roughness: 0.85 });
+  const trunkH = h * 0.42;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(h * 0.05, h * 0.08, trunkH, 8), trunkMat);
+  trunk.position.y = trunkH / 2; trunk.castShadow = true;
+  g.add(trunk);
+  const fy = trunkH + h * 0.2;
+  const blobs = [
+    [0, fy, 0, h * 0.32], [h * 0.17, fy + h * 0.1, 0, h * 0.24],
+    [-h * 0.16, fy + h * 0.05, h * 0.05, h * 0.22], [0, fy + h * 0.22, 0, h * 0.2],
+  ];
+  for (const [x, y, z, r] of blobs) {
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), leafMat);
+    leaf.position.set(x, y, z); leaf.castShadow = true;
+    g.add(leaf);
+  }
+  return g;
+}
+
 function buildStreetEnv(envGroup, m, opts) {
   const { night, standoff, noNeighbors, cars } = opts;
   const { facW, yGround, zWall } = m;
@@ -1170,16 +1193,23 @@ function buildStreetEnv(envGroup, m, opts) {
     }
   }
 
-  // Autos estacionados frente a la fachada (galpón), como en la foto real.
+  // Autos estacionados frente a la fachada (galpón) + árboles a los lados,
+  // como en la foto real.
   if (cars) {
-    const palette = ["#8a8d92", "#e9eaec", "#d6d8db", "#565b63", "#7d3b32"];
+    const palette = ["#8a8d92", "#e9eaec"];
     const gap = 4.7;
-    const n = Math.max(1, Math.min(4, Math.floor(facW / gap)));
-    const startX = -((n - 1) * gap) / 2;
-    for (let i = 0; i < n; i++) {
-      const car = buildCar(palette[(i * 2) % palette.length]);
+    const startX = -gap / 2; // 2 autos centrados
+    for (let i = 0; i < 2; i++) {
+      const car = buildCar(palette[i % palette.length]);
       car.position.set(startX + i * gap, yGround, zWall + 2.9);
       envGroup.add(car);
+    }
+    // Un árbol a cada lado del galpón.
+    const treeH = Math.max(3, m.shopH * 0.95);
+    for (const side of [-1, 1]) {
+      const tree = buildTree(treeH);
+      tree.position.set(side * (facW / 2 + 1.1), yGround, zWall + 1.6);
+      envGroup.add(tree);
     }
   }
 
@@ -2652,12 +2682,30 @@ export default function Prototipo() {
     }
 
     // En fachada hay que abrir el encuadre: el local es mucho mas grande que el letrero
+    const isGalponScene = showFacade && facadeStyle === "galpon";
     const fill = scene === "totem" ? 0.5
       : scene === "interior" ? 0.45
+      : isGalponScene ? 0.8
       : showFacade ? 0.3 : 0.75;
-    S.current.frameTarget = sign; S.current.fill = fill;
+    // El galpón es una fachada grande: en vez de encuadrar el letrero (que
+    // puede ser chico o estar vacío), encuadramos un marco invisible del
+    // tamaño de toda la escena (muro + autos + árboles + algo de cielo)
+    // para que se vea completa.
+    let frameTarget = sign;
+    if (isGalponScene) {
+      const fw = Math.max(realW * 1.7, 3.8) + 6;
+      const fh = 10 + Math.max(realH, 0.4);
+      const helper = new THREE.Mesh(
+        new THREE.PlaneGeometry(fw, fh),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      );
+      helper.position.set(sign.position.x, -2.2, sign.position.z);
+      rig.add(helper);
+      frameTarget = helper;
+    }
+    S.current.frameTarget = frameTarget; S.current.fill = fill;
     S.current.lastInfo = { realW, realH };
-    const f = frameObject(camera, sign, fill);
+    const f = frameObject(camera, frameTarget, fill);
     if (f) {
       S.current.center = f.center; S.current.baseDist = f.dist;
       // Reencuadrar (mover la camara) solo cuando cambio algo que
@@ -2668,7 +2716,7 @@ export default function Prototipo() {
       // camera.zoom es independiente de camera.position, asi que
       // reencuadrar (o no) nunca lo pisa ni necesita reaplicarlo.
       const frameSig = [
-        scene, product, form, sourceType, genSeq, whLocked,
+        scene, product, form, sourceType, genSeq, whLocked, facadeStyle,
         Math.round(realW * 1000), Math.round(realH * 1000), Math.round(depthCm), showFacade,
       ].join("|");
       if (S.current.frameSig !== frameSig) {
