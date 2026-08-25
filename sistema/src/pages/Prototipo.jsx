@@ -1602,6 +1602,7 @@ const TOOL_DESCRIPTIONS = {
 const ZMIN = 0.45;
 const ZMAX = 5;
 const FACADE_FIT_RATIO = 0.5;
+const MIN_DIM_M = 0.1;
 const clampZoom = (z) => Math.max(ZMIN, Math.min(ZMAX, z));
 
 export default function Prototipo() {
@@ -2933,6 +2934,7 @@ export default function Prototipo() {
     setScene(x.id);
     if (x.a != null) { setAnchoM(x.a); setAltoM(x.b); } // "foto" no trae preset: la medida real la da la calibracion
     if (x.id === "interior") { setMaterial("lisa"); setFinish("blanco"); setWallColor("#eceef1"); }
+    if (x.id === "foto") setTool("fachada");
     if (x.id === "totem") { setMaterial("acm"); setFinish("negro"); setWallColor("#191a1d"); }
   };
   const pickFinish = (f) => { setFinish(f.id); setWallColor(f.hex); };
@@ -3022,15 +3024,18 @@ export default function Prototipo() {
       if (!raw) return;
       const n = parseFloat(raw);
       if (isNaN(n)) return;
-      onChange(Math.max(0.2, Math.min(20, n / k)));
+      onChange(Math.max(MIN_DIM_M, Math.min(20, n / k)));
     };
     return (
       <label style={s.field}>
         <span style={s.fieldLabel}>{label}</span>
         <input type="text" inputMode="decimal" value={editing ? numberDrafts[key] : shown}
-          min={unit === "cm" ? 20 : 0.2} max={unit === "cm" ? 2000 : 20}
+          min={unit === "cm" ? 10 : 0.1} max={unit === "cm" ? 2000 : 20}
           step={unit === "cm" ? 5 : 0.1} style={s.fieldInput}
-          onFocus={() => setNumberDrafts((drafts) => ({ ...drafts, [key]: shown }))}
+          onFocus={(e) => {
+            setNumberDrafts((drafts) => ({ ...drafts, [key]: shown }));
+            setTimeout(() => e.currentTarget.select(), 0);
+          }}
           onChange={(e) => {
             const raw = e.target.value.replace(/[^\d.,]/g, "");
             setNumberDrafts((drafts) => ({ ...drafts, [key]: raw }));
@@ -3391,7 +3396,7 @@ export default function Prototipo() {
             Ajustar al 50% de fachada
           </button>
           <label style={{ ...s.flatBtn, ...s.labelBtn, width: "100%" }}>
-            <Icon name="upload" size={13} /> Subir fachada
+            <Icon name="upload" size={13} /> {scene === "foto" ? "Subir foto de fachada" : "Subir fachada"}
             <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
               onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
           </label>
@@ -3710,6 +3715,17 @@ export default function Prototipo() {
                 <div style={s.emptyText}>Arrastralo aqui o usa el boton de arriba</div>
               </div>
             )}
+            {fileName && scene === "foto" && !photoImg && !busy && (
+              <div style={{ ...s.overlay, ...(narrow ? { height: 360 } : {}) }}>
+                <div style={s.emptyTitle}>Sube una foto de fachada</div>
+                <div style={s.emptyText}>La foto será el fondo real del mockup</div>
+                <label style={s.emptyUpload}>
+                  <Icon name="upload" size={15} /> Subir foto
+                  <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+                    onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
+                </label>
+              </div>
+            )}
             {err && <div style={s.errBar}>{err}</div>}
 
             <div style={s.zoomBar}>
@@ -3838,6 +3854,11 @@ const s = {
   },
   emptyTitle: { fontSize: 15, color: TXT, fontWeight: 700 },
   emptyText: { fontSize: 12, color: DIM },
+  emptyUpload: {
+    marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+    background: RED, color: "#fff", borderRadius: 8, padding: "9px 14px", fontSize: 11,
+    fontWeight: 800, cursor: "pointer", pointerEvents: "auto", boxShadow: "0 10px 22px rgba(198,0,16,0.22)",
+  },
   errBar: {
     position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
     background: "rgba(255,247,247,0.92)", border: `1px solid rgba(198,0,16,0.35)`, color: RED,
@@ -3923,10 +3944,14 @@ const s = {
   },
   field: {
     flex: 1, display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.55)",
-    border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 7px",
+    border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 7px", userSelect: "none",
   },
   fieldLabel: { fontSize: 8.5, color: DIM, whiteSpace: "nowrap" },
-  fieldInput: { flex: 1, width: "100%", minWidth: 0, background: "transparent", border: "none", color: TXT, fontSize: 11, fontWeight: 700, outline: "none" },
+  fieldInput: {
+    flex: 1, width: "100%", minWidth: 0, background: "rgba(255,255,255,0.72)",
+    border: `1px solid rgba(80,50,70,0.08)`, borderRadius: 6, color: TXT, fontSize: 11,
+    fontWeight: 800, outline: "none", padding: "3px 5px", userSelect: "text",
+  },
   textarea: {
     width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.55)", border: `1px solid ${LINE}`,
     borderRadius: 8, padding: "8px 9px", color: TXT, fontSize: 12, fontWeight: 700,
