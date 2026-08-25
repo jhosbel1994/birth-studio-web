@@ -1546,6 +1546,11 @@ const SCENES = [
   { id: "interior", label: "Interior de pared", a: 0.8, b: 0.4 },
   { id: "foto", label: "Foto de la fachada" }, // sin a/b: la medida real la da la calibracion, no un preset
 ];
+const PLACEMENT_SURFACES = [
+  { id: "wall", label: "Pared fondo", x: 0, y: 0.08, z: 0.065, ry: 0 },
+  { id: "side", label: "Lateral", x: -1.35, y: 0.1, z: 0.42, ry: -0.46 },
+  { id: "desk", label: "Frente escritorio", x: 0, y: -1.02, z: 1.2, ry: 0 },
+];
 
 /* Color y acabado del canto (el borde de la pieza) */
 const EDGE_COLORS = [
@@ -2184,7 +2189,8 @@ export default function Prototipo() {
         side: THREE.DoubleSide,
       });
       const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), matExtra);
-      plane.position.set(item.x || 0, item.y || 0, 0.055);
+      plane.position.set(item.x || 0, item.y || 0, item.z ?? 0.065);
+      plane.rotation.y = item.ry || 0;
       plane.userData.placementId = item.id;
       plane.castShadow = true;
       plane.receiveShadow = true;
@@ -2381,7 +2387,18 @@ export default function Prototipo() {
     // generados.
     while (photoGroup.children.length) {
       const o = photoGroup.children.pop();
-      o.geometry?.dispose(); o.material?.map?.dispose(); o.material?.dispose();
+      o.traverse?.((n) => {
+        n.geometry?.dispose();
+        if (Array.isArray(n.material)) {
+          n.material.forEach((m) => {
+            if (m.map && m.map !== S.current.photoTex) m.map.dispose();
+            m.dispose();
+          });
+        } else if (n.material) {
+          if (n.material.map && n.material.map !== S.current.photoTex) n.material.map.dispose();
+          n.material.dispose();
+        }
+      });
     }
     S.current.photoPlane = null;
     if (scene === "foto" && photoImg && S.current.photoTex) {
@@ -2769,16 +2786,32 @@ export default function Prototipo() {
     loadFromDataUrl(asset.dataUrl, asset.name);
   }, [loadFromDataUrl]);
 
-  const createPlacement = useCallback((asset, idx = 0, total = 1) => ({
+  const surfaceDefaults = useCallback((surface = "wall", idx = 0, total = 1) => {
+    const base = PLACEMENT_SURFACES.find((x) => x.id === surface) || PLACEMENT_SURFACES[0];
+    return {
+      x: base.x + (idx - (total - 1) / 2) * 0.52,
+      y: base.y,
+      z: base.z,
+      ry: base.ry,
+    };
+  }, []);
+
+  const createPlacement = useCallback((asset, idx = 0, total = 1, surface = "wall") => ({
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     assetId: asset.id,
     name: asset.name,
     dataUrl: asset.dataUrl,
     aspect: asset.aspect || 1.8,
-    x: (idx - (total - 1) / 2) * 0.52,
-    y: 0,
-    w: Math.max(0.28, Math.min(anchoM * 0.42, 1.15)),
-  }), [anchoM]);
+    surface,
+    ...surfaceDefaults(surface, idx, total),
+    w: Math.max(0.18, Math.min(anchoM * 0.42, 1.15)),
+  }), [anchoM, surfaceDefaults]);
+
+  const setPlacementSurface = useCallback((id, surface) => {
+    setPlacedLogos((items) => items.map((item, idx) => (
+      item.id === id ? { ...item, surface, ...surfaceDefaults(surface, idx, items.length) } : item
+    )));
+  }, [surfaceDefaults]);
 
   const addLogoToMockup = useCallback((asset) => {
     const placement = createPlacement(asset, 0, 1);
@@ -3014,17 +3047,21 @@ export default function Prototipo() {
     const k = unit === "cm" ? 100 : 1;
     const shown = unit === "cm" ? String(Math.round(value * 100)) : String(Number(value.toFixed(2)));
     const editing = Object.prototype.hasOwnProperty.call(numberDrafts, key);
+    const applyRaw = (raw) => {
+      const cleaned = String(raw ?? "").replace(",", ".").trim();
+      if (!cleaned) return;
+      const n = parseFloat(cleaned);
+      if (isNaN(n)) return;
+      onChange(Math.max(MIN_DIM_M, Math.min(20, n / k)));
+    };
     const commit = () => {
-      const raw = String(numberDrafts[key] ?? "").replace(",", ".").trim();
+      const raw = String(numberDrafts[key] ?? "").trim();
       setNumberDrafts((drafts) => {
         const next = { ...drafts };
         delete next[key];
         return next;
       });
-      if (!raw) return;
-      const n = parseFloat(raw);
-      if (isNaN(n)) return;
-      onChange(Math.max(MIN_DIM_M, Math.min(20, n / k)));
+      applyRaw(raw);
     };
     return (
       <label style={s.field}>
@@ -3033,13 +3070,16 @@ export default function Prototipo() {
           min={unit === "cm" ? 10 : 0.1} max={unit === "cm" ? 2000 : 20}
           step={unit === "cm" ? 5 : 0.1} style={s.fieldInput}
           onFocus={(e) => {
+            const el = e.currentTarget;
             setNumberDrafts((drafts) => ({ ...drafts, [key]: shown }));
-            setTimeout(() => e.currentTarget.select(), 0);
+            setTimeout(() => el.select(), 0);
           }}
           onChange={(e) => {
             const raw = e.target.value.replace(/[^\d.,]/g, "");
             setNumberDrafts((drafts) => ({ ...drafts, [key]: raw }));
+            applyRaw(raw);
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
@@ -3109,6 +3149,22 @@ export default function Prototipo() {
               })}
             </div>
             <div style={s.pHint}>Arrastra cada logo directamente sobre la escena para ubicarlo.</div>
+            {(() => {
+              const active = placedLogos.find((item) => item.id === activePlacementId);
+              if (!active) return null;
+              return (
+                <>
+                  <div style={s.pLabel}>Ubicación del logo seleccionado</div>
+                  <Seg items={PLACEMENT_SURFACES} value={active.surface || "wall"}
+                    onPick={(surface) => setPlacementSurface(active.id, surface.id)} cols={1} />
+                  <Slider label="Tamaño" value={Math.round((active.w || 0.4) * 100)} unit=" cm"
+                    min={10} max={220} step={5}
+                    onChange={(v) => setPlacedLogos((items) => items.map((item) => (
+                      item.id === active.id ? { ...item, w: v / 100 } : item
+                    )))} />
+                </>
+              );
+            })()}
           </>
         )}
         {product === "lightbox" && (
@@ -3398,7 +3454,7 @@ export default function Prototipo() {
           <label style={{ ...s.flatBtn, ...s.labelBtn, width: "100%" }}>
             <Icon name="upload" size={13} /> {scene === "foto" ? "Subir foto de fachada" : "Subir fachada"}
             <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
-              onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
+              onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
           </label>
         </div>
         {(() => {
@@ -3424,7 +3480,7 @@ export default function Prototipo() {
         <label style={{ ...s.segBtn, cursor: "pointer", justifyContent: "center", gap: 6, display: "flex" }}>
           <Icon name="upload" size={13} /> {photoImg ? "Cambiar foto" : "Subir foto"}
           <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
-            onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
+            onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
         </label>
         {!photoImg && <div style={s.pHint}>Sube una foto de la fachada real (galería o cámara) para montar el letrero encima.</div>}
 
@@ -3722,7 +3778,7 @@ export default function Prototipo() {
                 <label style={s.emptyUpload}>
                   <Icon name="upload" size={15} /> Subir foto
                   <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
-                    onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
+                    onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
                 </label>
               </div>
             )}
