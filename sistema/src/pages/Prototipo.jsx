@@ -1204,11 +1204,12 @@ function buildStreetEnv(envGroup, m, opts) {
       car.position.set(startX + i * gap, yGround, zWall + 2.9);
       envGroup.add(car);
     }
-    // Un árbol a cada lado del galpón.
-    const treeH = Math.max(3, m.shopH * 0.95);
+    // Un árbol a cada lado del galpón — chicos y pegados al muro, para que
+    // enmarquen la escena sin tapar los autos ni la fachada.
+    const treeH = Math.min(2.8, Math.max(2.2, m.shopH * 0.55));
     for (const side of [-1, 1]) {
       const tree = buildTree(treeH);
-      tree.position.set(side * (facW / 2 + 1.1), yGround, zWall + 1.6);
+      tree.position.set(side * (facW / 2 + 0.8), yGround, zWall + 0.7);
       envGroup.add(tree);
     }
   }
@@ -1740,7 +1741,7 @@ const TOOL_DESCRIPTIONS = {
   ajustes: "Detección y limpieza del logo",
 };
 
-const ZMIN = 0.45;
+const ZMIN = 0.3; // permite alejar más (galpón y fachadas grandes)
 const ZMAX = 5;
 const FACADE_FIT_RATIO = 0.5;
 const MIN_DIM_M = 0.1;
@@ -2685,7 +2686,7 @@ export default function Prototipo() {
     const isGalponScene = showFacade && facadeStyle === "galpon";
     const fill = scene === "totem" ? 0.5
       : scene === "interior" ? 0.45
-      : isGalponScene ? 0.8
+      : isGalponScene ? 0.55
       : showFacade ? 0.3 : 0.75;
     // El galpón es una fachada grande: en vez de encuadrar el letrero (que
     // puede ser chico o estar vacío), encuadramos un marco invisible del
