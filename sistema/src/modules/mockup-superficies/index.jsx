@@ -49,6 +49,46 @@ function propsAcabado(value) {
   return { acabado: value }
 }
 
+function fotoADataUrl(src, fallbackW, fallbackH) {
+  return new Promise((resolve) => {
+    if (!src) {
+      resolve(null)
+      return
+    }
+    if (src.startsWith('data:')) {
+      resolve({ dataUrl: src, w: fallbackW || null, h: fallbackH || null })
+      return
+    }
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const iw = img.naturalWidth || img.width || fallbackW || 0
+        const ih = img.naturalHeight || img.height || fallbackH || 0
+        if (!iw || !ih) {
+          resolve(null)
+          return
+        }
+        const maxWidth = 1600
+        const scale = Math.min(1, maxWidth / iw)
+        const out = document.createElement('canvas')
+        out.width = Math.max(1, Math.round(iw * scale))
+        out.height = Math.max(1, Math.round(ih * scale))
+        const ctx = out.getContext('2d')
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        ctx.drawImage(img, 0, 0, out.width, out.height)
+        resolve({ dataUrl: out.toDataURL('image/jpeg', 0.88), w: out.width, h: out.height })
+      } catch {
+        resolve(null)
+      }
+    }
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+
 export default function MockupVitrina() {
   const fileInputRef = useRef(null)
   const canvasRef = useRef(null)
@@ -63,6 +103,7 @@ export default function MockupVitrina() {
   const [mostrarGuias, setMostrarGuias] = useState(true)
   const [calidad, setCalidad] = useState('alta')
   const [puenteOk, setPuenteOk] = useState(false)
+  const [enviandoPrototipo, setEnviandoPrototipo] = useState(false)
   const {
     escena, cargandoFoto, guardando, error,
     subirFoto, setNombre, setEsPlantilla, guardar, cargarEscena, cargarComoPlantilla, nuevaEscena,
@@ -118,25 +159,44 @@ export default function MockupVitrina() {
     setHerramienta('escena')
   }
 
-  const handleUsarEnPrototipo = () => {
-    setErrorListado(null)
+  const prepararMockupParaPrototipo = useCallback(async () => {
     const exportado = canvasRef.current?.exportImage?.({ type: 'image/jpeg', quality: 0.88, maxWidth: 1600 })
-    if (!exportado?.dataUrl) {
-      setErrorListado('No se pudo preparar el mockup final. Espera a que cargue la imagen e intenta otra vez.')
+    if (exportado?.dataUrl) return exportado
+    return fotoADataUrl(escena.fotoUrl, escena.fotoW, escena.fotoH)
+  }, [escena.fotoH, escena.fotoUrl, escena.fotoW])
+
+  const handleUsarEnPrototipo = async () => {
+    if (enviandoPrototipo) return
+    setErrorListado(null)
+
+    if (!escena.fotoUrl) {
+      setHerramienta('escena')
+      setErrorListado('Primero sube una foto o elige una plantilla; luego podrás enviarla directo a Prototipo Logo.')
       return
     }
-    const ok = guardarMockupVitrinaParaPrototipo(exportado.dataUrl, {
-      nombre: escena.nombre || 'Mockup final vitrina',
-      w: exportado.w,
-      h: exportado.h,
-    })
-    if (!ok) {
-      setErrorListado('El navegador no pudo guardar el mockup final. Prueba con calidad rápida o una foto más liviana.')
-      return
+
+    setEnviandoPrototipo(true)
+    try {
+      const exportado = await prepararMockupParaPrototipo()
+      if (!exportado?.dataUrl) {
+        setErrorListado('No se pudo preparar la imagen. Prueba eligiendo una plantilla, subiendo la foto otra vez o usando una imagen más liviana.')
+        return
+      }
+      const ok = guardarMockupVitrinaParaPrototipo(exportado.dataUrl, {
+        nombre: escena.nombre || 'Mockup final vitrina',
+        w: exportado.w,
+        h: exportado.h,
+      })
+      if (!ok) {
+        setErrorListado('El navegador no pudo guardar el mockup final. Prueba con calidad rápida o una foto más liviana.')
+        return
+      }
+      setPuenteOk(true)
+      setTimeout(() => setPuenteOk(false), 2200)
+      navigate('/prototipo')
+    } finally {
+      setEnviandoPrototipo(false)
     }
-    setPuenteOk(true)
-    setTimeout(() => setPuenteOk(false), 2200)
-    navigate('/prototipo')
   }
 
   const handleCargar = (doc) => {
@@ -200,9 +260,10 @@ export default function MockupVitrina() {
         <div className="flex items-center gap-2">
           {guardadoOk && <span className="text-xs font-dm text-secondary hidden sm:inline">Guardado.</span>}
           {puenteOk && <span className="text-xs font-dm text-secondary hidden sm:inline">Enviado a Prototipo.</span>}
-          <button onClick={handleUsarEnPrototipo} disabled={!tieneFoto}
-            className="hidden sm:flex items-center gap-2 bg-secondary-container/80 text-on-secondary-container rounded-full px-4 py-2.5 text-sm font-dm font-medium hover:bg-secondary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            <Send size={15} /> Prototipo Logo
+          <button onClick={handleUsarEnPrototipo} disabled={enviandoPrototipo}
+            title={tieneFoto ? 'Enviar mockup final a Prototipo Logo' : 'Sube una foto o elige una plantilla para enviarla a Prototipo Logo'}
+            className="hidden sm:flex items-center gap-2 bg-secondary-container/80 text-on-secondary-container rounded-full px-4 py-2.5 text-sm font-dm font-medium hover:bg-secondary-container transition-colors disabled:opacity-60 disabled:cursor-wait">
+            <Send size={15} /> {enviandoPrototipo ? 'Preparando...' : 'Prototipo Logo'}
           </button>
           <button onClick={handleGuardar} disabled={guardando}
             className="bg-primary text-on-primary rounded-full px-4 py-2.5 text-sm font-dm font-medium hover:bg-primary-container transition-colors disabled:opacity-50">
