@@ -1548,13 +1548,22 @@ const SCENES = [
 ];
 const PLACEMENT_SURFACES = [
   { id: "wall", label: "Pared fondo", x: 0, y: 0.08, z: 0.065, ry: 0 },
-  { id: "side", label: "Lateral", x: -1.35, y: 0.1, z: 0.42, ry: -0.46 },
+  { id: "side", label: "Lateral", x: -1.35, y: 0.1, z: 0.42, ry: -Math.PI / 2 },
   { id: "desk", label: "Frente escritorio", x: 0, y: -1.02, z: 1.2, ry: 0 },
+];
+const PLACEMENT_ORIENTATIONS = [
+  { id: "front", label: "Frontal", ry: 0 },
+  { id: "left90", label: "Lateral 90° izq.", ry: -Math.PI / 2 },
+  { id: "right90", label: "Lateral 90° der.", ry: Math.PI / 2 },
 ];
 const PLACEMENT_TYPES = [
   { id: "original", label: "Original" },
   { id: "letters", label: "Corpórea" },
   { id: "lightbox", label: "Caja de luz" },
+];
+const PLACEMENT_BOX_FORMS = [
+  { id: "rect", label: "Rectangular" },
+  { id: "circle", label: "Circular" },
 ];
 
 /* Color y acabado del canto (el borde de la pieza) */
@@ -2190,9 +2199,10 @@ export default function Prototipo() {
       hitArea.userData.mainHitArea = true;
       sign.add(hitArea);
     }
+    if (placedLogos.length > 0) sign.visible = false;
     rig.add(sign);
     const extraTargets = [];
-    placedLogos.forEach((item) => {
+    placedLogos.forEach((item, layerIndex) => {
       if (!item.dataUrl) return;
       const texExtra = new THREE.TextureLoader().load(item.dataUrl);
       texExtra.colorSpace = SRGB;
@@ -2200,28 +2210,33 @@ export default function Prototipo() {
       const w = Math.max(0.12, item.w || Math.min(anchoM * 0.42, 1.1));
       const h = w / Math.max(0.12, item.aspect || 1.8);
       const kind = item.kind || "original";
+      const layerZ = layerIndex * 0.018;
       const plane = new THREE.Group();
-      plane.position.set(item.x || 0, item.y || 0, item.z ?? 0.065);
+      plane.position.set(item.x || 0, item.y || 0, (item.z ?? 0.065) + layerZ);
       plane.rotation.y = item.ry || 0;
       plane.userData.placementId = item.id;
       if (kind === "lightbox") {
-        const box = new THREE.Mesh(
-          new THREE.BoxGeometry(w * 1.1, h * 1.16, 0.055),
-          new THREE.MeshStandardMaterial({
+        const boxMat = new THREE.MeshStandardMaterial({
             color: 0xf7f8fb, roughness: 0.34, metalness: 0.02,
             emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 0.24 : 0.08,
-          })
-        );
+        });
+        const isCircle = (item.boxForm || "rect") === "circle";
+        const box = isCircle
+          ? new THREE.Mesh(new THREE.CylinderGeometry(Math.max(w, h) * 0.58, Math.max(w, h) * 0.58, 0.055, 48), boxMat)
+          : new THREE.Mesh(new THREE.BoxGeometry(w * 1.1, h * 1.16, 0.055), boxMat);
+        if (isCircle) box.rotation.x = Math.PI / 2;
         box.position.z = -0.035;
         box.castShadow = true; box.receiveShadow = true;
         plane.add(box);
       } else if (kind === "letters") {
-        const back = new THREE.Mesh(
-          new THREE.PlaneGeometry(w, h),
-          new THREE.MeshBasicMaterial({ map: texExtra, transparent: true, opacity: 0.28, color: 0x111111, side: THREE.DoubleSide })
-        );
-        back.position.set(0.035, -0.035, -0.04);
-        plane.add(back);
+        for (let i = 3; i >= 1; i--) {
+          const back = new THREE.Mesh(
+            new THREE.PlaneGeometry(w, h),
+            new THREE.MeshBasicMaterial({ map: texExtra, transparent: true, opacity: 0.12 * i, color: 0x0b0b0b, side: THREE.DoubleSide })
+          );
+          back.position.set(0.018 * i, -0.018 * i, -0.018 * i);
+          plane.add(back);
+        }
       }
       const art = new THREE.Mesh(
         new THREE.PlaneGeometry(w, h),
@@ -2841,15 +2856,50 @@ export default function Prototipo() {
     aspect: asset.aspect || 1.8,
     surface,
     kind: "original",
+    boxForm: "rect",
+    orientation: surface === "side" ? "left90" : "front",
     ...surfaceDefaults(surface, idx, total),
     w: Math.max(0.18, Math.min(anchoM * 0.42, 1.15)),
   }), [anchoM, surfaceDefaults]);
 
   const setPlacementSurface = useCallback((id, surface) => {
     setPlacedLogos((items) => items.map((item, idx) => (
-      item.id === id ? { ...item, surface, ...surfaceDefaults(surface, idx, items.length) } : item
+      item.id === id ? {
+        ...item,
+        surface,
+        orientation: surface === "side" ? "left90" : "front",
+        ...surfaceDefaults(surface, idx, items.length),
+      } : item
     )));
   }, [surfaceDefaults]);
+
+  const setPlacementOrientation = useCallback((id, orientation) => {
+    const opt = PLACEMENT_ORIENTATIONS.find((x) => x.id === orientation) || PLACEMENT_ORIENTATIONS[0];
+    setPlacedLogos((items) => items.map((item) => (
+      item.id === id ? { ...item, orientation, ry: opt.ry } : item
+    )));
+  }, []);
+
+  const movePlacementLayer = useCallback((id, dir) => {
+    setPlacedLogos((items) => {
+      const idx = items.findIndex((item) => item.id === id);
+      if (idx < 0) return items;
+      const next = [...items];
+      if (dir === "front") {
+        const [picked] = next.splice(idx, 1);
+        next.push(picked);
+      } else if (dir === "back") {
+        const [picked] = next.splice(idx, 1);
+        next.unshift(picked);
+      } else {
+        const step = dir === "up" ? 1 : -1;
+        const target = Math.max(0, Math.min(next.length - 1, idx + step));
+        if (target === idx) return items;
+        [next[idx], next[target]] = [next[target], next[idx]];
+      }
+      return next;
+    });
+  }, []);
 
   const addLogoToMockup = useCallback((asset) => {
     const placement = createPlacement(asset, 0, 1);
@@ -2867,18 +2917,15 @@ export default function Prototipo() {
     try {
       const assets = await Promise.all(list.map(readLogoFile));
       setLogoQueue((prev) => [...prev, ...assets]);
-      const extras = assets.slice(fileName ? 0 : 1);
-      if (extras.length) {
-        const placements = extras.map((asset, idx) => createPlacement(asset, idx, extras.length));
-        setPlacedLogos((prev) => [...prev, ...placements]);
-        setActivePlacementId(placements[placements.length - 1]?.id || null);
-      }
+      const placements = assets.map((asset, idx) => createPlacement(asset, idx, assets.length));
+      setPlacedLogos((prev) => [...prev, ...placements]);
+      setActivePlacementId(placements[placements.length - 1]?.id || null);
       loadLogoAsset(assets[0]);
     } catch {
       setErr("No se pudieron leer algunos logos.");
       setBusy(false);
     }
-  }, [createPlacement, fileName, loadLogoAsset, readLogoFile]);
+  }, [createPlacement, loadLogoAsset, readLogoFile]);
 
   const loadSample = useCallback(() => {
     const c = document.createElement("canvas");
@@ -3140,9 +3187,15 @@ export default function Prototipo() {
   const panels = {
     producto: (
       <>
-        <div style={s.pTitle}>Producto</div>
-        <Stack items={PRODUCTS} value={product} onPick={(p) => setProduct(p.id)} />
-        {mismatch && (
+        <div style={s.pTitle}>{placedLogos.length ? "Capas de logos" : "Producto"}</div>
+        {placedLogos.length > 0 ? (
+          <div style={s.note}>
+            Selecciona un logo de la lista y ajusta su ubicación, orientación, tipo, forma, tamaño y capa por separado.
+          </div>
+        ) : (
+          <Stack items={PRODUCTS} value={product} onPick={(p) => setProduct(p.id)} />
+        )}
+        {placedLogos.length === 0 && mismatch && (
           <div style={s.note}>
             {suggested.product === "lightbox"
               ? "Tu logo parece una placa entera. Como corporea se cortaria en muchas piezas."
@@ -3195,22 +3248,41 @@ export default function Prototipo() {
                   <div style={s.pLabel}>Ubicación del logo seleccionado</div>
                   <Seg items={PLACEMENT_SURFACES} value={active.surface || "wall"}
                     onPick={(surface) => setPlacementSurface(active.id, surface.id)} cols={1} />
+                  <div style={s.pLabel}>Orientación</div>
+                  <Seg items={PLACEMENT_ORIENTATIONS} value={active.orientation || "front"}
+                    onPick={(orientation) => setPlacementOrientation(active.id, orientation.id)} cols={1} />
                   <div style={s.pLabel}>Tipo del logo seleccionado</div>
                   <Seg items={PLACEMENT_TYPES} value={active.kind || "original"}
                     onPick={(kind) => setPlacedLogos((items) => items.map((item) => (
                       item.id === active.id ? { ...item, kind: kind.id } : item
                     )))} cols={1} />
+                  {(active.kind || "original") === "lightbox" && (
+                    <>
+                      <div style={s.pLabel}>Forma de caja</div>
+                      <Seg items={PLACEMENT_BOX_FORMS} value={active.boxForm || "rect"}
+                        onPick={(form) => setPlacedLogos((items) => items.map((item) => (
+                          item.id === active.id ? { ...item, boxForm: form.id } : item
+                        )))} />
+                    </>
+                  )}
                   <Slider label="Tamaño" value={Math.round((active.w || 0.4) * 100)} unit=" cm"
                     min={10} max={220} step={5}
                     onChange={(v) => setPlacedLogos((items) => items.map((item) => (
                       item.id === active.id ? { ...item, w: v / 100 } : item
                     )))} />
+                  <div style={s.pLabel}>Capas</div>
+                  <div style={s.layerBtns}>
+                    <button type="button" onClick={() => movePlacementLayer(active.id, "back")} style={s.logoPlace}>Fondo</button>
+                    <button type="button" onClick={() => movePlacementLayer(active.id, "down")} style={s.logoPlace}>Atrás</button>
+                    <button type="button" onClick={() => movePlacementLayer(active.id, "up")} style={s.logoPlace}>Adelante</button>
+                    <button type="button" onClick={() => movePlacementLayer(active.id, "front")} style={s.logoPlace}>Frente</button>
+                  </div>
                 </>
               );
             })()}
           </>
         )}
-        {product === "lightbox" && (
+        {placedLogos.length === 0 && product === "lightbox" && (
           <>
             <div style={s.pLabel}>Forma</div>
             <Seg items={FORMS} value={form} onPick={(f) => setForm(f.id)} />
@@ -3224,7 +3296,7 @@ export default function Prototipo() {
             </div>
           </>
         )}
-        {sourceType === "logo" && (
+        {placedLogos.length === 0 && sourceType === "logo" && (
           <>
             <div style={s.pLabel}>Voltear el logo</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 3 }}>
@@ -3237,7 +3309,7 @@ export default function Prototipo() {
             </div>
           </>
         )}
-        {product === "lightbox" && (
+        {placedLogos.length === 0 && product === "lightbox" && (
           <>
             <div style={s.pLabel}>Posición del arte dentro de la placa</div>
             <Slider label="Horizontal" value={Math.round(offsetX * 100)} unit=" %"
@@ -3246,26 +3318,30 @@ export default function Prototipo() {
               min={-100} max={100} step={5} onChange={(v) => setOffsetY(v / 100)} />
           </>
         )}
-        <div style={s.pLabel}>Posición del letrero{scene === "foto" ? " sobre la foto" : " en la fachada"}</div>
-        <div style={s.pHint}>También puedes arrastrar el letrero directo con el mouse o el dedo.</div>
-        <div style={s.fields}>
-          <label style={s.field}>
-            <span style={s.fieldLabel}>X</span>
-            <input type="number" value={Math.round(posX)} step={5} style={s.fieldInput}
-              onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n)) setPosX(n); }} />
-            <span style={s.fieldUnit}>cm</span>
-          </label>
-          <label style={s.field}>
-            <span style={s.fieldLabel}>Y</span>
-            <input type="number" value={Math.round(posY)} step={5} style={s.fieldInput}
-              onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n)) setPosY(n); }} />
-            <span style={s.fieldUnit}>cm</span>
-          </label>
-        </div>
-        <button onClick={() => { setPosX(0); setPosY(0); }} style={{ ...s.flatBtn, width: "100%", marginTop: 6 }}>
-          Centrar
-        </button>
-        {(product !== "lightbox") && (
+        {placedLogos.length === 0 && (
+          <>
+            <div style={s.pLabel}>Posición del letrero{scene === "foto" ? " sobre la foto" : " en la fachada"}</div>
+            <div style={s.pHint}>También puedes arrastrar el letrero directo con el mouse o el dedo.</div>
+            <div style={s.fields}>
+              <label style={s.field}>
+                <span style={s.fieldLabel}>X</span>
+                <input type="number" value={Math.round(posX)} step={5} style={s.fieldInput}
+                  onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n)) setPosX(n); }} />
+                <span style={s.fieldUnit}>cm</span>
+              </label>
+              <label style={s.field}>
+                <span style={s.fieldLabel}>Y</span>
+                <input type="number" value={Math.round(posY)} step={5} style={s.fieldInput}
+                  onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n)) setPosY(n); }} />
+                <span style={s.fieldUnit}>cm</span>
+              </label>
+            </div>
+            <button onClick={() => { setPosX(0); setPosY(0); }} style={{ ...s.flatBtn, width: "100%", marginTop: 6 }}>
+              Centrar
+            </button>
+          </>
+        )}
+        {placedLogos.length === 0 && (product !== "lightbox") && (
           <>
             <div style={s.pLabel}>Color de la cara</div>
             <div style={s.swatches}>
@@ -3284,24 +3360,28 @@ export default function Prototipo() {
             </label>
           </>
         )}
-        <div style={s.pLabel}>Color del canto</div>
-        <div style={s.swatches}>
-          {EDGE_COLORS.map((c) => (
-            <button key={c.hex} title={c.name} onClick={() => setEdgeColor(c.hex)}
-              style={{ ...s.swatch, background: c.hex,
-                outline: edgeColor.toLowerCase() === c.hex.toLowerCase() ? `2px solid ${RED}` : "1px solid #2E2E32",
-                outlineOffset: 2 }} />
-          ))}
-        </div>
-        <label style={s.colorRow}>
-          <span style={s.fieldLabel}>Color libre</span>
-          <input type="color" value={edgeColor} style={s.colorInput}
-            onChange={(e) => setEdgeColor(e.target.value)} />
-          <span style={s.fieldUnit}>{edgeColor}</span>
-        </label>
-        <Seg items={[{ id: "mate", label: "Mate" }, { id: "metal", label: "Metalico" }]}
-          value={edgeMetal ? "metal" : "mate"} onPick={(o) => setEdgeMetal(o.id === "metal")} />
-        {sourceType !== "texto" && product !== "lightbox" && (
+        {placedLogos.length === 0 && (
+          <>
+            <div style={s.pLabel}>Color del canto</div>
+            <div style={s.swatches}>
+              {EDGE_COLORS.map((c) => (
+                <button key={c.hex} title={c.name} onClick={() => setEdgeColor(c.hex)}
+                  style={{ ...s.swatch, background: c.hex,
+                    outline: edgeColor.toLowerCase() === c.hex.toLowerCase() ? `2px solid ${RED}` : "1px solid #2E2E32",
+                    outlineOffset: 2 }} />
+              ))}
+            </div>
+            <label style={s.colorRow}>
+              <span style={s.fieldLabel}>Color libre</span>
+              <input type="color" value={edgeColor} style={s.colorInput}
+                onChange={(e) => setEdgeColor(e.target.value)} />
+              <span style={s.fieldUnit}>{edgeColor}</span>
+            </label>
+            <Seg items={[{ id: "mate", label: "Mate" }, { id: "metal", label: "Metalico" }]}
+              value={edgeMetal ? "metal" : "mate"} onPick={(o) => setEdgeMetal(o.id === "metal")} />
+          </>
+        )}
+        {placedLogos.length === 0 && sourceType !== "texto" && product !== "lightbox" && (
           <>
             <div style={s.pLabel}>Color del logo</div>
             <Seg items={[{ id: "si", label: "Con color" }, { id: "no", label: "Acrilico liso" }]}
@@ -4008,6 +4088,7 @@ const s = {
     border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.58)", color: TXT,
     borderRadius: 7, padding: "5px 4px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
   },
+  layerBtns: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, marginBottom: 8 },
   logoIndex: {
     width: 20, height: 20, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
     background: "rgba(255,255,255,0.72)", fontSize: 9, fontWeight: 800,
