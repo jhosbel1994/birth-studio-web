@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ImagePlus, LayoutGrid, Ruler, PenTool, Sparkles, SunMedium, Settings2, FilePlus2,
-  Send,
+  Send, Download,
 } from 'lucide-react'
 import useSceneStore from './hooks/useSceneStore'
 import { listarEscenasLocal, borrarEscenaLocal } from './utils/localScenes'
@@ -235,6 +235,29 @@ export default function MockupVitrina() {
     setHerramienta('escena')
   }
 
+  // Descarga la imagen compuesta (foto + gráfica) como archivo a la PC.
+  const handleDescargar = async () => {
+    if (!escena.fotoUrl) {
+      setHerramienta('escena')
+      setErrorListado('Primero sube una foto o elige una plantilla para poder descargar la imagen.')
+      return
+    }
+    setErrorListado(null)
+    const exportado = canvasRef.current?.exportImage?.({ type: 'image/jpeg', quality: 0.92, maxWidth: 2000 })
+      || await fotoADataUrl(escena.fotoUrl, escena.fotoW, escena.fotoH)
+    if (!exportado?.dataUrl) {
+      setErrorListado('No se pudo generar la imagen. Prueba con calidad rápida o una foto más liviana.')
+      return
+    }
+    const nombre = (escena.nombre || 'mockup-vitrina').trim().replace(/[^\w\-]+/g, '-').toLowerCase()
+    const a = document.createElement('a')
+    a.href = exportado.dataUrl
+    a.download = `${nombre || 'mockup-vitrina'}.jpg`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
   const prepararMockupParaPrototipo = useCallback(async () => {
     const exportado = canvasRef.current?.exportImage?.({ type: 'image/jpeg', quality: 0.88, maxWidth: 1600 })
     if (exportado?.dataUrl) return exportado
@@ -381,6 +404,11 @@ export default function MockupVitrina() {
             title={tieneFoto ? 'Enviar mockup final a Prototipo Logo' : 'Sube una foto o elige una plantilla para enviarla a Prototipo Logo'}
             className="hidden sm:flex items-center gap-2 bg-secondary-container/80 text-on-secondary-container rounded-full px-4 py-2.5 text-sm font-dm font-medium hover:bg-secondary-container transition-colors disabled:opacity-60 disabled:cursor-wait">
             <Send size={15} /> {enviandoPrototipo ? 'Preparando...' : 'Prototipo Logo'}
+          </button>
+          <button onClick={handleDescargar}
+            title="Descargar la imagen del mockup a tu computador"
+            className="flex items-center gap-2 bg-white/50 border border-white/60 text-on-surface-variant px-3 md:px-4 py-2.5 rounded-full text-sm font-dm font-medium hover:bg-white/80 transition-colors">
+            <Download size={16} /> <span className="hidden sm:inline">Descargar</span>
           </button>
           <button onClick={handleGuardar} disabled={guardando}
             className="bg-primary text-on-primary rounded-full px-4 py-2.5 text-sm font-dm font-medium hover:bg-primary-container transition-colors disabled:opacity-50">

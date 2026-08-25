@@ -65,7 +65,9 @@ function FormSubida({ onClose, onSaved }) {
       })
       onSaved()
     } catch (err) {
-      setError('No se pudo subir la imagen. Revisa tu conexión e intenta de nuevo.')
+      setError(err?.message === 'storage-timeout'
+        ? 'La subida no respondió. Firebase Storage no está activo (requiere plan Blaze). Actívalo en la consola de Firebase para poder subir fotos.'
+        : 'No se pudo subir la imagen. Revisa tu conexión e intenta de nuevo.')
     } finally {
       setSubiendo(false)
     }

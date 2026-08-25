@@ -416,7 +416,13 @@ export async function deleteGaleriaItem(id) {
 export async function uploadGaleriaImagen(file) {
   const path = `galeria/${crypto.randomUUID()}-${file.name}`
   const storageRef = ref(storage, path)
-  await uploadBytes(storageRef, file)
+  // Si Firebase Storage no está activo (falta plan Blaze / bucket sin
+  // provisionar), `uploadBytes` se queda colgado sin resolver ni fallar.
+  // Cortamos con un timeout para dar un error claro en vez de un
+  // "Subiendo..." infinito.
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('storage-timeout')), 45000))
+  await Promise.race([uploadBytes(storageRef, file), timeout])
   const url = await getDownloadURL(storageRef)
   return { url, path }
 }
