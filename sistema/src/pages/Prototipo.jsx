@@ -1077,8 +1077,35 @@ function skyTexture(night) {
   return c;
 }
 
+/* Auto simple (carrocería + cabina + 4 ruedas) para estacionar frente a
+   la fachada — da escala y contexto, como los autos de la foto real. El
+   largo va sobre el eje X (perfil hacia la cámara). Origen al ras del piso. */
+function buildCar(hex) {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.45, metalness: 0.45 });
+  const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1b2530, roughness: 0.18, metalness: 0.6 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: 0x0d0d10, roughness: 0.85 });
+  const L = 4.2, W = 1.8, bodyH = 0.72, cabinH = 0.62;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(L, bodyH, W), bodyMat);
+  body.position.y = 0.55; body.castShadow = true; body.receiveShadow = true;
+  g.add(body);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(L * 0.5, cabinH, W * 0.9), cabinMat);
+  cabin.position.set(-L * 0.05, 0.55 + bodyH / 2 + cabinH / 2 - 0.04, 0);
+  cabin.castShadow = true;
+  g.add(cabin);
+  const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.22, 16);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const wheel = new THREE.Mesh(wheelGeo, tireMat);
+    wheel.rotation.x = Math.PI / 2; // eje sobre Z: la rueda mira de costado
+    wheel.position.set(sx * L * 0.32, 0.34, sz * W * 0.5);
+    wheel.castShadow = true;
+    g.add(wheel);
+  }
+  return g;
+}
+
 function buildStreetEnv(envGroup, m, opts) {
-  const { night, standoff } = opts;
+  const { night, standoff, noNeighbors, cars } = opts;
   const { facW, yGround, zWall } = m;
   const span = Math.max(facW, 4);
 
@@ -1114,29 +1141,46 @@ function buildStreetEnv(envGroup, m, opts) {
     envGroup.add(dash);
   }
 
-  // Edificios vecinos a ambos lados
-  const litMat = new THREE.MeshStandardMaterial({
-    color: 0x3a3222, emissive: new THREE.Color(0xffcf87), emissiveIntensity: night ? 0.75 : 0, roughness: 0.4,
-  });
-  const darkWin = new THREE.MeshStandardMaterial({ color: night ? 0x1a1f2a : 0x2f3946, roughness: 0.5, metalness: 0.2 });
-  for (const side of [-1, 1]) {
-    const w = facW * (0.75 + rnd() * 0.25);
-    const h = m.shopH + m.bandH + m.upperH + 1.4 + rnd() * 2.2;
-    const depth = 1.4;
-    const cx = side * (facW / 2 + w / 2 + 0.12);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth),
-      new THREE.MeshStandardMaterial({ color: night ? 0x191c24 : 0x9198a2, roughness: 0.88 }));
-    body.position.set(cx, yGround + h / 2, zWall - depth / 2 + 0.02);
-    body.castShadow = true; body.receiveShadow = true;
-    envGroup.add(body);
-    const cols = Math.max(2, Math.round(w / 0.95));
-    const rows = Math.max(3, Math.round(h / 1.15));
-    const gx = w / (cols + 1), gy = h / (rows + 1);
-    for (let r = 1; r <= rows; r++) for (let cc = 1; cc <= cols; cc++) {
-      const on = night && rnd() > 0.55;
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(gx * 0.58, gy * 0.62), on ? litMat : darkWin);
-      win.position.set(cx - w / 2 + gx * cc, yGround + gy * r, zWall + 0.03);
-      envGroup.add(win);
+  // Edificios vecinos a ambos lados — se omiten en el galpón: la foto de
+  // referencia no tiene vecinos, se ve el cielo abierto y el paisaje a los
+  // costados.
+  if (!noNeighbors) {
+    const litMat = new THREE.MeshStandardMaterial({
+      color: 0x3a3222, emissive: new THREE.Color(0xffcf87), emissiveIntensity: night ? 0.75 : 0, roughness: 0.4,
+    });
+    const darkWin = new THREE.MeshStandardMaterial({ color: night ? 0x1a1f2a : 0x2f3946, roughness: 0.5, metalness: 0.2 });
+    for (const side of [-1, 1]) {
+      const w = facW * (0.75 + rnd() * 0.25);
+      const h = m.shopH + m.bandH + m.upperH + 1.4 + rnd() * 2.2;
+      const depth = 1.4;
+      const cx = side * (facW / 2 + w / 2 + 0.12);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth),
+        new THREE.MeshStandardMaterial({ color: night ? 0x191c24 : 0x9198a2, roughness: 0.88 }));
+      body.position.set(cx, yGround + h / 2, zWall - depth / 2 + 0.02);
+      body.castShadow = true; body.receiveShadow = true;
+      envGroup.add(body);
+      const cols = Math.max(2, Math.round(w / 0.95));
+      const rows = Math.max(3, Math.round(h / 1.15));
+      const gx = w / (cols + 1), gy = h / (rows + 1);
+      for (let r = 1; r <= rows; r++) for (let cc = 1; cc <= cols; cc++) {
+        const on = night && rnd() > 0.55;
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(gx * 0.58, gy * 0.62), on ? litMat : darkWin);
+        win.position.set(cx - w / 2 + gx * cc, yGround + gy * r, zWall + 0.03);
+        envGroup.add(win);
+      }
+    }
+  }
+
+  // Autos estacionados frente a la fachada (galpón), como en la foto real.
+  if (cars) {
+    const palette = ["#8a8d92", "#e9eaec", "#d6d8db", "#565b63", "#7d3b32"];
+    const gap = 4.7;
+    const n = Math.max(1, Math.min(4, Math.floor(facW / gap)));
+    const startX = -((n - 1) * gap) / 2;
+    for (let i = 0; i < n; i++) {
+      const car = buildCar(palette[(i * 2) % palette.length]);
+      car.position.set(startX + i * gap, yGround, zWall + 2.9);
+      envGroup.add(car);
     }
   }
 
@@ -1177,12 +1221,14 @@ function buildStreetEnv(envGroup, m, opts) {
       envGroup.add(farol);
     }
 
-    const vitrina = new THREE.Mesh(
-      new THREE.PlaneGeometry(facW * 0.92, m.shopH * 0.9),
-      new THREE.MeshBasicMaterial({ color: 0xffe6b8, transparent: true, opacity: 0.5 })
-    );
-    vitrina.position.set(0, m.yGround - m.bandH / 2 - m.shopH / 2, zWall - 0.03);
-    envGroup.add(vitrina);
+    if (!noNeighbors) {
+      const vitrina = new THREE.Mesh(
+        new THREE.PlaneGeometry(facW * 0.92, m.shopH * 0.9),
+        new THREE.MeshBasicMaterial({ color: 0xffe6b8, transparent: true, opacity: 0.5 })
+      );
+      vitrina.position.set(0, m.yGround - m.bandH / 2 - m.shopH / 2, zWall - 0.03);
+      envGroup.add(vitrina);
+    }
   }
 }
 
@@ -2418,7 +2464,11 @@ export default function Prototipo() {
           });
           envGroup.add(store.group);
           if (store.isMall) buildMallEnv(envGroup, store);
-          else buildStreetEnv(envGroup, store, { night, standoff });
+          else buildStreetEnv(envGroup, store, {
+            night, standoff,
+            noNeighbors: facadeStyle === "galpon",
+            cars: facadeStyle === "galpon",
+          });
           S.current.envMeta = { type: "fachada" };
         }
       }
