@@ -1749,6 +1749,66 @@ const FACADE_FIT_RATIO = 0.5;
 const MIN_DIM_M = 0.1;
 const clampZoom = (z) => Math.max(ZMIN, Math.min(ZMAX, z));
 
+/* Campo numérico (Ancho/Alto/fachada). DEFINIDO A NIVEL DE MÓDULO a
+   propósito: si se define dentro del componente, React lo recrea en cada
+   render y REMONTA el <input>, que pierde el foco al escribir (se sentía
+   como "no me deja modificar la medida"). Recibe unit/numberDrafts/
+   setNumberDrafts por props para no cerrar sobre estado del componente. */
+function NumField({ id, label, value, onChange, unit, numberDrafts, setNumberDrafts }) {
+  const key = id || label;
+  const k = unit === "cm" ? 100 : 1;
+  const shown = unit === "cm" ? String(Math.round(value * 100)) : String(Number(value.toFixed(2)));
+  const editing = Object.prototype.hasOwnProperty.call(numberDrafts, key);
+  const applyRaw = (raw) => {
+    const cleaned = String(raw ?? "").replace(",", ".").trim();
+    if (!cleaned) return;
+    const n = parseFloat(cleaned);
+    if (isNaN(n)) return;
+    onChange(Math.max(MIN_DIM_M, Math.min(20, n / k)));
+  };
+  const commit = () => {
+    const raw = String(numberDrafts[key] ?? "").trim();
+    setNumberDrafts((drafts) => {
+      const next = { ...drafts };
+      delete next[key];
+      return next;
+    });
+    applyRaw(raw);
+  };
+  return (
+    <label style={s.field}>
+      <span style={s.fieldLabel}>{label}</span>
+      <input type="text" inputMode="decimal" value={editing ? numberDrafts[key] : shown}
+        min={unit === "cm" ? 10 : 0.1} max={unit === "cm" ? 2000 : 20}
+        step={unit === "cm" ? 5 : 0.1} style={s.fieldInput}
+        onFocus={(e) => {
+          const el = e.currentTarget;
+          setNumberDrafts((drafts) => ({ ...drafts, [key]: shown }));
+          setTimeout(() => el.select(), 0);
+        }}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^\d.,]/g, "");
+          setNumberDrafts((drafts) => ({ ...drafts, [key]: raw }));
+          applyRaw(raw);
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") {
+            setNumberDrafts((drafts) => {
+              const next = { ...drafts };
+              delete next[key];
+              return next;
+            });
+            e.currentTarget.blur();
+          }
+        }} />
+      <span style={s.fieldUnit}>{unit}</span>
+    </label>
+  );
+}
+
 export default function Prototipo() {
   const mountRef = useRef(null);
   const S = useRef({});
@@ -3320,60 +3380,10 @@ export default function Prototipo() {
   );
 
   /* El valor vive siempre en metros; el campo muestra y acepta la unidad elegida. */
-  const Field = ({ id, label, value, onChange }) => {
-    const key = id || label;
-    const k = unit === "cm" ? 100 : 1;
-    const shown = unit === "cm" ? String(Math.round(value * 100)) : String(Number(value.toFixed(2)));
-    const editing = Object.prototype.hasOwnProperty.call(numberDrafts, key);
-    const applyRaw = (raw) => {
-      const cleaned = String(raw ?? "").replace(",", ".").trim();
-      if (!cleaned) return;
-      const n = parseFloat(cleaned);
-      if (isNaN(n)) return;
-      onChange(Math.max(MIN_DIM_M, Math.min(20, n / k)));
-    };
-    const commit = () => {
-      const raw = String(numberDrafts[key] ?? "").trim();
-      setNumberDrafts((drafts) => {
-        const next = { ...drafts };
-        delete next[key];
-        return next;
-      });
-      applyRaw(raw);
-    };
-    return (
-      <label style={s.field}>
-        <span style={s.fieldLabel}>{label}</span>
-        <input type="text" inputMode="decimal" value={editing ? numberDrafts[key] : shown}
-          min={unit === "cm" ? 10 : 0.1} max={unit === "cm" ? 2000 : 20}
-          step={unit === "cm" ? 5 : 0.1} style={s.fieldInput}
-          onFocus={(e) => {
-            const el = e.currentTarget;
-            setNumberDrafts((drafts) => ({ ...drafts, [key]: shown }));
-            setTimeout(() => el.select(), 0);
-          }}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/[^\d.,]/g, "");
-            setNumberDrafts((drafts) => ({ ...drafts, [key]: raw }));
-            applyRaw(raw);
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              setNumberDrafts((drafts) => {
-                const next = { ...drafts };
-                delete next[key];
-                return next;
-              });
-              e.currentTarget.blur();
-            }
-          }} />
-        <span style={s.fieldUnit}>{unit}</span>
-      </label>
-    );
-  };
+  // Props compartidas para los campos numéricos. Se usa <NumField> (módulo)
+  // directamente en cada campo, no un componente definido en el render, para
+  // que el <input> no se remonte y no pierda el foco al escribir.
+  const fieldCtx = { unit, numberDrafts, setNumberDrafts };
 
   const mismatch = suggested && suggested.product !== product;
 
@@ -3620,9 +3630,9 @@ export default function Prototipo() {
 
           <div style={s.pLabel}>Tamaño del letrero</div>
           <div style={s.fields}>
-            <Field id="texto-ancho" label="Ancho" value={anchoM}
+            <NumField {...fieldCtx} id="texto-ancho" label="Ancho" value={anchoM}
               onChange={(v) => { setAnchoM(v); if (whLocked && textAspect) setAltoM(v / textAspect); }} />
-            <Field id="texto-alto" label="Alto" value={altoM}
+            <NumField {...fieldCtx} id="texto-alto" label="Alto" value={altoM}
               onChange={(v) => { setAltoM(v); if (whLocked && textAspect) setAnchoM(v * textAspect); }} />
             <button type="button" onClick={() => setWhLocked((v) => !v)}
               title={whLocked ? "Proporción bloqueada — clic para deformar libremente" : "Proporción libre — clic para bloquear"}
@@ -3763,8 +3773,8 @@ export default function Prototipo() {
           value={unit} onPick={(u) => setUnit(u.id)} />
         <div style={s.pLabel}>Dimensiones</div>
         <div style={s.fields}>
-          <Field id="logo-ancho" label="Ancho" value={anchoM} onChange={setAnchoM} />
-          <Field id="logo-alto" label="Alto" value={altoM} onChange={setAltoM} />
+          <NumField {...fieldCtx} id="logo-ancho" label="Ancho" value={anchoM} onChange={setAnchoM} />
+          <NumField {...fieldCtx} id="logo-alto" label="Alto" value={altoM} onChange={setAltoM} />
         </div>
         <div style={s.actionGrid}>
           <button type="button" onClick={() => ajustarLetreroAFachada(FACADE_FIT_RATIO)}
@@ -3886,8 +3896,8 @@ export default function Prototipo() {
                 ) : (
                   <>
                     <div style={s.fields}>
-                      <Field id="fachada-ancho" label="Ancho" value={facadeWidthM} onChange={setFacadeWidthM} />
-                      <Field id="fachada-alto" label="Alto" value={facadeHeightM} onChange={setFacadeHeightM} />
+                      <NumField {...fieldCtx} id="fachada-ancho" label="Ancho" value={facadeWidthM} onChange={setFacadeWidthM} />
+                      <NumField {...fieldCtx} id="fachada-alto" label="Alto" value={facadeHeightM} onChange={setFacadeHeightM} />
                     </div>
                     <button type="button" onClick={() => ajustarLetreroAFachada(FACADE_FIT_RATIO)}
                       style={{ ...s.flatBtn, width: "100%", marginTop: 7 }}>
