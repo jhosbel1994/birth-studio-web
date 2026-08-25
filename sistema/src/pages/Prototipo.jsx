@@ -3213,12 +3213,21 @@ export default function Prototipo() {
       // a calcular el tamano inteligente (35%-50%) en vez de arrastrar
       // el ultimo tamano manual de una sesion de texto anterior.
       S.current.textSizedOnce = false;
+      // Si el letrero principal actual es el texto, borrarlo también de la
+      // escena (antes quedaba pegado el último texto dibujado). Al poner
+      // sourceType en null, build() se rearma con letrero vacío y deja solo
+      // la fachada y los logos colocados.
+      if (sourceType === "texto") {
+        S.current.imageData = null;
+        S.current.srcCanvas = null;
+        setSourceType(null);
+      }
       return;
     }
     if (tool !== "texto") return;
     const t = setTimeout(() => { regenerarTexto(); }, 200);
     return () => clearTimeout(t);
-  }, [tool, texto, weightStep, fontStyle, textAlign, lineHeightTx, letterSpacing, upper, customFont, regenerarTexto]);
+  }, [tool, texto, sourceType, weightStep, fontStyle, textAlign, lineHeightTx, letterSpacing, upper, customFont, regenerarTexto]);
 
   const download = useCallback(() => {
     const url = captureOriented("image/png", 0.95, 1800);
