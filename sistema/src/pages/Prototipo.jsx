@@ -684,6 +684,26 @@ function pavementTexture() {
   return c;
 }
 
+/* Zocalo de ladrillo a la vista — para el galpon (muro de chapa con base
+   de ladrillo, como el super de referencia). Ladrillos rojizos con junta
+   oscura y variacion tono a tono. */
+function brickTexture() {
+  const W = 256, H = 256;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  g.fillStyle = "#3a2620"; g.fillRect(0, 0, W, H); // junta / mortero
+  const bh = 24, bw = 58, m = 4;
+  for (let row = 0, y = 0; y < H; y += bh, row++) {
+    const off = (row % 2) * (bw / 2);
+    for (let x = -bw; x < W + bw; x += bw) {
+      g.fillStyle = shade("#a2412b", (rnd() - 0.5) * 0.18);
+      g.fillRect(x + off + m, y + m, bw - m * 2, bh - m * 2);
+    }
+  }
+  return c;
+}
+
 function texMat(canvas, repX, repY, opts = {}) {
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = SRGB;
@@ -765,6 +785,7 @@ const FACADE_STYLES = [
   { id: "marquesina", label: "Con marquesina" },
   { id: "portal", label: "Portal con escalones" },
   { id: "mall", label: "Local en mall / strip center" },
+  { id: "galpon", label: "Galpón / tienda grande" },
 ];
 
 /* Devuelve un grupo con el local completo. El centro del letrero queda
@@ -773,6 +794,7 @@ function buildStorefront(style, o) {
   const { signW, signH, standoff, wallMat, night, buildingFloors, facadeW, facadeH } = o;
   const g = new THREE.Group();
   const isMall = style === "mall";
+  const isGalpon = style === "galpon";
 
   // Tope normal de 1.5 m (2.1 m en mall: la banda es mas protagonista
   // ahi), pero la banda crece si el letrero es mas alto. Local de mall:
@@ -781,7 +803,7 @@ function buildStorefront(style, o) {
   // facadeW/facadeH: medidas reales de la fachada (metros), cuando el
   // usuario las fija a mano en vez de dejar que se deriven del letrero.
   // Sin override, comportamiento identico al de siempre.
-  const shopH = facadeH != null ? Math.max(1.6, facadeH) : (isMall ? 4.2 : 2.55);
+  const shopH = facadeH != null ? Math.max(1.6, facadeH) : (isMall ? 4.2 : isGalpon ? 4.6 : 2.55);
   const facW = facadeW != null ? Math.max(1, facadeW) : Math.max(signW * 1.7, 3.8);
   const upperH = isMall ? 0.5 : 1.9; // mall: solo un remate bajo, sin pano de ventanas
   const zWall = -standoff - 0.07;
@@ -822,8 +844,10 @@ function buildStorefront(style, o) {
   /* Pano superior — con ventanas en un local a la calle; en mall es solo
      un remate solido bajo (arriba sigue el cielo alto del pasillo, sin
      ventanas punzadas tipo residencial). */
-  addBox(facW, upperH, 0.12, conc, 0, bandH / 2 + upperH / 2, zWall - 0.06, g);
-  if (!isMall) {
+  // El galpón lleva su propio remate de chapa (más abajo), no el pano de
+  // concreto con ventanas residenciales.
+  if (!isGalpon) addBox(facW, upperH, 0.12, conc, 0, bandH / 2 + upperH / 2, zWall - 0.06, g);
+  if (!isMall && !isGalpon) {
     const wW = facW * 0.2, wH = upperH * 0.55;
     for (const dx of [-facW * 0.28, facW * 0.28]) {
       addBox(wW + 0.06, wH + 0.06, 0.05, frame, dx, bandH / 2 + upperH * 0.55, zWall + 0.02, g);
@@ -942,6 +966,29 @@ function buildStorefront(style, o) {
     }
     addBox(glassW + 0.1, 0.08, 0.12, frame, 0, shopY - shopH / 2, zWall + 0.05, g); // umbral
     addBox(glassW + 0.1, 0.08, 0.12, frame, 0, shopY + shopH / 2, zWall + 0.05, g); // dintel
+  } else if (style === "galpon") {
+    // Galpón / tienda grande: gran muro de chapa acanalada azul con zócalo
+    // de ladrillo a la vista y una ventana industrial descentrada, como el
+    // supermercado de referencia. Las nervaduras de la chapa son verticales
+    // (la textura "acanalada" ya las genera así).
+    const galponBlue = "#1e40c8";
+    const metal = makeFacadeMaterial("acanalada", galponBlue, 0.5, 0.35, Math.max(facW, 4), "v", 0.14);
+    // Muro de chapa cubriendo toda la zona del local (bajo la banda).
+    addBox(facW, shopH, 0.12, metal, 0, shopY, zWall, g);
+    // Remate de chapa por encima de la banda (parapeto del galpón).
+    addBox(facW, upperH, 0.12, metal, 0, bandH / 2 + upperH / 2, zWall - 0.005, g);
+    // Cornisa/parapeto oscuro fino en la cima.
+    addBox(facW + 0.06, 0.14, 0.2, concreteMat(), 0, bandH / 2 + upperH + 0.02, zWall + 0.03, g);
+    // Zócalo de ladrillo (~1 m) al pie del muro.
+    const brickH = Math.min(1.0, shopH * 0.24);
+    const brick = texMat(brickTexture(), Math.max(3, facW / 1.1), Math.max(1.4, brickH / 0.55),
+      { roughness: 0.9, metalness: 0 });
+    addBox(facW + 0.04, brickH, 0.18, brick, 0, yGround + brickH / 2, zWall + 0.04, g);
+    // Ventana industrial (marco metálico + vidrio) descentrada, como la foto.
+    const winW = facW * 0.16, winH = shopH * 0.16;
+    const winX = facW * 0.03, winY = shopY + shopH * 0.12;
+    addBox(winW + 0.1, winH + 0.1, 0.05, frame, winX, winY, zWall + 0.05, g);
+    addBox(winW, winH, 0.03, glass, winX, winY, zWall + 0.07, g);
   }
   return { group: g, facW, bandH, shopH, upperH, yGround: yGroundOut, zWall, isMall };
 }
@@ -2021,7 +2068,12 @@ export default function Prototipo() {
   /* -- Construccion de la escena -- */
   const build = useCallback(() => {
     const { rig, envGroup, spill, wallWash, keyLight, fillLight, rimLight, ambient, sc, camera, imageData, srcCanvas } = S.current;
-    if (!rig || !imageData) return;
+    // Antes se abortaba todo el armado si no había logo principal
+    // (imageData). Eso dejaba el lienzo en negro al subir una foto de
+    // fachada o al colocar logos como capas sin un logo principal. Ahora
+    // solo exigimos el rig: la foto de fondo y los logos colocados se
+    // dibujan igual, con un letrero vacío como respaldo.
+    if (!rig) return;
     setBusy(true);
 
     const clear = (grp) => {
@@ -2043,7 +2095,18 @@ export default function Prototipo() {
     const litFront = mode === "front" || mode === "both";
     let shapes, uvParams, realW, realH, perim, faceArea, tex, sil;
 
-    if (product === "lightbox") {
+    if (!imageData) {
+      // Sin logo principal cargado: no dejamos el lienzo en negro. Se arma
+      // una escena sin letrero para que igual se vean la foto de fachada
+      // y/o los logos colocados encima. Medidas por defecto solo para el
+      // encuadre y las luces.
+      realW = Math.max(0.2, anchoM || 0.6);
+      realH = Math.max(0.2, altoM || 0.4);
+      perim = 2 * (realW + realH);
+      faceArea = realW * realH;
+      shapes = [];
+      sil = null;
+    } else if (product === "lightbox") {
       const box = buildLightbox({ form, anchoM, altoM });
       shapes = [box.shape];
       ({ realW, realH, perim, faceArea } = box);
@@ -2125,9 +2188,9 @@ export default function Prototipo() {
         /* forma degenerada, se omite */
       }
     });
-    if (!built) { setErr("Ninguna pieza pudo generarse."); setBusy(false); return; }
+    if (!built && imageData) { setErr("Ninguna pieza pudo generarse."); setBusy(false); return; }
 
-    if (mode === "back" || mode === "both") {
+    if ((mode === "back" || mode === "both") && sil) {
       const mPerPxSil = sil.wM / sil.canvas.width;
       const radiusPx = Math.max(2, (standoff * 0.9) / mPerPxSil);
       const { canvas: hc, pad } = haloCanvas(sil.canvas, radiusPx);
@@ -2152,7 +2215,7 @@ export default function Prototipo() {
     // modo retroiluminado). Sin esto el letrero se ve pegado/flotando
     // sobre la pared en vez de apoyado. Reutiliza la misma silueta
     // desenfocada del halo, pero oscura y mucho mas ceñida al muro.
-    {
+    if (sil) {
       const mPerPxSh = sil.wM / sil.canvas.width;
       const radiusShPx = Math.max(1.5, (0.025 / mPerPxSh)); // ~2.5cm de difuminado
       const { canvas: shc, pad: shPad } = haloCanvas(sil.canvas, radiusShPx);
@@ -2180,15 +2243,19 @@ export default function Prototipo() {
       sign.scale.set(anchoM / realW, altoM / realH, 1);
     }
 
-    const sb = new THREE.Box3().setFromObject(sign);
-    sign.position.sub(sb.getCenter(new THREE.Vector3()));
+    // Recentrado solo con letrero real: un sign vacío da un Box3 infinito
+    // y getCenter devolvería NaN, corrompiendo la posición y el encuadre.
+    if (imageData) {
+      const sb = new THREE.Box3().setFromObject(sign);
+      sign.position.sub(sb.getCenter(new THREE.Vector3()));
+    }
     // Posicion del letrero completo sobre la fachada/foto — universal
     // (letras o caja de luz), persistida en React (posX/posY) para que
     // sobreviva a cualquier rebuild. Independiente de offsetX/offsetY,
     // que solo mueve el ARTE dentro del panel de la caja de luz.
     sign.position.x += posX / 100;
     sign.position.y += posY / 100;
-    if (realW > 0.01 && realH > 0.01) {
+    if (imageData && realW > 0.01 && realH > 0.01) {
       const hitArea = new THREE.Mesh(
         new THREE.PlaneGeometry(realW * 1.18, realH * 1.24),
         new THREE.MeshBasicMaterial({
@@ -3584,7 +3651,7 @@ export default function Prototipo() {
           </button>
           <label style={{ ...s.flatBtn, ...s.labelBtn, width: "100%" }}>
             <Icon name="upload" size={13} /> {scene === "foto" ? "Subir foto de fachada" : "Subir fachada"}
-            <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+            <input type="file" accept="image/*" style={{ display: "none" }}
               onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
           </label>
         </div>
@@ -3610,7 +3677,7 @@ export default function Prototipo() {
         <div style={s.pTitle}>Foto de la fachada</div>
         <label style={{ ...s.segBtn, cursor: "pointer", justifyContent: "center", gap: 6, display: "flex" }}>
           <Icon name="upload" size={13} /> {photoImg ? "Cambiar foto" : "Subir foto"}
-          <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+          <input type="file" accept="image/*" style={{ display: "none" }}
             onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
         </label>
         {!photoImg && <div style={s.pHint}>Sube una foto de la fachada real (galería o cámara) para montar el letrero encima.</div>}
@@ -3908,7 +3975,7 @@ export default function Prototipo() {
                 <div style={s.emptyText}>La foto será el fondo real del mockup</div>
                 <label style={s.emptyUpload}>
                   <Icon name="upload" size={15} /> Subir foto
-                  <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+                  <input type="file" accept="image/*" style={{ display: "none" }}
                     onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
                 </label>
               </div>
