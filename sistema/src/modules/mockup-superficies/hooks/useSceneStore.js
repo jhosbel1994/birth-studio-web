@@ -1,5 +1,11 @@
-import { useCallback, useState } from 'react'
-import { guardarEscenaLocal } from '../utils/localScenes'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  guardarEscenaLocal,
+  obtenerEscenaActivaLocal,
+  obtenerEscenaLocal,
+  olvidarEscenaActivaLocal,
+  recordarEscenaActivaLocal,
+} from '../utils/localScenes'
 import { canvasToBlob, canvasToPngBlob, knockoutBackground, loadImageFile } from '../utils/loadImage'
 import { quadDefault } from '../utils/warpQuad'
 
@@ -68,6 +74,32 @@ export default function useSceneStore() {
   const [cargandoFoto, setCargandoFoto] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let cancelado = false
+    async function restaurarUltimaEscena() {
+      const escenaActivaId = obtenerEscenaActivaLocal()
+      if (!escenaActivaId) return
+      try {
+        const guardada = await obtenerEscenaLocal(escenaActivaId)
+        if (!guardada || cancelado) return
+        setEscena({
+          id: guardada.id, nombre: guardada.nombre || '', fotoUrl: guardada.fotoUrl || null,
+          fotoW: guardada.fotoW || 0, fotoH: guardada.fotoH || 0, storagePath: guardada.storagePath || null,
+          esPlantilla: !!guardada.esPlantilla,
+          zonas: (guardada.zonas || []).map(normalizarZona),
+          capas: (guardada.capas || []).map(normalizarCapa),
+          createdAt: guardada.createdAt,
+          updatedAt: guardada.updatedAt,
+          local: !!guardada.local,
+        })
+      } catch {
+        olvidarEscenaActivaLocal()
+      }
+    }
+    restaurarUltimaEscena()
+    return () => { cancelado = true }
+  }, [])
 
   const subirFoto = useCallback(async (file) => {
     if (!file) return
@@ -289,6 +321,7 @@ export default function useSceneStore() {
     setError(null)
     setFotoBlobPendiente(null)
     setCapasBlobPendientes({})
+    recordarEscenaActivaLocal(doc.id)
     setEscena({
       id: doc.id, nombre: doc.nombre || '', fotoUrl: doc.fotoUrl || null,
       fotoW: doc.fotoW || 0, fotoH: doc.fotoH || 0, storagePath: doc.storagePath || null,
@@ -317,6 +350,7 @@ export default function useSceneStore() {
     setError(null)
     setFotoBlobPendiente(null)
     setCapasBlobPendientes({})
+    olvidarEscenaActivaLocal()
     setEscena(ESCENA_VACIA)
   }, [])
 

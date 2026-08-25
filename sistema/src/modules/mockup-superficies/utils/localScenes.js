@@ -10,6 +10,7 @@
 const DB_NAME = 'birth_mockup_vitrina'
 const STORE = 'escenas'
 const VERSION = 1
+const ACTIVE_SCENE_KEY = 'birth_mockup_vitrina_active_scene_id'
 
 function abrir() {
   return new Promise((resolve, reject) => {
@@ -35,12 +36,54 @@ export async function guardarEscenaLocal(escena) {
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).put(escena)
-      tx.oncomplete = () => resolve(escena)
+      tx.oncomplete = () => {
+        recordarEscenaActivaLocal(escena.id)
+        resolve(escena)
+      }
       tx.onerror = () => reject(tx.error || new Error('No se pudo guardar la escena localmente.'))
       tx.onabort = () => reject(tx.error || new Error('El navegador abortó el guardado (¿espacio lleno?).'))
     })
   } finally {
     db.close()
+  }
+}
+
+export async function obtenerEscenaLocal(id) {
+  if (!id) return null
+  const db = await abrir()
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly')
+      const req = tx.objectStore(STORE).get(id)
+      req.onsuccess = () => resolve(req.result || null)
+      req.onerror = () => reject(req.error || new Error('No se pudo abrir la escena guardada.'))
+    })
+  } finally {
+    db.close()
+  }
+}
+
+export function recordarEscenaActivaLocal(id) {
+  try {
+    if (id) window.localStorage.setItem(ACTIVE_SCENE_KEY, id)
+  } catch {
+    // Si localStorage esta bloqueado, el guardado principal en IndexedDB sigue funcionando.
+  }
+}
+
+export function obtenerEscenaActivaLocal() {
+  try {
+    return window.localStorage.getItem(ACTIVE_SCENE_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function olvidarEscenaActivaLocal() {
+  try {
+    window.localStorage.removeItem(ACTIVE_SCENE_KEY)
+  } catch {
+    // No bloquea el flujo de nueva escena.
   }
 }
 

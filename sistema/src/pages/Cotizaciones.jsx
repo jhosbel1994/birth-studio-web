@@ -3,6 +3,7 @@ import {
   saveCotizacion, deleteCotizacion, saveCliente, getClienteById,
   subscribeCotizaciones, subscribeClientes, syncPublicStats,
   saveGasto, deleteGasto, savePago, deletePago, subscribeGastos, subscribePagos,
+  subscribeInventario, saveInventarioItem,
 } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
@@ -708,14 +709,16 @@ function ConfirmDeleteModal({ cotizacion, onConfirm, onCancel }) {
 function FinanzasCotizacion({ cotizacion, onClose }) {
   const [gastos, setGastos] = useState([])
   const [pagos, setPagos] = useState([])
-  const [formMat, setFormMat] = useState(null)   // { descripcion, monto, fecha } | null
+  const [inventario, setInventario] = useState([])
+  const [formMat, setFormMat] = useState(null)   // { descripcion, monto, fecha, inventarioId, cantidad, movimiento } | null
   const [formAbono, setFormAbono] = useState(null) // { monto, fecha, tipo, notas } | null
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
     const u1 = subscribeGastos(setGastos)
     const u2 = subscribePagos(setPagos)
-    return () => { u1(); u2() }
+    const u3 = subscribeInventario(setInventario)
+    return () => { u1(); u2(); u3() }
   }, [])
 
   const misGastos = gastos.filter(g => g.cotizacionId === cotizacion.id)
@@ -726,9 +729,48 @@ function FinanzasCotizacion({ cotizacion, onClose }) {
   const saldoPorCobrar = (cotizacion.total || 0) - totalAbonos
   const residual = totalAbonos - totalMateriales
 
+  const nuevoFormMat = () => setFormMat({ descripcion: '', monto: '', fecha: hoy(), inventarioId: '', cantidad: '', movimiento: 'descontar' })
+
+  // Al elegir un ítem del inventario: autocompleta nombre y calcula el monto.
+  const elegirInventario = (id) => {
+    const item = inventario.find(i => i.id === id)
+    setFormMat(f => {
+      if (!item) return { ...f, inventarioId: '' }
+      const cant = parseFloat(f.cantidad) || 1
+      return {
+        ...f,
+        inventarioId: id,
+        descripcion: f.descripcion?.trim() ? f.descripcion : item.nombre,
+        cantidad: f.cantidad || 1,
+        monto: String(Math.round(cant * (item.precio || 0))),
+      }
+    })
+  }
+
+  const cambiarCantidad = (v) => {
+    setFormMat(f => {
+      const item = inventario.find(i => i.id === f.inventarioId)
+      const cant = parseFloat(v) || 0
+      // Si hay ítem de inventario, recalcula el monto sugerido
+      return { ...f, cantidad: v, monto: item ? String(Math.round(cant * (item.precio || 0))) : f.monto }
+    })
+  }
+
+  // Ajusta el stock del inventario según el movimiento elegido.
+  const moverStock = async (inventarioId, cantidad, movimiento) => {
+    if (!inventarioId || !cantidad || movimiento === 'ninguno') return
+    const item = inventario.find(i => i.id === inventarioId)
+    if (!item) return
+    const delta = movimiento === 'sumar' ? cantidad : -cantidad
+    await saveInventarioItem({ ...item, cantidad: Math.max(0, (item.cantidad || 0) + delta) })
+  }
+
   const guardarMaterial = async () => {
     const monto = parseFloat(formMat.monto)
     if (!formMat.descripcion?.trim() || isNaN(monto) || monto < 0) return
+    const cantidad = parseFloat(formMat.cantidad) || 0
+    const vinculado = !!formMat.inventarioId && cantidad > 0
+    const movimiento = vinculado ? formMat.movimiento : 'ninguno'
     setGuardando(true)
     try {
       await saveGasto({
@@ -738,9 +780,22 @@ function FinanzasCotizacion({ cotizacion, onClose }) {
         categoria: 'Materiales',
         notas: `Proyecto #${cotizacion.numero}`,
         cotizacionId: cotizacion.id,
+        inventarioId: vinculado ? formMat.inventarioId : null,
+        inventarioCantidad: vinculado ? cantidad : null,
+        inventarioMovimiento: vinculado ? movimiento : null,
       })
+      await moverStock(formMat.inventarioId, cantidad, movimiento)
       setFormMat(null)
     } finally { setGuardando(false) }
+  }
+
+  // Borra un material y revierte su movimiento de inventario, si tuvo uno.
+  const borrarMaterial = async (g) => {
+    if (g.inventarioId && g.inventarioCantidad && g.inventarioMovimiento && g.inventarioMovimiento !== 'ninguno') {
+      const reverso = g.inventarioMovimiento === 'sumar' ? 'descontar' : 'sumar'
+      await moverStock(g.inventarioId, g.inventarioCantidad, reverso)
+    }
+    await deleteGasto(g.id)
   }
 
   const guardarAbono = async () => {
@@ -798,7 +853,7 @@ function FinanzasCotizacion({ cotizacion, onClose }) {
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-barlow text-sm font-bold tracking-wider text-on-surface uppercase">Materiales comprados</h3>
               {!formMat && (
-                <button onClick={() => setFormMat({ descripcion: '', monto: '', fecha: hoy() })}
+                <button onClick={nuevoFormMat}
                   className="flex items-center gap-1 text-xs font-dm font-medium text-primary hover:underline">
                   <Plus size={14} /> Agregar material
                 </button>
@@ -812,11 +867,18 @@ function FinanzasCotizacion({ cotizacion, onClose }) {
                 <div key={g.id} className="flex items-center justify-between gap-2 border border-white/50 rounded-lg px-3 py-2 bg-white/60">
                   <div className="min-w-0">
                     <p className="text-sm font-dm text-on-surface truncate">{g.descripcion}</p>
-                    <p className="text-[11px] text-on-surface-variant font-dm">{fechaCorta(g.fecha)}</p>
+                    <p className="text-[11px] text-on-surface-variant font-dm">
+                      {fechaCorta(g.fecha)}
+                      {g.inventarioMovimiento && g.inventarioMovimiento !== 'ninguno' && g.inventarioCantidad != null && (
+                        <span className={g.inventarioMovimiento === 'sumar' ? 'text-green-700 ml-1' : 'text-primary ml-1'}>
+                          · {g.inventarioMovimiento === 'sumar' ? '+' : '−'}{g.inventarioCantidad} stock
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-dm font-bold text-on-surface">{clp(g.monto)}</span>
-                    <button onClick={() => deleteGasto(g.id)} title="Borrar"
+                    <button onClick={() => borrarMaterial(g)} title="Borrar (revierte el stock)"
                       className="text-on-surface-variant hover:text-primary"><Trash2 size={14} /></button>
                   </div>
                 </div>
@@ -827,6 +889,37 @@ function FinanzasCotizacion({ cotizacion, onClose }) {
                 <input value={formMat.descripcion} autoFocus placeholder="Descripción del material"
                   onChange={e => setFormMat(f => ({ ...f, descripcion: e.target.value }))}
                   className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+
+                {/* Vínculo con inventario (opcional) */}
+                {inventario.length > 0 && (
+                  <select value={formMat.inventarioId} onChange={e => elegirInventario(e.target.value)}
+                    className="w-full border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
+                    <option value="">Del inventario (opcional)…</option>
+                    {inventario.map(i => (
+                      <option key={i.id} value={i.id}>{i.nombre} — {clp(i.precio)}/{i.tipo} · stock {i.cantidad ?? 0}</option>
+                    ))}
+                  </select>
+                )}
+
+                {formMat.inventarioId && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-dm uppercase tracking-wider text-on-surface-variant mb-0.5">Cantidad</label>
+                      <input type="number" min="0" step="0.01" value={formMat.cantidad} onChange={e => cambiarCantidad(e.target.value)}
+                        className="w-full border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-dm uppercase tracking-wider text-on-surface-variant mb-0.5">Movimiento de stock</label>
+                      <select value={formMat.movimiento} onChange={e => setFormMat(f => ({ ...f, movimiento: e.target.value }))}
+                        className="w-full border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
+                        <option value="descontar">Descontar (usado)</option>
+                        <option value="sumar">Sumar (compra)</option>
+                        <option value="ninguno">Ninguno</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-1">
                     <span className="text-on-surface-variant text-xs">$</span>
