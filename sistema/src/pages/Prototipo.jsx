@@ -1611,7 +1611,10 @@ export default function Prototipo() {
   const [tool, setTool] = useState("producto");
   const [fileName, setFileName] = useState(null);
   const [logoQueue, setLogoQueue] = useState([]);
+  const [placedLogos, setPlacedLogos] = useState([]);
   const [activeLogoId, setActiveLogoId] = useState(null);
+  const [activePlacementId, setActivePlacementId] = useState(null);
+  const [numberDrafts, setNumberDrafts] = useState({});
   const [product, setProduct] = useState("letters");
   const [form, setForm] = useState("rect");
   const [suggested, setSuggested] = useState(null);
@@ -1795,10 +1798,21 @@ export default function Prototipo() {
       ndc.set(((p.clientX - r.left) / r.width) * 2 - 1, -((p.clientY - r.top) / r.height) * 2 + 1);
       return ndc;
     };
-    const pickSign = (e) => {
-      if (!S.current.frameTarget) return false;
+    const pickMovable = (e) => {
       raycaster.setFromCamera(toNdc(e), camera);
-      return raycaster.intersectObject(S.current.frameTarget, true).length > 0;
+      const extras = S.current.extraTargets || [];
+      if (extras.length) {
+        const hitExtra = raycaster.intersectObjects(extras, true)[0];
+        if (hitExtra) {
+          let obj = hitExtra.object;
+          while (obj && !obj.userData?.placementId && obj.parent) obj = obj.parent;
+          return { type: "extra", object: obj || hitExtra.object, placementId: obj?.userData?.placementId };
+        }
+      }
+      if (S.current.frameTarget && raycaster.intersectObject(S.current.frameTarget, true).length > 0) {
+        return { type: "main", object: S.current.frameTarget };
+      }
+      return null;
     };
     const pickPhotoPoint = (e) => {
       if (!S.current.photoPlane) return null;
@@ -1820,8 +1834,15 @@ export default function Prototipo() {
       }
       dragging = true; dragVel = 0;
       const p = gp(e); lx = p.clientX; ly = p.clientY;
-      if (pickSign(e)) {
+      const picked = pickMovable(e);
+      if (picked?.type === "extra") {
+        S.current.dragMode = "extra";
+        S.current.dragTarget = picked.object;
+        S.current.dragPlacementId = picked.placementId;
+        setActivePlacementId(picked.placementId || null);
+      } else if (picked?.type === "main") {
         S.current.dragMode = "move";
+        S.current.dragTarget = S.current.frameTarget;
         S.current.dragStart = { x: S.current.frameTarget.position.x, y: S.current.frameTarget.position.y };
       } else {
         S.current.dragMode = "orbit";
@@ -1837,23 +1858,30 @@ export default function Prototipo() {
         // este closure sin re-crear los handlers en cada render.
         setPosX((x) => x + dxCm);
         setPosY((y) => y + dyCm);
+      } else if (dragging && S.current.dragMode === "extra" && S.current.dragTarget && S.current.dragPlacementId) {
+        const { x, y } = S.current.dragTarget.position;
+        const id = S.current.dragPlacementId;
+        setPlacedLogos((items) => items.map((item) => (item.id === id ? { ...item, x, y } : item)));
       }
       dragging = false;
       S.current.dragMode = "orbit";
+      S.current.dragTarget = null;
+      S.current.dragPlacementId = null;
     };
     const move = (e) => {
       if (!dragging || e.touches?.length > 1) return;
       const p = gp(e);
-      if (S.current.dragMode === "move" && S.current.frameTarget) {
+      if ((S.current.dragMode === "move" && S.current.frameTarget) || (S.current.dragMode === "extra" && S.current.dragTarget)) {
         // Conversion pantalla -> mundo a la profundidad del letrero, para
         // que se mueva "pegado" al dedo/cursor, no a una velocidad fija.
-        const dist = camera.position.distanceTo(S.current.center || S.current.frameTarget.position);
+        const target = S.current.dragMode === "extra" ? S.current.dragTarget : S.current.frameTarget;
+        const dist = camera.position.distanceTo(S.current.center || target.position);
         const vFov = THREE.MathUtils.degToRad(camera.fov);
         const h = mount.clientHeight || 1;
         const worldPerPxY = (2 * Math.tan(vFov / 2) * dist) / (h * (camera.zoom || 1));
         const worldPerPxX = worldPerPxY * (camera.aspect || 1);
-        S.current.frameTarget.position.x += (p.clientX - lx) * worldPerPxX;
-        S.current.frameTarget.position.y -= (p.clientY - ly) * worldPerPxY;
+        target.position.x += (p.clientX - lx) * worldPerPxX;
+        target.position.y -= (p.clientY - ly) * worldPerPxY;
       } else {
         const dy = (p.clientX - lx) * 0.009;
         rig.rotation.y += dy; envGroup.rotation.y += dy;
@@ -2141,6 +2169,36 @@ export default function Prototipo() {
     sign.position.x += posX / 100;
     sign.position.y += posY / 100;
     rig.add(sign);
+    const extraTargets = [];
+    placedLogos.forEach((item) => {
+      if (!item.dataUrl) return;
+      const texExtra = new THREE.TextureLoader().load(item.dataUrl);
+      texExtra.colorSpace = SRGB;
+      texExtra.anisotropy = 8;
+      const w = Math.max(0.12, item.w || Math.min(anchoM * 0.42, 1.1));
+      const h = w / Math.max(0.12, item.aspect || 1.8);
+      const matExtra = new THREE.MeshStandardMaterial({
+        map: texExtra, transparent: true, roughness: 0.36, metalness: 0.01,
+        emissive: new THREE.Color(ledColor), emissiveIntensity: mode === "front" || mode === "both" ? 0.18 : 0,
+        side: THREE.DoubleSide,
+      });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), matExtra);
+      plane.position.set(item.x || 0, item.y || 0, 0.055);
+      plane.userData.placementId = item.id;
+      plane.castShadow = true;
+      plane.receiveShadow = true;
+      if (activePlacementId === item.id) {
+        const border = new THREE.Mesh(
+          new THREE.PlaneGeometry(w * 1.06, h * 1.12),
+          new THREE.MeshBasicMaterial({ color: 0x2f8bef, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
+        );
+        border.position.z = -0.004;
+        plane.add(border);
+      }
+      rig.add(plane);
+      extraTargets.push(plane);
+    });
+    S.current.extraTargets = extraTargets;
     // Encuadre y calculos con rotacion 0 (el giro lo repone el loop).
     rig.rotation.set(0, 0, 0); envGroup.rotation.set(0, 0, 0);
 
@@ -2429,7 +2487,7 @@ export default function Prototipo() {
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
   }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
-      useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, edgeColor, edgeMetal,
+      useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, placedLogos, activePlacementId, edgeColor, edgeMetal,
       anchoM, altoM, whLocked, depthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
 
@@ -2669,6 +2727,13 @@ export default function Prototipo() {
     img.src = dataUrl;
   }, [loadCanvas]);
 
+  const readImageAspect = useCallback((dataUrl) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve((img.naturalWidth || img.width || 1) / Math.max(1, img.naturalHeight || img.height || 1));
+    img.onerror = () => resolve(1.8);
+    img.src = dataUrl;
+  }), []);
+
   const readLogoFile = useCallback((file) => new Promise((resolve, reject) => {
     const isSvg = file.type === "image/svg+xml" || /\.svg$/i.test(file.name);
     const reader = new FileReader();
@@ -2695,13 +2760,30 @@ export default function Prototipo() {
       });
       reader.readAsDataURL(file);
     }
-  }), []);
+  }).then(async (asset) => ({ ...asset, aspect: await readImageAspect(asset.dataUrl) })), [readImageAspect]);
 
   const loadLogoAsset = useCallback((asset) => {
     if (!asset) return;
     setActiveLogoId(asset.id);
     loadFromDataUrl(asset.dataUrl, asset.name);
   }, [loadFromDataUrl]);
+
+  const createPlacement = useCallback((asset, idx = 0, total = 1) => ({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    assetId: asset.id,
+    name: asset.name,
+    dataUrl: asset.dataUrl,
+    aspect: asset.aspect || 1.8,
+    x: (idx - (total - 1) / 2) * 0.52,
+    y: 0,
+    w: Math.max(0.28, Math.min(anchoM * 0.42, 1.15)),
+  }), [anchoM]);
+
+  const addLogoToMockup = useCallback((asset) => {
+    const placement = createPlacement(asset, 0, 1);
+    setPlacedLogos((items) => [...items, placement]);
+    setActivePlacementId(placement.id);
+  }, [createPlacement]);
 
   const handleFiles = useCallback(async (files) => {
     const list = Array.from(files || []).filter((file) => (
@@ -2713,12 +2795,18 @@ export default function Prototipo() {
     try {
       const assets = await Promise.all(list.map(readLogoFile));
       setLogoQueue((prev) => [...prev, ...assets]);
+      const extras = assets.slice(fileName ? 0 : 1);
+      if (extras.length) {
+        const placements = extras.map((asset, idx) => createPlacement(asset, idx, extras.length));
+        setPlacedLogos((prev) => [...prev, ...placements]);
+        setActivePlacementId(placements[placements.length - 1]?.id || null);
+      }
       loadLogoAsset(assets[0]);
     } catch {
       setErr("No se pudieron leer algunos logos.");
       setBusy(false);
     }
-  }, [loadLogoAsset, readLogoFile]);
+  }, [createPlacement, fileName, loadLogoAsset, readLogoFile]);
 
   const loadSample = useCallback(() => {
     const c = document.createElement("canvas");
@@ -2919,19 +3007,45 @@ export default function Prototipo() {
   );
 
   /* El valor vive siempre en metros; el campo muestra y acepta la unidad elegida. */
-  const Field = ({ label, value, onChange }) => {
+  const Field = ({ id, label, value, onChange }) => {
+    const key = id || label;
     const k = unit === "cm" ? 100 : 1;
-    const shown = unit === "cm" ? Math.round(value * 100) : value;
+    const shown = unit === "cm" ? String(Math.round(value * 100)) : String(Number(value.toFixed(2)));
+    const editing = Object.prototype.hasOwnProperty.call(numberDrafts, key);
+    const commit = () => {
+      const raw = String(numberDrafts[key] ?? "").replace(",", ".").trim();
+      setNumberDrafts((drafts) => {
+        const next = { ...drafts };
+        delete next[key];
+        return next;
+      });
+      if (!raw) return;
+      const n = parseFloat(raw);
+      if (isNaN(n)) return;
+      onChange(Math.max(0.2, Math.min(20, n / k)));
+    };
     return (
       <label style={s.field}>
         <span style={s.fieldLabel}>{label}</span>
-        <input type="number" value={shown}
+        <input type="text" inputMode="decimal" value={editing ? numberDrafts[key] : shown}
           min={unit === "cm" ? 20 : 0.2} max={unit === "cm" ? 2000 : 20}
           step={unit === "cm" ? 5 : 0.1} style={s.fieldInput}
+          onFocus={() => setNumberDrafts((drafts) => ({ ...drafts, [key]: shown }))}
           onChange={(e) => {
-            const n = parseFloat(e.target.value);
-            if (isNaN(n)) return;
-            onChange(Math.max(0.2, Math.min(20, n / k)));
+            const raw = e.target.value.replace(/[^\d.,]/g, "");
+            setNumberDrafts((drafts) => ({ ...drafts, [key]: raw }));
+          }}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            if (e.key === "Escape") {
+              setNumberDrafts((drafts) => {
+                const next = { ...drafts };
+                delete next[key];
+                return next;
+              });
+              e.currentTarget.blur();
+            }
           }} />
         <span style={s.fieldUnit}>{unit}</span>
       </label>
@@ -2959,14 +3073,37 @@ export default function Prototipo() {
               {logoQueue.map((asset, idx) => {
                 const active = activeLogoId === asset.id;
                 return (
-                  <button key={asset.id} type="button" onClick={() => loadLogoAsset(asset)}
-                    style={{ ...s.logoItem, ...(active ? s.logoItemOn : {}) }}>
-                    <span style={s.logoIndex}>{idx + 1}</span>
-                    <span style={s.logoName}>{asset.name}</span>
-                  </button>
+                  <div key={asset.id} style={{ ...s.logoItem, ...(active ? s.logoItemOn : {}) }}>
+                    <button type="button" onClick={() => loadLogoAsset(asset)} style={s.logoPick}>
+                      <span style={s.logoIndex}>{idx + 1}</span>
+                      <span style={s.logoName}>{asset.name}</span>
+                    </button>
+                    <button type="button" onClick={() => addLogoToMockup(asset)} style={s.logoPlace}>Colocar</button>
+                  </div>
                 );
               })}
             </div>
+          </>
+        )}
+        {placedLogos.length > 0 && (
+          <>
+            <div style={s.pLabel}>En el mockup ({placedLogos.length})</div>
+            <div style={s.logoList}>
+              {placedLogos.map((item, idx) => {
+                const active = activePlacementId === item.id;
+                return (
+                  <div key={item.id} style={{ ...s.logoItem, ...(active ? s.logoItemOn : {}) }}>
+                    <button type="button" onClick={() => setActivePlacementId(item.id)} style={s.logoPick}>
+                      <span style={s.logoIndex}>{idx + 1}</span>
+                      <span style={s.logoName}>{item.name}</span>
+                    </button>
+                    <button type="button" onClick={() => setPlacedLogos((items) => items.filter((x) => x.id !== item.id))}
+                      style={s.logoPlace}>Quitar</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={s.pHint}>Arrastra cada logo directamente sobre la escena para ubicarlo.</div>
           </>
         )}
         {product === "lightbox" && (
@@ -3106,9 +3243,9 @@ export default function Prototipo() {
 
           <div style={s.pLabel}>Tamaño del letrero</div>
           <div style={s.fields}>
-            <Field label="Ancho" value={anchoM}
+            <Field id="texto-ancho" label="Ancho" value={anchoM}
               onChange={(v) => { setAnchoM(v); if (whLocked && textAspect) setAltoM(v / textAspect); }} />
-            <Field label="Alto" value={altoM}
+            <Field id="texto-alto" label="Alto" value={altoM}
               onChange={(v) => { setAltoM(v); if (whLocked && textAspect) setAnchoM(v * textAspect); }} />
             <button type="button" onClick={() => setWhLocked((v) => !v)}
               title={whLocked ? "Proporción bloqueada — clic para deformar libremente" : "Proporción libre — clic para bloquear"}
@@ -3245,8 +3382,8 @@ export default function Prototipo() {
           value={unit} onPick={(u) => setUnit(u.id)} />
         <div style={s.pLabel}>Dimensiones</div>
         <div style={s.fields}>
-          <Field label="Ancho" value={anchoM} onChange={setAnchoM} />
-          <Field label="Alto" value={altoM} onChange={setAltoM} />
+          <Field id="logo-ancho" label="Ancho" value={anchoM} onChange={setAnchoM} />
+          <Field id="logo-alto" label="Alto" value={altoM} onChange={setAltoM} />
         </div>
         <div style={s.actionGrid}>
           <button type="button" onClick={() => ajustarLetreroAFachada(FACADE_FIT_RATIO)}
@@ -3368,8 +3505,8 @@ export default function Prototipo() {
                 ) : (
                   <>
                     <div style={s.fields}>
-                      <Field label="Ancho" value={facadeWidthM} onChange={setFacadeWidthM} />
-                      <Field label="Alto" value={facadeHeightM} onChange={setFacadeHeightM} />
+                      <Field id="fachada-ancho" label="Ancho" value={facadeWidthM} onChange={setFacadeWidthM} />
+                      <Field id="fachada-alto" label="Alto" value={facadeHeightM} onChange={setFacadeHeightM} />
                     </div>
                     <button type="button" onClick={() => ajustarLetreroAFachada(FACADE_FIT_RATIO)}
                       style={{ ...s.flatBtn, width: "100%", marginTop: 7 }}>
@@ -3738,11 +3875,19 @@ const s = {
     paddingRight: 2,
   },
   logoItem: {
-    display: "grid", gridTemplateColumns: "22px 1fr", alignItems: "center", gap: 7,
+    display: "grid", gridTemplateColumns: "1fr 58px", alignItems: "center", gap: 6,
     width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, background: "rgba(255,255,255,0.48)",
-    color: TXT, padding: "6px 7px", cursor: "pointer", textAlign: "left",
+    color: TXT, padding: "5px", textAlign: "left",
   },
   logoItemOn: { borderColor: BLUE, background: "rgba(47,139,239,0.13)", color: "#0755B8" },
+  logoPick: {
+    minWidth: 0, display: "grid", gridTemplateColumns: "22px 1fr", alignItems: "center", gap: 7,
+    border: "none", background: "transparent", color: "inherit", padding: 0, cursor: "pointer", textAlign: "left",
+  },
+  logoPlace: {
+    border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.58)", color: TXT,
+    borderRadius: 7, padding: "5px 4px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
+  },
   logoIndex: {
     width: 20, height: 20, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
     background: "rgba(255,255,255,0.72)", fontSize: 9, fontWeight: 800,
