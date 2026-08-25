@@ -1551,6 +1551,11 @@ const PLACEMENT_SURFACES = [
   { id: "side", label: "Lateral", x: -1.35, y: 0.1, z: 0.42, ry: -0.46 },
   { id: "desk", label: "Frente escritorio", x: 0, y: -1.02, z: 1.2, ry: 0 },
 ];
+const PLACEMENT_TYPES = [
+  { id: "original", label: "Original" },
+  { id: "letters", label: "Corpórea" },
+  { id: "lightbox", label: "Caja de luz" },
+];
 
 /* Color y acabado del canto (el borde de la pieza) */
 const EDGE_COLORS = [
@@ -2174,6 +2179,17 @@ export default function Prototipo() {
     // que solo mueve el ARTE dentro del panel de la caja de luz.
     sign.position.x += posX / 100;
     sign.position.y += posY / 100;
+    if (realW > 0.01 && realH > 0.01) {
+      const hitArea = new THREE.Mesh(
+        new THREE.PlaneGeometry(realW * 1.18, realH * 1.24),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
+        })
+      );
+      hitArea.position.z = 0.08;
+      hitArea.userData.mainHitArea = true;
+      sign.add(hitArea);
+    }
     rig.add(sign);
     const extraTargets = [];
     placedLogos.forEach((item) => {
@@ -2183,23 +2199,44 @@ export default function Prototipo() {
       texExtra.anisotropy = 8;
       const w = Math.max(0.12, item.w || Math.min(anchoM * 0.42, 1.1));
       const h = w / Math.max(0.12, item.aspect || 1.8);
-      const matExtra = new THREE.MeshStandardMaterial({
-        map: texExtra, transparent: true, roughness: 0.36, metalness: 0.01,
-        emissive: new THREE.Color(ledColor), emissiveIntensity: mode === "front" || mode === "both" ? 0.18 : 0,
-        side: THREE.DoubleSide,
-      });
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), matExtra);
+      const kind = item.kind || "original";
+      const plane = new THREE.Group();
       plane.position.set(item.x || 0, item.y || 0, item.z ?? 0.065);
       plane.rotation.y = item.ry || 0;
       plane.userData.placementId = item.id;
-      plane.castShadow = true;
-      plane.receiveShadow = true;
+      if (kind === "lightbox") {
+        const box = new THREE.Mesh(
+          new THREE.BoxGeometry(w * 1.1, h * 1.16, 0.055),
+          new THREE.MeshStandardMaterial({
+            color: 0xf7f8fb, roughness: 0.34, metalness: 0.02,
+            emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 0.24 : 0.08,
+          })
+        );
+        box.position.z = -0.035;
+        box.castShadow = true; box.receiveShadow = true;
+        plane.add(box);
+      } else if (kind === "letters") {
+        const back = new THREE.Mesh(
+          new THREE.PlaneGeometry(w, h),
+          new THREE.MeshBasicMaterial({ map: texExtra, transparent: true, opacity: 0.28, color: 0x111111, side: THREE.DoubleSide })
+        );
+        back.position.set(0.035, -0.035, -0.04);
+        plane.add(back);
+      }
+      const art = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ map: texExtra, transparent: true, color: 0xffffff, opacity: 1, side: THREE.DoubleSide })
+      );
+      art.position.z = kind === "lightbox" ? 0.012 : 0;
+      art.userData.placementId = item.id;
+      plane.add(art);
       if (activePlacementId === item.id) {
         const border = new THREE.Mesh(
           new THREE.PlaneGeometry(w * 1.06, h * 1.12),
           new THREE.MeshBasicMaterial({ color: 0x2f8bef, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
         );
-        border.position.z = -0.004;
+        border.position.z = 0.018;
+        border.userData.placementId = item.id;
         plane.add(border);
       }
       rig.add(plane);
@@ -2803,6 +2840,7 @@ export default function Prototipo() {
     dataUrl: asset.dataUrl,
     aspect: asset.aspect || 1.8,
     surface,
+    kind: "original",
     ...surfaceDefaults(surface, idx, total),
     w: Math.max(0.18, Math.min(anchoM * 0.42, 1.15)),
   }), [anchoM, surfaceDefaults]);
@@ -3157,6 +3195,11 @@ export default function Prototipo() {
                   <div style={s.pLabel}>Ubicación del logo seleccionado</div>
                   <Seg items={PLACEMENT_SURFACES} value={active.surface || "wall"}
                     onPick={(surface) => setPlacementSurface(active.id, surface.id)} cols={1} />
+                  <div style={s.pLabel}>Tipo del logo seleccionado</div>
+                  <Seg items={PLACEMENT_TYPES} value={active.kind || "original"}
+                    onPick={(kind) => setPlacedLogos((items) => items.map((item) => (
+                      item.id === active.id ? { ...item, kind: kind.id } : item
+                    )))} cols={1} />
                   <Slider label="Tamaño" value={Math.round((active.w || 0.4) * 100)} unit=" cm"
                     min={10} max={220} step={5}
                     onChange={(v) => setPlacedLogos((items) => items.map((item) => (
