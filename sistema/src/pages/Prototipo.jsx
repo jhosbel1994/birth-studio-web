@@ -973,12 +973,11 @@ function buildStorefront(style, o) {
     // (la textura "acanalada" ya las genera así).
     const galponBlue = "#1e40c8";
     const metal = makeFacadeMaterial("acanalada", galponBlue, 0.5, 0.35, Math.max(facW, 4), "v", 0.14);
-    // Muro de chapa cubriendo toda la zona del local (bajo la banda).
+    // Muro de chapa cubriendo toda la zona del local (bajo la banda). El
+    // galpón termina en el borde superior de la banda: no lleva remate de
+    // chapa ni cornisa gris arriba (se pidió dejar solo de la banda hacia
+    // abajo, todo azul).
     addBox(facW, shopH, 0.12, metal, 0, shopY, zWall, g);
-    // Remate de chapa por encima de la banda (parapeto del galpón).
-    addBox(facW, upperH, 0.12, metal, 0, bandH / 2 + upperH / 2, zWall - 0.005, g);
-    // Cornisa/parapeto oscuro fino en la cima.
-    addBox(facW + 0.06, 0.14, 0.2, concreteMat(), 0, bandH / 2 + upperH + 0.02, zWall + 0.03, g);
     // Zócalo de ladrillo (~1 m) al pie del muro.
     const brickH = Math.min(1.0, shopH * 0.24);
     const brick = texMat(brickTexture(), Math.max(3, facW / 1.1), Math.max(1.4, brickH / 0.55),
