@@ -241,6 +241,21 @@ export async function deleteCatalogoSeccion(id) {
   await deleteDoc(doc(db, 'catalogoSecciones', id))
 }
 
+// ─── OVERRIDES DE SECCIONES SEMILLA (renombrar / ocultar) ────────────────────
+// Las secciones de data/productos.js viven en el código. Para poder
+// renombrarlas u ocultarlas sin editar el código, guardamos un override por id:
+// { [id]: { label?, oculta? } }. Se aplica al construir el catálogo.
+const SECCIONES_OVERRIDES_ID = 'seccionesOverrides'
+
+export async function getSeccionesOverrides() {
+  const snap = await getDoc(doc(db, 'settings', SECCIONES_OVERRIDES_ID))
+  return snap.exists() ? (snap.data().overrides || {}) : {}
+}
+
+export async function saveSeccionesOverrides(overrides) {
+  await setDoc(doc(db, 'settings', SECCIONES_OVERRIDES_ID), { overrides }, { merge: true })
+}
+
 // ─── ÍTEMS PERSONALIZADOS DEL CATÁLOGO ───────────────────────────────────────
 // Ítems creados por el usuario dentro de cualquier sección (semilla o
 // personalizada). Se fusionan con PRODUCTOS[categoria] al renderizar.

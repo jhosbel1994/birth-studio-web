@@ -10,6 +10,7 @@ import {
   getMultiplicadoresProductos, saveMultiplicadoresProductos,
   getCatalogoItems, saveCatalogoItem, deleteCatalogoItem,
   getCatalogoSecciones, saveCatalogoSeccion, deleteCatalogoSeccion,
+  getSeccionesOverrides, saveSeccionesOverrides,
 } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, formatEmailJSError } from '../utils/email'
@@ -40,6 +41,7 @@ const CatalogoContext = createContext({
   catalogoItems: [], catalogoSecciones: [],
   addItem: () => {}, removeItem: () => {},
   addSeccion: () => {}, removeSeccion: () => {},
+  renombrarSeccion: () => {}, eliminarSeccion: () => {},
 })
 
 // Fila de instalación reutilizable: botones ×valor (clic = seleccionar,
@@ -1142,7 +1144,8 @@ function VolantesPanel() {
 }
 
 function BastidoresPanel({ multiplicador }) {
-  const { multiplicadores } = useContext(MultiplicadoresContext)
+  const { precios, setPrecio } = useContext(PreciosContext)
+  const { catalogoItems } = useContext(CatalogoContext)
   const [tipo, setTipo] = useState('proveedor')
   const [selProv, setSelProv] = useState(BASTIDORES_PROVEEDOR[0].id)
   const [selBirth, setSelBirth] = useState(BASTIDORES_BIRTH[0].id)
@@ -1153,22 +1156,35 @@ function BastidoresPanel({ multiplicador }) {
   const [selPaloma, setSelPaloma] = useState(PALOMAS[0].id)
   const [mult, setMult] = useState(multiplicador)
 
+  // Precios base editables (override en PreciosContext, igual que ProductoFila)
+  const provCara = (b) => precios[`${b.id}_cara`] ?? b.precioCara
+  const provDoble = (b) => precios[`${b.id}_doble`] ?? b.precioDoble
+  const birthM2 = (b) => precios[b.id] ?? b.precio
+  const palomaVal = (p) => precios[p.id] ?? p.precio
+
   let precio = null, desc = ''
   if (tipo === 'proveedor') {
     const b = BASTIDORES_PROVEEDOR.find(b => b.id === selProv)
-    if (b) { precio = (caras === 'una' ? b.precioCara : b.precioDoble) * mult; desc = `${b.nombre} ${caras === 'una' ? '1 cara' : 'doble'}` }
+    if (b) { precio = Math.round((caras === 'una' ? provCara(b) : provDoble(b)) * mult); desc = `${b.nombre} ${caras === 'una' ? '1 cara' : 'doble'}` }
   } else if (esPaloma) {
     const p = PALOMAS.find(p => p.id === selPaloma)
-    if (p) { precio = p.precio; desc = p.nombre }
+    if (p) { precio = palomaVal(p); desc = p.nombre }
   } else {
     const b = BASTIDORES_BIRTH.find(b => b.id === selBirth)
-    if (b && ancho && alto) { precio = Math.round(parseFloat(ancho) * parseFloat(alto) * b.precio); desc = `${b.nombre} ${ancho}×${alto}m` }
+    if (b && ancho && alto) { precio = Math.round(parseFloat(ancho) * parseFloat(alto) * birthM2(b)); desc = `${b.nombre} ${ancho}×${alto}m` }
   }
 
   const add = () => {
     if (!precio) return
     window.dispatchEvent(new CustomEvent('cotizador:agregar', { detail: { descripcion: desc, cantidad: 1, precioUnitario: precio, total: precio } }))
   }
+
+  // Ítems personalizados de esta sección (mismo trato que las demás)
+  const custom = catalogoItems.filter(i => i.categoria === 'bastidor').map(i => ({ ...i, custom: true }))
+
+  const bProv = BASTIDORES_PROVEEDOR.find(b => b.id === selProv)
+  const claveProv = caras === 'una' ? `${selProv}_cara` : `${selProv}_doble`
+  const valProv = bProv ? (caras === 'una' ? provCara(bProv) : provDoble(bProv)) : 0
 
   return (
     <div className="p-4 space-y-3">
@@ -1190,9 +1206,21 @@ function BastidoresPanel({ multiplicador }) {
               <option value="una">1 cara</option>
               <option value="doble">Doble cara</option>
             </select>
-            <select value={mult} onChange={e => setMult(parseFloat(e.target.value))} className="border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
-              {multiplicadores.map(m => <option key={m.id} value={m.valor}>×{m.valor}</option>)}
-            </select>
+            {/* Multiplicador granular 2.0–4.0 */}
+            <div className="flex items-center gap-2 border border-white/50 rounded px-3 py-1.5 bg-white">
+              <span className="text-on-surface-variant text-xs font-dm">Mult ×</span>
+              <input type="number" min="2" max="4" step="0.1" value={mult}
+                onChange={e => setMult(Math.min(4, Math.max(2, parseFloat(e.target.value) || 2)))}
+                className="w-full text-center font-dm font-bold text-sm focus:outline-none" />
+            </div>
+          </div>
+          {/* Precio base editable del tamaño seleccionado */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-on-surface-variant text-[11px] font-dm uppercase tracking-wider shrink-0">Costo base ({caras === 'una' ? '1 cara' : 'doble'})</span>
+            <span className="text-on-surface-variant text-xs">$</span>
+            <input type="number" min="0" key={claveProv} defaultValue={valProv}
+              onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) setPrecio(claveProv, v) }}
+              className="w-28 border border-white/50 rounded px-2 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface" />
           </div>
         </>
       ) : (
@@ -1202,14 +1230,30 @@ function BastidoresPanel({ multiplicador }) {
             <span className="text-on-surface-variant">Paloma publicitaria</span>
           </label>
           {esPaloma ? (
-            <select value={selPaloma} onChange={e => setSelPaloma(e.target.value)} className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
-              {PALOMAS.map(p => <option key={p.id} value={p.id}>{p.nombre} — {clp(p.precio)}</option>)}
-            </select>
+            <>
+              <select value={selPaloma} onChange={e => setSelPaloma(e.target.value)} className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
+                {PALOMAS.map(p => <option key={p.id} value={p.id}>{p.nombre} — {clp(palomaVal(p))}</option>)}
+              </select>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-on-surface-variant text-[11px] font-dm uppercase tracking-wider shrink-0">Precio</span>
+                <span className="text-on-surface-variant text-xs">$</span>
+                <input type="number" min="0" key={selPaloma} defaultValue={palomaVal(PALOMAS.find(p => p.id === selPaloma))}
+                  onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) setPrecio(selPaloma, v) }}
+                  className="w-28 border border-white/50 rounded px-2 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface" />
+              </div>
+            </>
           ) : (
             <>
               <select value={selBirth} onChange={e => setSelBirth(e.target.value)} className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
-                {BASTIDORES_BIRTH.map(b => <option key={b.id} value={b.id}>{b.nombre} — {clp(b.precio)}/m²</option>)}
+                {BASTIDORES_BIRTH.map(b => <option key={b.id} value={b.id}>{b.nombre} — {clp(birthM2(b))}/m²</option>)}
               </select>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-on-surface-variant text-[11px] font-dm uppercase tracking-wider shrink-0">Precio/m²</span>
+                <span className="text-on-surface-variant text-xs">$</span>
+                <input type="number" min="0" key={selBirth} defaultValue={birthM2(BASTIDORES_BIRTH.find(b => b.id === selBirth))}
+                  onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) setPrecio(selBirth, v) }}
+                  className="w-28 border border-white/50 rounded px-2 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface" />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <input type="number" min="0" step="0.01" value={ancho} onChange={e => setAncho(e.target.value)} placeholder="Ancho m" className="border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none" />
                 <input type="number" min="0" step="0.01" value={alto} onChange={e => setAlto(e.target.value)} placeholder="Alto m" className="border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none" />
@@ -1226,6 +1270,17 @@ function BastidoresPanel({ multiplicador }) {
         className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container shadow-lg shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed">
         <Plus size={15} /> Agregar
       </button>
+
+      {/* Ítems personalizados de Bastidores (multiplicador por ítem, precio y borrar) */}
+      {custom.length > 0 && (
+        <div className="border border-white/50 rounded-lg overflow-hidden">
+          <div className="px-3 py-1.5 bg-white/50 border-b border-white/50 text-[10px] font-dm uppercase tracking-wider text-on-surface-variant">
+            Ítems personalizados
+          </div>
+          {custom.map(p => <ProductoFila key={p.id} producto={p} multiplicador={mult} />)}
+        </div>
+      )}
+      <AgregarItemForm categoria="bastidor" defaultMult={mult} />
     </div>
   )
 }
@@ -1666,14 +1721,32 @@ function BusquedaGlobalPanel({ resultados, query, multiplicador }) {
   )
 }
 
-// ─── VISTA CUADRÍCULA ─────────────────────────────────────────────────────
-function CuadriculaPanel({ categoria, setCategoria, multiplicador, setMultiplicador }) {
-  const { catalogoSecciones, catalogoItems, addSeccion, removeSeccion } = useContext(CatalogoContext)
+// Íconos de renombrar / eliminar sección (reutilizable en todas las vistas).
+// Se detiene la propagación para no disparar el onClick del tile contenedor.
+function SeccionAcciones({ id, activa = false }) {
+  const { renombrarSeccion, eliminarSeccion } = useContext(CatalogoContext)
+  const editar = activa ? 'text-white/70 hover:text-white hover:bg-white/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-black/5'
+  const borrar = activa ? 'text-white/70 hover:text-white hover:bg-white/20' : 'text-on-surface-variant hover:text-primary hover:bg-red-50'
+  return (
+    <span className="flex items-center gap-0.5 shrink-0">
+      <span role="button" tabIndex={0} title="Renombrar sección"
+        onClick={(e) => { e.stopPropagation(); renombrarSeccion(id) }}
+        className={`w-5 h-5 flex items-center justify-center rounded cursor-pointer ${editar}`}>
+        <Pencil size={12} />
+      </span>
+      <span role="button" tabIndex={0} title="Eliminar sección"
+        onClick={(e) => { e.stopPropagation(); eliminarSeccion(id) }}
+        className={`w-5 h-5 flex items-center justify-center rounded cursor-pointer ${borrar}`}>
+        <X size={13} />
+      </span>
+    </span>
+  )
+}
 
-  const categoriasTodas = [
-    ...CATEGORIAS,
-    ...catalogoSecciones.map(s => ({ id: s.id, label: s.label, custom: true })),
-  ]
+// ─── VISTA CUADRÍCULA ─────────────────────────────────────────────────────
+function CuadriculaPanel({ categoria, setCategoria, categorias, multiplicador, setMultiplicador }) {
+  const { catalogoItems, addSeccion } = useContext(CatalogoContext)
+
   const conteo = (catId) =>
     (PRODUCTOS[catId] || []).length + catalogoItems.filter(i => i.categoria === catId).length
 
@@ -1684,33 +1757,22 @@ function CuadriculaPanel({ categoria, setCategoria, multiplicador, setMultiplica
     setCategoria(sec.id)
   }
 
-  const borrarSeccion = async (e, id, label) => {
-    e.stopPropagation()
-    if (!confirm(`¿Borrar la sección "${label}" y todos sus ítems personalizados?`)) return
-    await removeSeccion(id)
-    if (categoria === id) setCategoria('acrilico')
-  }
-
   return (
     <div className="flex-1 overflow-y-auto space-y-3 pb-2">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 px-2.5">
-        {categoriasTodas.map(cat => {
+        {categorias.map(cat => {
           const activa = cat.id === categoria
           const n = conteo(cat.id)
           return (
             <button key={cat.id} onClick={() => setCategoria(cat.id)}
               className={`relative text-left p-3 rounded border transition-all ${activa ? 'bg-on-surface border-on-surface' : 'bg-white border-white/50 hover:border-on-surface'}`}>
-              <p className={`text-sm font-dm font-semibold leading-tight pr-4 ${activa ? 'text-white' : 'text-on-surface'}`}>
-                {cat.label}
-              </p>
+              <div className="flex items-start justify-between gap-1">
+                <p className={`text-sm font-dm font-semibold leading-tight ${activa ? 'text-white' : 'text-on-surface'}`}>
+                  {cat.label}
+                </p>
+                <SeccionAcciones id={cat.id} activa={activa} />
+              </div>
               {n > 0 && <p className={`text-[11px] mt-0.5 font-dm ${activa ? 'text-white/60' : 'text-on-surface-variant'}`}>{n} productos</p>}
-              {cat.custom && (
-                <span onClick={(e) => borrarSeccion(e, cat.id, cat.label)}
-                  title="Borrar sección"
-                  className={`absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded ${activa ? 'text-white/70 hover:text-white hover:bg-white/20' : 'text-on-surface-variant hover:text-primary hover:bg-red-50'}`}>
-                  <X size={13} />
-                </span>
-              )}
             </button>
           )
         })}
@@ -1723,7 +1785,7 @@ function CuadriculaPanel({ categoria, setCategoria, multiplicador, setMultiplica
         <div className="mx-2.5 bg-white rounded border border-white/50">
           <div className="px-4 py-2.5 border-b border-white/50 bg-white/50 sticky top-0">
             <h3 className="font-barlow text-sm font-bold tracking-wider text-on-surface uppercase">
-              {categoriasTodas.find(c => c.id === categoria)?.label}
+              {categorias.find(c => c.id === categoria)?.label}
             </h3>
           </div>
           <CategoriaPanel categoria={categoria} multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
@@ -2094,6 +2156,7 @@ export default function Cotizador() {
   const [multProductos, setMultProductosState] = useState({})
   const [catalogoItems, setCatalogoItems] = useState([])
   const [catalogoSecciones, setCatalogoSecciones] = useState([])
+  const [seccionesOverrides, setSeccionesOverridesState] = useState({})
 
   useEffect(() => {
     getPreciosProductos().then(setPreciosState)
@@ -2101,6 +2164,7 @@ export default function Cotizador() {
     getMultiplicadoresProductos().then(setMultProductosState)
     getCatalogoItems().then(setCatalogoItems)
     getCatalogoSecciones().then(setCatalogoSecciones)
+    getSeccionesOverrides().then(setSeccionesOverridesState)
   }, [])
 
   const setPrecio = (id, valor) => {
@@ -2165,13 +2229,53 @@ export default function Cotizador() {
     setCategoria(sec.id)
   }
 
+  const setSeccionOverride = (id, patch) => {
+    setSeccionesOverridesState(prev => {
+      const next = { ...prev, [id]: { ...prev[id], ...patch } }
+      saveSeccionesOverrides(next).catch(() => {})
+      return next
+    })
+  }
+
+  const esCustomSeccion = (id) => catalogoSecciones.some(s => s.id === id)
+
+  // Renombra cualquier sección: si es personalizada actualiza su doc; si es
+  // de fábrica guarda un alias (override) sin tocar el código.
+  const renombrarSeccion = async (id) => {
+    const actual = categoriasTodas.find(c => c.id === id)?.label || ''
+    const nuevo = window.prompt('Nuevo nombre de la sección:', actual)
+    if (!nuevo || !nuevo.trim() || nuevo.trim() === actual) return
+    if (esCustomSeccion(id)) {
+      const s = catalogoSecciones.find(x => x.id === id)
+      await addSeccion({ ...s, label: nuevo.trim() })
+    } else {
+      setSeccionOverride(id, { label: nuevo.trim() })
+    }
+  }
+
+  // Elimina una sección: personalizada se borra de verdad; de fábrica se oculta.
+  const eliminarSeccion = async (id) => {
+    const label = categoriasTodas.find(c => c.id === id)?.label || ''
+    const esCustom = esCustomSeccion(id)
+    const msg = esCustom
+      ? `¿Eliminar la sección "${label}" y sus ítems personalizados?`
+      : `¿Ocultar la sección "${label}" del cotizador?`
+    if (!confirm(msg)) return
+    if (esCustom) await removeSeccion(id)
+    else setSeccionOverride(id, { oculta: true })
+    if (categoria === id) setCategoria('acrilico')
+  }
+
   const multiplicadoresEfectivos = MULTIPLICADORES.map(m => ({
     ...m, valor: multiplicadoresOverride[m.id] ?? m.valor,
   }))
 
-  // Catálogo completo = categorías semilla + secciones personalizadas
+  // Catálogo completo = categorías semilla (con alias/ocultas aplicadas) +
+  // secciones personalizadas
   const categoriasTodas = [
-    ...CATEGORIAS,
+    ...CATEGORIAS
+      .filter(c => !seccionesOverrides[c.id]?.oculta)
+      .map(c => ({ ...c, label: seccionesOverrides[c.id]?.label || c.label })),
     ...catalogoSecciones.map(s => ({ id: s.id, label: s.label, custom: true })),
   ]
 
@@ -2212,7 +2316,7 @@ export default function Cotizador() {
     <PreciosContext.Provider value={{ precios, setPrecio }}>
     <MultiplicadoresContext.Provider value={{ multiplicadores: multiplicadoresEfectivos, setValorMultiplicador }}>
     <MultProductosContext.Provider value={{ multProductos, setMultProducto }}>
-    <CatalogoContext.Provider value={{ catalogoItems, catalogoSecciones, addItem, removeItem, addSeccion, removeSeccion }}>
+    <CatalogoContext.Provider value={{ catalogoItems, catalogoSecciones, addItem, removeItem, addSeccion, removeSeccion, renombrarSeccion, eliminarSeccion }}>
     <div className="h-[100dvh] flex flex-col overflow-hidden">
       {modal && (
         <ModalCrearCotizacion
@@ -2339,7 +2443,7 @@ export default function Cotizador() {
         ) : (
           /* Vista cuadrícula */
           <CuadriculaPanel
-            categoria={categoria} setCategoria={setCategoria}
+            categoria={categoria} setCategoria={setCategoria} categorias={categoriasTodas}
             multiplicador={multiplicador} setMultiplicador={setMultiplicador}
           />
         )}
@@ -2360,16 +2464,25 @@ export default function Cotizador() {
         <div className={`glass-panel rounded-widget overflow-y-auto ${vistaMode === 'cuadricula' ? 'col-span-3' : 'col-span-2'}`}>
           {vistaMode === 'lista' ? (
             <>
-              {categoriasTodas.map(cat => (
-                <button key={cat.id} onClick={() => setCategoria(cat.id)}
-                  className={`w-full text-left px-3 py-2.5 text-sm font-dm border-l-2 transition-all ${
-                    categoria === cat.id
-                      ? 'border-primary bg-white/50 font-medium text-on-surface'
-                      : 'border-transparent text-on-surface-variant hover:bg-white/50 hover:text-on-surface'
-                  }`}>
-                  {cat.label}
-                </button>
-              ))}
+              {categoriasTodas.map(cat => {
+                const activa = categoria === cat.id
+                return (
+                  <div key={cat.id}
+                    className={`group w-full flex items-center border-l-2 transition-all ${
+                      activa
+                        ? 'border-primary bg-white/50'
+                        : 'border-transparent hover:bg-white/50'
+                    }`}>
+                    <button onClick={() => setCategoria(cat.id)}
+                      className={`flex-1 text-left px-3 py-2.5 text-sm font-dm ${activa ? 'font-medium text-on-surface' : 'text-on-surface-variant hover:text-on-surface'}`}>
+                      {cat.label}
+                    </button>
+                    <div className="pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <SeccionAcciones id={cat.id} />
+                    </div>
+                  </div>
+                )
+              })}
               <button onClick={crearSeccion}
                 className="w-full text-left px-3 py-2.5 text-sm font-dm border-l-2 border-transparent text-primary hover:bg-white/50 transition-all">
                 + Nueva sección
@@ -2382,7 +2495,10 @@ export default function Cotizador() {
                 return (
                   <button key={cat.id} onClick={() => setCategoria(cat.id)}
                     className={`text-left p-2.5 rounded border transition-all ${activa ? 'bg-on-surface border-on-surface' : 'bg-white border-white/50 hover:border-on-surface'}`}>
-                    <p className={`text-xs font-dm font-semibold leading-tight ${activa ? 'text-white' : 'text-on-surface'}`}>{cat.label}</p>
+                    <div className="flex items-start justify-between gap-1">
+                      <p className={`text-xs font-dm font-semibold leading-tight ${activa ? 'text-white' : 'text-on-surface'}`}>{cat.label}</p>
+                      <SeccionAcciones id={cat.id} activa={activa} />
+                    </div>
                   </button>
                 )
               })}
