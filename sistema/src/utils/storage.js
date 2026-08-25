@@ -346,6 +346,52 @@ export async function setMultiplicadorMateriales(valor) {
   await setDoc(doc(db, 'settings', SETTINGS_ID), { multiplicadorMateriales: valor }, { merge: true })
 }
 
+// ─── INVENTARIO (stock de materiales de Birth Studio) ────────────────────────
+// Shape: { id, nombre, tipo: 'm2'|'ml'|'unidad'|'plancha'|..., cantidad,
+//          precio (costo unitario), proveedorId?, nota?, createdAt }
+export async function getInventario() {
+  const snap = await getDocs(query(collection(db, 'inventario'), orderBy('nombre', 'asc')))
+  return snapsToArr(snap)
+}
+
+export function subscribeInventario(cb) {
+  return onSnapshot(query(collection(db, 'inventario'), orderBy('nombre', 'asc')), snap => cb(snapsToArr(snap)))
+}
+
+export async function saveInventarioItem(item) {
+  const id = item.id || crypto.randomUUID()
+  const data = { ...item, id, createdAt: item.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'inventario', id), data)
+  return data
+}
+
+export async function deleteInventarioItem(id) {
+  await deleteDoc(doc(db, 'inventario', id))
+}
+
+// ─── PROVEEDORES (con teléfono y los materiales que venden) ──────────────────
+// Shape: { id, nombre, telefono?, email?, direccion?, nota?,
+//          materiales: [{ nombre, unidad, precio }], createdAt }
+export async function getProveedores() {
+  const snap = await getDocs(query(collection(db, 'proveedores'), orderBy('nombre', 'asc')))
+  return snapsToArr(snap)
+}
+
+export function subscribeProveedores(cb) {
+  return onSnapshot(query(collection(db, 'proveedores'), orderBy('nombre', 'asc')), snap => cb(snapsToArr(snap)))
+}
+
+export async function saveProveedor(prov) {
+  const id = prov.id || crypto.randomUUID()
+  const data = { ...prov, id, createdAt: prov.createdAt || new Date().toISOString() }
+  await setDoc(doc(db, 'proveedores', id), data)
+  return data
+}
+
+export async function deleteProveedor(id) {
+  await deleteDoc(doc(db, 'proveedores', id))
+}
+
 // ─── GALERÍA (fotos del sitio público: banner + catálogo) ────────────────────
 export async function getGaleria() {
   const snap = await getDocs(query(collection(db, 'galeria'), orderBy('orden', 'asc')))

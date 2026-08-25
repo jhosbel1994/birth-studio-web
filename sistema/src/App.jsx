@@ -8,6 +8,8 @@ import Clientes from './pages/Clientes'
 import Cotizaciones from './pages/Cotizaciones'
 import Contratos from './pages/Contratos'
 import Gastos from './pages/Gastos'
+import Inventario from './pages/Inventario'
+import Proveedores from './pages/Proveedores'
 import Galeria from './pages/Galeria'
 import MockupVitrina from './modules/mockup-superficies'
 
@@ -39,6 +41,8 @@ export default function App() {
         <Route path="cotizaciones" element={<Cotizaciones />} />
         <Route path="contratos" element={<Contratos />} />
         <Route path="gastos" element={<Gastos />} />
+        <Route path="inventario" element={<Inventario />} />
+        <Route path="proveedores" element={<Proveedores />} />
         <Route path="galeria" element={<Galeria />} />
         <Route path="mockup-vitrina" element={<MockupVitrina />} />
         <Route path="prototipo" element={
