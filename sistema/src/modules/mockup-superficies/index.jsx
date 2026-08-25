@@ -49,6 +49,18 @@ function propsAcabado(value) {
   return { acabado: value }
 }
 
+function limpiarMedidaInput(value) {
+  const texto = String(value ?? '').replace(',', '.').replace(/[^\d.]/g, '')
+  const [entero, ...decimales] = texto.split('.')
+  if (decimales.length === 0) return entero
+  return `${entero}.${decimales.join('').slice(0, 2)}`
+}
+
+function numeroMedida(value) {
+  const n = Number(String(value ?? '').replace(',', '.'))
+  return Number.isFinite(n) ? n : 0
+}
+
 function fotoADataUrl(src, fallbackW, fallbackH) {
   return new Promise((resolve) => {
     if (!src) {
@@ -241,11 +253,16 @@ export default function MockupVitrina() {
     return id
   }
 
+  const handleMedidaZona = useCallback((campo, value) => {
+    if (!zonaActiva?.id) return
+    setZonaMedidas(zonaActiva.id, { [campo]: limpiarMedidaInput(value) })
+  }, [setZonaMedidas, zonaActiva?.id])
+
   const plantillas = [...BUILTIN_TEMPLATES, ...escenas.filter(e => e.esPlantilla)]
   const misEscenas = escenas.filter(e => !e.esPlantilla)
   const pxZona = medidasZonaPx(zonaActiva)
-  const anchoCm = Number(zonaActiva?.anchoCm || 0)
-  const altoCm = Number(zonaActiva?.altoCm || 0)
+  const anchoCm = numeroMedida(zonaActiva?.anchoCm)
+  const altoCm = numeroMedida(zonaActiva?.altoCm)
   const m2 = anchoCm > 0 && altoCm > 0 ? (anchoCm * altoCm) / 10000 : 0
 
   return (
@@ -436,16 +453,16 @@ export default function MockupVitrina() {
                 <label className="text-xs font-dm text-on-surface-variant">
                   Ancho cm
                   <input
-                    type="number" min="0" value={zonaActiva.anchoCm || ''}
-                    onChange={e => setZonaMedidas(zonaActiva.id, { anchoCm: e.target.value })}
+                    type="text" inputMode="decimal" autoComplete="off" value={zonaActiva.anchoCm ?? ''}
+                    onChange={e => handleMedidaZona('anchoCm', e.target.value)}
                     className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
                   />
                 </label>
                 <label className="text-xs font-dm text-on-surface-variant">
                   Alto cm
                   <input
-                    type="number" min="0" value={zonaActiva.altoCm || ''}
-                    onChange={e => setZonaMedidas(zonaActiva.id, { altoCm: e.target.value })}
+                    type="text" inputMode="decimal" autoComplete="off" value={zonaActiva.altoCm ?? ''}
+                    onChange={e => handleMedidaZona('altoCm', e.target.value)}
                     className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
                   />
                 </label>
