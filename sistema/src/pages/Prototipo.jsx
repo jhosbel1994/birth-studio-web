@@ -1182,7 +1182,7 @@ function buildMallEnv(envGroup, m) {
 
 function buildReceptionInterior(envGroup, opts) {
   const { wallW, wallH, floorY, standoff, night, signW, signH } = opts;
-  const wallZ = -standoff + 0.006;
+  const wallZ = -standoff + 0.045;
   const addBox = (w, h, d, mat, x, y, z) => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     mesh.position.set(x, y, z);
@@ -1199,7 +1199,7 @@ function buildReceptionInterior(envGroup, opts) {
     return mesh;
   };
 
-  const white = new THREE.MeshStandardMaterial({ color: 0xf7f8f8, roughness: 0.38, metalness: 0.03 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xf8f9f9, roughness: 0.32, metalness: 0.02 });
   const softGrey = new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.58, metalness: 0.02 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x17191d, roughness: 0.46, metalness: 0.08 });
   const glass = new THREE.MeshStandardMaterial({
@@ -1225,18 +1225,22 @@ function buildReceptionInterior(envGroup, opts) {
     addBox(0.045, 1.92, 0.028, slatMat, blindX + i * wallW * 0.027, floorY + 1.58, wallZ + 0.025);
   }
 
-  const counterW = Math.min(wallW * 0.76, 5.6);
-  const counterH = 0.7;
-  const counterD = 0.72;
-  const counterZ = Math.min(wallW * 0.26, 1.28) - standoff;
+  const counterW = Math.min(wallW * 0.82, 5.8);
+  const counterH = 0.9;
+  const counterD = 0.86;
+  const counterZ = Math.min(wallW * 0.34, 1.62) - standoff;
   addBox(counterW, counterH, counterD, white, 0, floorY + counterH / 2, counterZ);
   addBox(counterW * 0.98, 0.06, counterD + 0.04, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.18, metalness: 0.02 }),
     0, floorY + counterH + 0.03, counterZ);
+  addBox(counterW * 0.96, counterH * 0.78, 0.024, new THREE.MeshStandardMaterial({ color: 0xf1f3f4, roughness: 0.28, metalness: 0.02 }),
+    0, floorY + counterH * 0.42, counterZ + counterD / 2 + 0.024);
   const lightPanel = addBox(counterW * 0.38, 0.13, 0.018, new THREE.MeshStandardMaterial({
     color: 0xffffff, emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 0.9 : 0.28,
     roughness: 0.28,
-  }), -counterW * 0.22, floorY + 0.26, counterZ + counterD / 2 + 0.012);
+  }), -counterW * 0.22, floorY + 0.34, counterZ + counterD / 2 + 0.048);
   lightPanel.castShadow = false;
+  addBox(0.44, 0.28, 0.035, dark, -counterW * 0.06, floorY + counterH + 0.2, counterZ + 0.04);
+  addBox(0.16, 0.035, 0.16, dark, -counterW * 0.06, floorY + counterH + 0.035, counterZ + 0.04);
 
   const panelW = Math.max(signW * 1.45, 1.0);
   const panelH = Math.max(signH * 1.9, 0.48);
@@ -1258,8 +1262,8 @@ function buildReceptionInterior(envGroup, opts) {
       envGroup.add(leaf);
     }
   };
-  makePlant(-counterW * 0.48, counterZ + counterD * 0.54, 0.9);
-  makePlant(counterW * 0.5, counterZ + counterD * 0.42, 0.78);
+  makePlant(-counterW * 0.5, counterZ + counterD * 0.55, 1.0);
+  makePlant(counterW * 0.52, counterZ + counterD * 0.44, 0.86);
 
   const ceiling = addBox(wallW, 0.06, wallW * 0.46, new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.82 }),
     0, wallH / 2 + 0.02, wallW * 0.22 - standoff);
@@ -2152,6 +2156,7 @@ export default function Prototipo() {
     // aseguramos de que envGroup quede vacio si se viene de otra escena.
     const envSig = scene === "foto" ? "foto" : !showFacade ? "none" : [
       scene, facadeStyle, material, wallPanelDir, wallPanelSize, finish, wallColor, night,
+      scene === "interior" ? "reception-v2" : "",
       facadeStyle === "esquina" ? buildingFloors : 0,
       facadeAuto ? "auto" : `${Math.round(facadeWidthM * 20)}x${Math.round(facadeHeightM * 20)}`,
       Math.round(realW * 4), Math.round(realH * 4), Math.round(standoff * 50),
