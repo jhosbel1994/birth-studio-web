@@ -1486,6 +1486,15 @@ const TOOLS = [
   { id: "volumen", icon: "depth", label: "Volumen" },
   { id: "ajustes", icon: "tune", label: "Ajustes" },
 ];
+const TOOL_DESCRIPTIONS = {
+  producto: "Tipo de letrero, cara, canto y material",
+  texto: "Texto, fuente, grosor y proporción",
+  medidas: "Tamaño real, escala y fachada",
+  fachada: "Foto, muro, material y ambientación",
+  luz: "Día, noche, LED y temperatura",
+  volumen: "Canto, separación y profundidad",
+  ajustes: "Detección y limpieza del logo",
+};
 
 const ZMIN = 0.45;
 const ZMAX = 5;
@@ -3370,17 +3379,36 @@ export default function Prototipo() {
           </div>
         </header>
 
-        <div style={{ ...s.body, ...(narrow ? { flexDirection: "column" } : {}) }}>
-          {/* Barra de herramientas */}
-          <nav style={{ ...s.rail, ...(narrow ? s.railNarrow : {}) }}>
-            {TOOLS.map((t) => (
-              <button key={t.id} onClick={() => setTool(t.id)} title={t.label}
-                style={{ ...s.tool, ...(narrow ? s.toolNarrow : {}), ...(tool === t.id ? s.toolOn : {}) }}>
-                <Icon name={t.icon} />
-                <span style={s.toolLabel}>{t.label}</span>
-              </button>
-            ))}
-          </nav>
+        <div style={{ ...s.body, ...(narrow ? s.bodyNarrow : {}) }}>
+          <aside style={{ ...s.controlDock, ...(narrow ? s.controlDockNarrow : {}) }}>
+            <div style={s.workflowHead}>
+              <span style={s.workflowEyebrow}>Configuración</span>
+              <strong style={s.workflowTitle}>Ajusta por bloques</strong>
+              <span style={s.workflowHint}>Cada botón abre solo las funciones relacionadas.</span>
+            </div>
+            <div style={s.accordion}>
+              {TOOLS.map((t) => {
+                const active = tool === t.id;
+                return (
+                  <section key={t.id} style={{ ...s.toolSection, ...(active ? s.toolSectionOn : {}) }}>
+                    <button type="button" onClick={() => setTool(t.id)} title={t.label} style={s.toolTrigger}>
+                      <span style={{ ...s.toolGlyph, ...(active ? s.toolGlyphOn : {}) }}>
+                        <Icon name={t.icon} />
+                      </span>
+                      <span style={s.toolCopy}>
+                        <span style={s.toolName}>{t.label}</span>
+                        <span style={s.toolDesc}>{TOOL_DESCRIPTIONS[t.id]}</span>
+                      </span>
+                      <span style={{ ...s.expandMark, ...(active ? s.expandMarkOn : {}) }}>
+                        {active ? "−" : "+"}
+                      </span>
+                    </button>
+                    {active && <div style={s.toolDrawer}>{panels[t.id]}</div>}
+                  </section>
+                );
+              })}
+            </div>
+          </aside>
 
           {/* Visor */}
           <main style={s.viewport}>
@@ -3414,8 +3442,6 @@ export default function Prototipo() {
             )}
           </main>
 
-          {/* Panel contextual */}
-          <aside style={{ ...s.props, ...(narrow ? s.propsNarrow : {}) }}>{panels[tool]}</aside>
         </div>
       </div>
     </div>
@@ -3425,18 +3451,18 @@ export default function Prototipo() {
 const s = {
   app: {
     display: "flex", flexDirection: "column", background: BLACK, borderRadius: 8,
-    overflow: "hidden", fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    overflow: "hidden", fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
     color: TXT, border: `1px solid ${LINE}`,
     boxShadow: "inset 0 1px 1px rgba(255,255,255,0.55), 0 18px 46px rgba(40,30,70,0.10)",
     backdropFilter: "blur(34px)", WebkitBackdropFilter: "blur(34px)",
   },
   top: {
     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14,
-    padding: "10px 12px", borderBottom: `1px solid ${LINE}`, background: PANEL, flexWrap: "wrap",
+    padding: "14px 16px", borderBottom: `1px solid ${LINE}`, background: "rgba(255,255,255,0.62)", flexWrap: "wrap",
   },
-  brand: { display: "flex", flexDirection: "column", gap: 1 },
-  brandMark: { color: TXT, fontWeight: 800, fontSize: 13, letterSpacing: 0 },
-  brandSub: { fontSize: 9, color: DIM },
+  brand: { display: "flex", flexDirection: "column", gap: 2 },
+  brandMark: { color: TXT, fontFamily: "'Barlow Condensed', 'DM Sans', sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 0, lineHeight: 1 },
+  brandSub: { fontSize: 11, color: DIM },
   topActions: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
   upload: {
     display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.58)",
@@ -3469,27 +3495,54 @@ const s = {
     boxShadow: "0 8px 18px rgba(198,0,16,0.20)",
   },
   btnOff: { opacity: 0.45, cursor: "not-allowed" },
-  body: { display: "flex", alignItems: "stretch", minHeight: 0 },
-  rail: {
-    display: "flex", flexDirection: "column", gap: 4, padding: 6,
-    borderRight: `1px solid ${LINE}`, background: PANEL, flexShrink: 0,
+  body: { display: "flex", alignItems: "stretch", minHeight: 0, background: "rgba(255,255,255,0.20)" },
+  bodyNarrow: { flexDirection: "column" },
+  controlDock: {
+    width: 330, flexShrink: 0, borderRight: `1px solid ${LINE}`, background: "rgba(255,255,255,0.48)",
+    padding: 12, overflowY: "auto", maxHeight: 610,
   },
-  railNarrow: {
-    flexDirection: "row", borderRight: "none", borderBottom: `1px solid ${LINE}`,
-    overflowX: "auto", width: "100%",
+  controlDockNarrow: {
+    width: "100%", borderRight: "none", borderBottom: `1px solid ${LINE}`, maxHeight: 430,
   },
-  tool: {
-    display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-    width: 48, padding: "6px 3px", background: "transparent", border: "1px solid transparent",
-    borderRadius: 8, color: DIM, cursor: "pointer",
+  workflowHead: {
+    padding: "4px 4px 12px", display: "flex", flexDirection: "column", gap: 3,
   },
-  toolNarrow: { flexShrink: 0 },
-  toolOn: { background: BLUE, borderColor: BLUE, color: "#fff", boxShadow: "0 6px 14px rgba(47,139,239,0.22)" },
-  toolLabel: { fontSize: 7.5, letterSpacing: 0, fontWeight: 700 },
+  workflowEyebrow: { fontSize: 9, color: RED, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0 },
+  workflowTitle: { fontSize: 15, color: TXT, lineHeight: 1.1 },
+  workflowHint: { fontSize: 10.5, color: DIM, lineHeight: 1.35 },
+  accordion: { display: "flex", flexDirection: "column", gap: 8 },
+  toolSection: {
+    border: `1px solid rgba(255,255,255,0.56)`, borderRadius: 8, background: "rgba(255,255,255,0.38)",
+    overflow: "hidden", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.62)",
+  },
+  toolSectionOn: {
+    background: "rgba(255,255,255,0.66)", borderColor: "rgba(47,139,239,0.28)",
+    boxShadow: "0 10px 22px rgba(38,42,80,0.08), inset 0 1px 0 rgba(255,255,255,0.72)",
+  },
+  toolTrigger: {
+    width: "100%", border: "none", background: "transparent", color: TXT, cursor: "pointer",
+    display: "grid", gridTemplateColumns: "34px 1fr 24px", alignItems: "center", gap: 8,
+    padding: "9px 9px", textAlign: "left",
+  },
+  toolGlyph: {
+    width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+    color: DIM, background: "rgba(255,255,255,0.56)", border: `1px solid ${LINE}`,
+  },
+  toolGlyphOn: { color: "#fff", background: BLUE, borderColor: BLUE },
+  toolCopy: { minWidth: 0, display: "flex", flexDirection: "column", gap: 1 },
+  toolName: { fontSize: 12, fontWeight: 800, color: TXT, lineHeight: 1.1 },
+  toolDesc: { fontSize: 9.5, color: DIM, lineHeight: 1.25, whiteSpace: "normal" },
+  expandMark: {
+    width: 22, height: 22, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+    color: DIM, background: "rgba(255,255,255,0.44)", border: `1px solid rgba(255,255,255,0.56)`,
+    fontSize: 16, lineHeight: 1, fontWeight: 700,
+  },
+  expandMarkOn: { color: BLUE, background: "rgba(47,139,239,0.10)", borderColor: "rgba(47,139,239,0.24)" },
+  toolDrawer: { padding: "0 10px 12px" },
   viewport: { flex: "1 1 auto", position: "relative", minWidth: 0, display: "flex", flexDirection: "column" },
-  canvasHost: { width: "100%", height: 520, background: "linear-gradient(135deg, #f6f8ff 0%, #fff4f8 100%)" },
+  canvasHost: { width: "100%", height: 560, background: "linear-gradient(135deg, #f7f9ff 0%, #fff4f8 100%)" },
   overlay: {
-    position: "absolute", top: 0, left: 0, right: 0, height: 520, display: "flex",
+    position: "absolute", top: 0, left: 0, right: 0, height: 560, display: "flex",
     flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5,
     pointerEvents: "none", fontSize: 13, color: "rgba(91,73,82,0.74)",
   },
@@ -3517,16 +3570,9 @@ const s = {
   spec: { background: "rgba(255,255,255,0.56)", padding: "7px 8px", display: "flex", flexDirection: "column", gap: 0, alignItems: "center" },
   specVal: { fontSize: 11, fontWeight: 700, color: TXT, whiteSpace: "nowrap" },
   specKey: { fontSize: 8, color: DIM, letterSpacing: 0 },
-  props: {
-    width: 208, flexShrink: 0, borderLeft: `1px solid ${LINE}`, background: PANEL,
-    padding: 11, overflowY: "auto", maxHeight: 570,
-  },
-  propsNarrow: {
-    width: "100%", borderLeft: "none", borderTop: `1px solid ${LINE}`, maxHeight: "none",
-  },
-  pTitle: { fontSize: 11.5, fontWeight: 700, color: TXT, marginBottom: 9 },
+  pTitle: { fontSize: 10.5, fontWeight: 800, color: TXT, marginBottom: 8 },
   pLabel: {
-    fontSize: 8, letterSpacing: 0.8, textTransform: "uppercase", color: RED,
+    fontSize: 8, letterSpacing: 0, textTransform: "uppercase", color: RED,
     fontWeight: 700, marginTop: 12, marginBottom: 5,
   },
   pHint: { fontSize: 9.5, color: DIM, lineHeight: 1.45, marginTop: 8 },
