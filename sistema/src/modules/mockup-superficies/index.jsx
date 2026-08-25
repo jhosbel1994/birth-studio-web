@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ImagePlus, LayoutGrid, Ruler, PenTool, Sparkles, SunMedium, Settings2, FilePlus2,
+  Send,
 } from 'lucide-react'
 import useSceneStore from './hooks/useSceneStore'
 import { subscribeEscenas, deleteEscena, deleteEscenaFoto } from './utils/firestore'
@@ -8,6 +10,7 @@ import SceneCanvas from './components/SceneCanvas'
 import ZoneEditor from './components/ZoneEditor'
 import DesignLayer from './components/DesignLayer'
 import { BUILTIN_TEMPLATES } from './data/templates'
+import { guardarMockupVitrinaParaPrototipo } from '../../utils/mockupVitrinaBridge'
 
 const HERRAMIENTAS = [
   { key: 'escena', label: 'Escena', icon: ImagePlus, disponibleSiempre: true },
@@ -48,6 +51,8 @@ function propsAcabado(value) {
 
 export default function MockupVitrina() {
   const fileInputRef = useRef(null)
+  const canvasRef = useRef(null)
+  const navigate = useNavigate()
   const [escenas, setEscenas] = useState([])
   const [herramienta, setHerramienta] = useState('escena')
   const [zonaActivaId, setZonaActivaId] = useState(null)
@@ -57,6 +62,7 @@ export default function MockupVitrina() {
   const [zoom, setZoom] = useState(1)
   const [mostrarGuias, setMostrarGuias] = useState(true)
   const [calidad, setCalidad] = useState('alta')
+  const [puenteOk, setPuenteOk] = useState(false)
   const {
     escena, cargandoFoto, guardando, error,
     subirFoto, setNombre, setEsPlantilla, guardar, cargarEscena, cargarComoPlantilla, nuevaEscena,
@@ -108,6 +114,27 @@ export default function MockupVitrina() {
     setZonaActivaId(null)
     setCapaActivaId(null)
     setHerramienta('escena')
+  }
+
+  const handleUsarEnPrototipo = () => {
+    setErrorListado(null)
+    const exportado = canvasRef.current?.exportImage?.({ type: 'image/jpeg', quality: 0.88, maxWidth: 1600 })
+    if (!exportado?.dataUrl) {
+      setErrorListado('No se pudo preparar el mockup final. Espera a que cargue la imagen e intenta otra vez.')
+      return
+    }
+    const ok = guardarMockupVitrinaParaPrototipo(exportado.dataUrl, {
+      nombre: escena.nombre || 'Mockup final vitrina',
+      w: exportado.w,
+      h: exportado.h,
+    })
+    if (!ok) {
+      setErrorListado('El navegador no pudo guardar el mockup final. Prueba con calidad rápida o una foto más liviana.')
+      return
+    }
+    setPuenteOk(true)
+    setTimeout(() => setPuenteOk(false), 2200)
+    navigate('/prototipo')
   }
 
   const handleCargar = (doc) => {
@@ -170,6 +197,11 @@ export default function MockupVitrina() {
         </div>
         <div className="flex items-center gap-2">
           {guardadoOk && <span className="text-xs font-dm text-secondary hidden sm:inline">Guardado.</span>}
+          {puenteOk && <span className="text-xs font-dm text-secondary hidden sm:inline">Enviado a Prototipo.</span>}
+          <button onClick={handleUsarEnPrototipo} disabled={!tieneFoto}
+            className="hidden sm:flex items-center gap-2 bg-secondary-container/80 text-on-secondary-container rounded-full px-4 py-2.5 text-sm font-dm font-medium hover:bg-secondary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            <Send size={15} /> Prototipo Logo
+          </button>
           <button onClick={handleGuardar} disabled={guardando}
             className="bg-primary text-on-primary rounded-full px-4 py-2.5 text-sm font-dm font-medium hover:bg-primary-container transition-colors disabled:opacity-50">
             {guardando ? 'Guardando…' : 'Guardar escena'}
@@ -212,6 +244,7 @@ export default function MockupVitrina() {
         {/* Canvas */}
         <div className="glass-panel rounded-2xl flex-1 min-h-[480px]">
           <SceneCanvas
+            ref={canvasRef}
             fotoUrl={escena.fotoUrl} fotoW={escena.fotoW} fotoH={escena.fotoH}
             zonas={escena.zonas} capas={escena.capas}
             herramienta={herramienta} zonaActivaId={zonaActivaId || zonaActiva?.id} capaActivaId={capaActivaId || capaActiva?.id}

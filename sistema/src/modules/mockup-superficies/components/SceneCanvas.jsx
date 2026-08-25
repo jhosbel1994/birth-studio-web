@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import { drawImageQuad, clipToPolygon } from '../utils/warpQuad'
 
 const COLOR_ZONA = { vidrio: '#0058bc', pared: '#bc000a' }
@@ -138,13 +138,13 @@ function renderCapa(ctx, base, img, capa, zona, fotoW, fotoH) {
 // edicion van en un <svg> superpuesto con viewBox = tamaño real de la foto,
 // asi las coordenadas de zonas/capas (en espacio-imagen) se plotean directo
 // sin matemática de escala manual.
-export default function SceneCanvas({
+const SceneCanvas = forwardRef(function SceneCanvas({
   fotoUrl, fotoW, fotoH, zonas = [], capas = [],
   herramienta, zonaActivaId, capaActivaId,
   zoom = 1, mostrarGuias = true, calidad = 'alta',
   onZoomChange,
   onZonaPuntoChange, onCapaPuntoChange,
-}) {
+}, ref) {
   const canvasRef = useRef(null)
   const svgRef = useRef(null)
   const dragRef = useRef(null)
@@ -192,6 +192,26 @@ export default function SceneCanvas({
 
   useEffect(() => { redrawRef.current = redraw }, [redraw])
   useEffect(() => { redraw() }, [redraw])
+
+  useImperativeHandle(ref, () => ({
+    exportImage({ type = 'image/jpeg', quality = 0.88, maxWidth = 1600 } = {}) {
+      const canvas = canvasRef.current
+      if (!canvas || !fotoUrl || !canvas.width || !canvas.height) return null
+      redrawRef.current?.()
+      if (!maxWidth || canvas.width <= maxWidth) {
+        return { dataUrl: canvas.toDataURL(type, quality), w: canvas.width, h: canvas.height }
+      }
+      const scale = maxWidth / canvas.width
+      const out = document.createElement('canvas')
+      out.width = Math.round(canvas.width * scale)
+      out.height = Math.round(canvas.height * scale)
+      const ctx = out.getContext('2d')
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(canvas, 0, 0, out.width, out.height)
+      return { dataUrl: out.toDataURL(type, quality), w: out.width, h: out.height }
+    },
+  }), [fotoUrl])
 
   const puntoDesdeEvento = useCallback((e) => {
     const svg = svgRef.current
@@ -309,4 +329,6 @@ export default function SceneCanvas({
       </div>
     </div>
   )
-}
+})
+
+export default SceneCanvas

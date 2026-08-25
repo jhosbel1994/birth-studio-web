@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import * as THREE from "three";
 import { guardarPrototipo } from "../utils/prototipoStore";
+import { obtenerMockupVitrinaParaPrototipo, limpiarMockupVitrinaParaPrototipo } from "../utils/mockupVitrinaBridge";
 
 const SRGB = THREE.SRGBColorSpace;
 
@@ -1382,12 +1383,13 @@ const FACE_COLORS = [
 /* ================================================================
    MARCA E ICONOS DE INTERFAZ
    ================================================================ */
-const RED = "#C0392B";
-const BLACK = "#0B0B0D";
-const PANEL = "#131316";
-const LINE = "#242429";
-const TXT = "#EDEDF0";
-const DIM = "#8A8A93";
+const RED = "#C60010";
+const BLUE = "#2F8BEF";
+const BLACK = "rgba(255,255,255,0.52)";
+const PANEL = "rgba(255,255,255,0.58)";
+const LINE = "rgba(255,255,255,0.64)";
+const TXT = "#171014";
+const DIM = "#6E5861";
 
 /* Iconos de trazo simple, un solo color, legibles a 20px. */
 function Icon({ name, size = 16 }) {
@@ -1487,6 +1489,7 @@ const TOOLS = [
 
 const ZMIN = 0.45;
 const ZMAX = 5;
+const FACADE_FIT_RATIO = 0.5;
 const clampZoom = (z) => Math.max(ZMIN, Math.min(ZMAX, z));
 
 export default function Prototipo() {
@@ -2436,6 +2439,52 @@ export default function Prototipo() {
     build();
   }, [threshold, build, setViewerZoom]);
 
+  const cargarFotoCanvas = useCallback((canvas, quality = 0.85) => {
+    const cw = canvas.width, ch = canvas.height;
+    S.current.photoTex?.dispose();
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = SRGB;
+    S.current.photoTex = tex;
+    setPhotoImg({ url: canvas.toDataURL("image/jpeg", quality), w: cw, h: ch });
+    setScene("foto");
+    setFacadeAuto(false);
+    setPhotoCalib(null); setCalibPts([]); setCalibrating(false);
+  }, []);
+
+  const cargarFotoDesdeDataUrl = useCallback((dataUrl, name = "Mockup final vitrina") => {
+    if (!dataUrl) return;
+    setErr(null); setBusy(true);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+        const longSide = 2000;
+        const scale = Math.min(1, longSide / Math.max(iw, ih));
+        const cw = Math.max(1, Math.round(iw * scale)), ch = Math.max(1, Math.round(ih * scale));
+        const c = document.createElement("canvas");
+        c.width = cw; c.height = ch;
+        c.getContext("2d").drawImage(img, 0, 0, cw, ch);
+        cargarFotoCanvas(c, 0.86);
+        setTool("medidas");
+        setErr(null);
+        S.current.bridgePhotoName = name;
+      } catch {
+        setErr("No se pudo abrir el mockup final como fachada.");
+      } finally {
+        setBusy(false);
+      }
+    };
+    img.onerror = () => { setErr("No se pudo abrir el mockup final como fachada."); setBusy(false); };
+    img.src = dataUrl;
+  }, [cargarFotoCanvas]);
+
+  useEffect(() => {
+    const payload = obtenerMockupVitrinaParaPrototipo();
+    if (!payload?.dataUrl) return;
+    cargarFotoDesdeDataUrl(payload.dataUrl, payload.nombre);
+    limpiarMockupVitrinaParaPrototipo();
+  }, [cargarFotoDesdeDataUrl]);
+
   // -- Foto real de la fachada --
   // Se lee con FileReader/dataURL (no URL.createObjectURL: los blob URL
   // se bloquean por CSP en algunos contextos embebidos) y se corrige la
@@ -2476,18 +2525,13 @@ export default function Prototipo() {
       // lista en S.current cuando el proximo build() (disparado por el
       // cambio de estado de abajo) la necesite — evita tener que cargarla
       // de forma asincrona dentro de build().
-      S.current.photoTex?.dispose();
-      const tex = new THREE.CanvasTexture(c);
-      tex.colorSpace = SRGB;
-      S.current.photoTex = tex;
-      setPhotoImg({ url: c.toDataURL("image/jpeg", 0.85), w: cw, h: ch });
-      setPhotoCalib(null); setCalibPts([]); setCalibrating(false);
+      cargarFotoCanvas(c, 0.85);
     } catch {
       setErr("No se pudo abrir la foto.");
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [cargarFotoCanvas]);
 
   const loadFromDataUrl = useCallback((dataUrl, name) => {
     setBusy(true);
@@ -2663,6 +2707,21 @@ export default function Prototipo() {
     setMaterial(id);
     if (id === "madera" && finish !== "madera") { setFinish("madera"); setWallColor("#8b5e3c"); }
   };
+
+  const ajustarLetreroAFachada = useCallback((ratio = FACADE_FIT_RATIO) => {
+    const aspect = Math.max(0.12, anchoM / Math.max(0.12, altoM));
+    const maxW = Math.max(0.2, facadeWidthM * ratio);
+    const maxH = Math.max(0.2, facadeHeightM * ratio);
+    let nextW = maxW;
+    let nextH = nextW / aspect;
+    if (nextH > maxH) {
+      nextH = maxH;
+      nextW = nextH * aspect;
+    }
+    setAnchoM(Number(nextW.toFixed(2)));
+    setAltoM(Number(nextH.toFixed(2)));
+    setFacadeAuto(false);
+  }, [anchoM, altoM, facadeWidthM, facadeHeightM]);
 
   // Toma los 2 puntos de calibracion (ya en metros del mundo 3D, medidos
   // por raycasting) y la medida real ingresada -> factor de escala.
@@ -2906,7 +2965,7 @@ export default function Prototipo() {
             if (neededW <= anchoM * 1.01) return null;
             const pct = Math.max(1, Math.round((anchoM / neededW) * 100));
             return (
-              <div style={{ ...s.note, borderColor: "#5a4418", color: "#e0c88c" }}>
+              <div style={{ ...s.note, ...s.warnNote }}>
                 A esta altura de letra el texto necesita {neededW.toFixed(2)} m de ancho,
                 pero la fachada tiene {anchoM.toFixed(2)} m — se ajustó para que entre
                 (queda al {pct}% del tamaño pedido). Sube el Ancho o baja el Alto si lo
@@ -2915,13 +2974,13 @@ export default function Prototipo() {
             );
           })()}
           {!whLocked && textAspect && Math.abs(relScale - 1) > 0.02 && (
-            <div style={{ ...s.note, borderColor: deformFuerte ? "#5a4418" : LINE, color: deformFuerte ? "#e0c88c" : DIM }}>
+            <div style={{ ...s.note, ...(deformFuerte ? s.warnNote : {}) }}>
               Texto {relScale < 1 ? "condensado" : "extendido"} al {deformPct}% respecto a su proporción natural.
               {deformFuerte && " Deformación fuerte: el trazo queda más fino de lo normal y puede verse mal fabricado."}
             </div>
           )}
           {demasiadoChica && !textAsLightbox && (
-            <div style={{ ...s.note, borderColor: "#5a2020", color: "#e89088" }}>
+            <div style={{ ...s.note, ...s.dangerNote }}>
               A {letterHcm.toFixed(1)} cm de alto la letra no se puede fabricar como corpórea: el canto
               mínimo (4 cm) casi no deja espacio para el LED. Se puede convertir a una caja de luz
               rectangular con este mismo texto impreso.
@@ -2989,12 +3048,12 @@ export default function Prototipo() {
             </div>
           </div>
           {trazoMm < 20 ? (
-            <div style={{ ...s.note, borderColor: "#5a1a1a", color: "#F0A79C" }}>
+            <div style={{ ...s.note, ...s.dangerNote }}>
               Trazo menor a 20 mm: no es fabricable como letra corpórea a esta medida.
               Sube el grosor o agranda el letrero.
             </div>
           ) : trazoMm < 30 ? (
-            <div style={{ ...s.note, borderColor: "#5a4418", color: "#e0c88c" }}>
+            <div style={{ ...s.note, ...s.warnNote }}>
               Trazo bajo 30 mm: fabricable, pero encarece el armado.
             </div>
           ) : null}
@@ -3027,6 +3086,17 @@ export default function Prototipo() {
           <Field label="Ancho" value={anchoM} onChange={setAnchoM} />
           <Field label="Alto" value={altoM} onChange={setAltoM} />
         </div>
+        <div style={s.actionGrid}>
+          <button type="button" onClick={() => ajustarLetreroAFachada(FACADE_FIT_RATIO)}
+            style={{ ...s.flatBtn, width: "100%" }}>
+            Ajustar al 50% de fachada
+          </button>
+          <label style={{ ...s.flatBtn, ...s.labelBtn, width: "100%" }}>
+            <Icon name="upload" size={13} /> Subir fachada
+            <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+              onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
+          </label>
+        </div>
         {(() => {
           const m = panelMetrics(anchoM, altoM);
           return (
@@ -3039,8 +3109,8 @@ export default function Prototipo() {
           );
         })()}
         <div style={s.pHint}>
-          Sobre {LIMITE_1A1_CM} cm se dibuja a escala 1:10. El logo se ajusta dentro
-          de las medidas sin deformarse.
+          Sobre {LIMITE_1A1_CM} cm se dibuja a escala 1:10. El ajuste recomendado deja el letrero
+          en torno al 50% de la fachada para que no se vea desproporcionado.
         </div>
       </>
     ),
@@ -3071,7 +3141,7 @@ export default function Prototipo() {
               </div>
             ) : (
               <>
-                <div style={{ ...s.note, borderColor: "#5a4418", color: "#e0c88c" }}>
+                <div style={{ ...s.note, ...s.warnNote }}>
                   Sin calibrar: el tamaño del letrero sobre la foto es aproximado.
                 </div>
                 {!calibrating ? (
@@ -3088,7 +3158,7 @@ export default function Prototipo() {
                       <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                         <input type="number" step="0.01" min="0.01" value={calibInputM}
                           onChange={(e) => setCalibInputM(e.target.value)}
-                          placeholder="metros" style={{ ...s.fieldInput, background: "#1A1A1E", border: `1px solid ${LINE}`, borderRadius: 5, padding: "4px 6px", width: 70 }} />
+                          placeholder="metros" style={{ ...s.fieldInput, background: "rgba(255,255,255,0.55)", border: `1px solid ${LINE}`, borderRadius: 8, padding: "5px 7px", width: 70 }} />
                         <button onClick={aplicarCalibracion} style={{ ...s.flatBtn, flex: 1 }}>Aplicar</button>
                       </div>
                     )}
@@ -3129,13 +3199,20 @@ export default function Prototipo() {
                 <Seg items={[{ id: "auto", label: "Automática" }, { id: "manual", label: "Personalizada" }]}
                   value={facadeAuto ? "auto" : "manual"} onPick={(o) => setFacadeAuto(o.id === "auto")} />
                 {facadeAuto ? (
-                  <div style={s.pHint}>El ancho del local se calcula solo, a partir del tamaño del letrero.</div>
+                  <div style={s.pHint}>
+                    El ancho del local se calcula solo, a partir del tamaño del letrero. Si quieres controlar
+                    proporción real, usa Personalizada y ajusta al 50%.
+                  </div>
                 ) : (
                   <>
                     <div style={s.fields}>
                       <Field label="Ancho" value={facadeWidthM} onChange={setFacadeWidthM} />
                       <Field label="Alto" value={facadeHeightM} onChange={setFacadeHeightM} />
                     </div>
+                    <button type="button" onClick={() => ajustarLetreroAFachada(FACADE_FIT_RATIO)}
+                      style={{ ...s.flatBtn, width: "100%", marginTop: 7 }}>
+                      Ajustar letrero al 50%
+                    </button>
                     <div style={s.pHint}>Medida real del muro donde va el letrero — el local se construye a este tamaño, no al revés.</div>
                     {info && (() => {
                       const pctW = Math.round((info.realW / facadeWidthM) * 100);
@@ -3143,7 +3220,7 @@ export default function Prototipo() {
                       const pct = Math.max(pctW, pctH);
                       if (pct > 100) {
                         return (
-                          <div style={{ ...s.note, borderColor: "#5a2020", color: "#e89088" }}>
+                          <div style={{ ...s.note, ...s.dangerNote }}>
                             El letrero ({info.realW.toFixed(2)}×{info.realH.toFixed(2)} m) no entra en esta
                             fachada ({facadeWidthM.toFixed(2)}×{facadeHeightM.toFixed(2)} m). Tamaño máximo que
                             cabe: {pctW > 100 ? `${facadeWidthM.toFixed(2)} m de ancho` : ""}
@@ -3154,8 +3231,16 @@ export default function Prototipo() {
                       }
                       if (pct > 80) {
                         return (
-                          <div style={{ ...s.note, borderColor: "#5a4418", color: "#e0c88c" }}>
-                            Justo: el letrero ocupa {pct}% de la fachada, casi sin aire a los costados.
+                          <div style={{ ...s.note, ...s.warnNote }}>
+                            Muy grande: el letrero ocupa {pct}% de la fachada. Recomendado: 50% o menos
+                            para que respire y se vea profesional.
+                          </div>
+                        );
+                      }
+                      if (pct > 50) {
+                        return (
+                          <div style={{ ...s.note, ...s.warnNote }}>
+                            Ojo: el letrero ocupa {pct}% de la fachada. Está dentro, pero el sistema recomienda 50%.
                           </div>
                         );
                       }
@@ -3205,7 +3290,7 @@ export default function Prototipo() {
           {LED_COLORS.map((c) => (
             <button key={c.hex} title={c.name} onClick={() => setLedColor(c.hex)}
               style={{ ...s.swatch, background: c.hex,
-                outline: ledColor === c.hex ? `2px solid ${RED}` : "1px solid #2e2e32", outlineOffset: 2 }} />
+                outline: ledColor === c.hex ? `2px solid ${RED}` : "1px solid rgba(80,50,70,0.18)", outlineOffset: 2 }} />
           ))}
         </div>
       </>
@@ -3339,47 +3424,54 @@ export default function Prototipo() {
 
 const s = {
   app: {
-    display: "flex", flexDirection: "column", background: BLACK, borderRadius: 14,
+    display: "flex", flexDirection: "column", background: BLACK, borderRadius: 8,
     overflow: "hidden", fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     color: TXT, border: `1px solid ${LINE}`,
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.55), 0 18px 46px rgba(40,30,70,0.10)",
+    backdropFilter: "blur(34px)", WebkitBackdropFilter: "blur(34px)",
   },
   top: {
     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14,
-    padding: "8px 12px", borderBottom: `1px solid ${LINE}`, background: PANEL, flexWrap: "wrap",
+    padding: "10px 12px", borderBottom: `1px solid ${LINE}`, background: PANEL, flexWrap: "wrap",
   },
   brand: { display: "flex", flexDirection: "column", gap: 1 },
-  brandMark: { color: TXT, fontWeight: 700, fontSize: 13, letterSpacing: 0.3 },
+  brandMark: { color: TXT, fontWeight: 800, fontSize: 13, letterSpacing: 0 },
   brandSub: { fontSize: 9, color: DIM },
   topActions: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
   upload: {
-    display: "flex", alignItems: "center", gap: 7, background: "#1A1A1E",
-    border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", color: TXT,
+    display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.58)",
+    border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 10px", cursor: "pointer", color: TXT,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.65)",
   },
   uploadTxt: { fontSize: 10.5, fontWeight: 500, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   flatBtn: {
-    background: "transparent", border: `1px solid ${LINE}`, color: DIM,
-    borderRadius: 6, padding: "5px 9px", fontSize: 10, cursor: "pointer",
+    background: "rgba(255,255,255,0.52)", border: `1px solid ${LINE}`, color: TXT,
+    borderRadius: 8, padding: "7px 10px", fontSize: 10, cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
   },
-  divider: { width: 1, height: 18, background: LINE },
+  labelBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6 },
+  actionGrid: { display: "grid", gridTemplateColumns: "1fr", gap: 6, marginTop: 8 },
+  divider: { width: 1, height: 18, background: "rgba(80,50,70,0.14)" },
   iconBtn: {
-    background: "transparent", border: `1px solid ${LINE}`, color: DIM,
-    borderRadius: 6, padding: 5, cursor: "pointer", display: "flex",
+    background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`, color: DIM,
+    borderRadius: 8, padding: 6, cursor: "pointer", display: "flex",
   },
-  iconBtnOn: { borderColor: RED, background: "#1E1211", color: TXT },
+  iconBtnOn: { borderColor: "rgba(198,0,16,0.42)", background: "rgba(198,0,16,0.08)", color: RED },
   secondaryBtn: {
-    display: "flex", alignItems: "center", gap: 7, background: "transparent",
-    border: `1px solid ${RED}`, color: "#F0A79C", borderRadius: 6, padding: "6px 10px",
+    display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.48)",
+    border: `1px solid rgba(198,0,16,0.34)`, color: RED, borderRadius: 8, padding: "7px 10px",
     fontSize: 10.5, fontWeight: 600, cursor: "pointer",
   },
-  secondaryBtnOk: { background: "#12301C", borderColor: "#2f9e44", color: "#8CE0A6" },
+  secondaryBtnOk: { background: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.35)", color: "#137333" },
   primaryBtn: {
     display: "flex", alignItems: "center", gap: 7, background: RED, border: "none",
-    color: "#fff", borderRadius: 6, padding: "6px 10px", fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+    color: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 10.5, fontWeight: 700, cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(198,0,16,0.20)",
   },
   btnOff: { opacity: 0.45, cursor: "not-allowed" },
   body: { display: "flex", alignItems: "stretch", minHeight: 0 },
   rail: {
-    display: "flex", flexDirection: "column", gap: 2, padding: 5,
+    display: "flex", flexDirection: "column", gap: 4, padding: 6,
     borderRight: `1px solid ${LINE}`, background: PANEL, flexShrink: 0,
   },
   railNarrow: {
@@ -3389,40 +3481,42 @@ const s = {
   tool: {
     display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
     width: 48, padding: "6px 3px", background: "transparent", border: "1px solid transparent",
-    borderRadius: 7, color: DIM, cursor: "pointer",
+    borderRadius: 8, color: DIM, cursor: "pointer",
   },
   toolNarrow: { flexShrink: 0 },
-  toolOn: { background: "#1E1211", borderColor: RED, color: TXT },
-  toolLabel: { fontSize: 7.5, letterSpacing: 0.1, fontWeight: 600 },
+  toolOn: { background: BLUE, borderColor: BLUE, color: "#fff", boxShadow: "0 6px 14px rgba(47,139,239,0.22)" },
+  toolLabel: { fontSize: 7.5, letterSpacing: 0, fontWeight: 700 },
   viewport: { flex: "1 1 auto", position: "relative", minWidth: 0, display: "flex", flexDirection: "column" },
-  canvasHost: { width: "100%", height: 520, background: "#08080A" },
+  canvasHost: { width: "100%", height: 520, background: "linear-gradient(135deg, #f6f8ff 0%, #fff4f8 100%)" },
   overlay: {
     position: "absolute", top: 0, left: 0, right: 0, height: 520, display: "flex",
     flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5,
-    pointerEvents: "none", fontSize: 13, color: "#6A6A72",
+    pointerEvents: "none", fontSize: 13, color: "rgba(91,73,82,0.74)",
   },
-  emptyTitle: { fontSize: 15, color: "#7A7A84", fontWeight: 600 },
-  emptyText: { fontSize: 12, color: "#4D4D55" },
+  emptyTitle: { fontSize: 15, color: TXT, fontWeight: 700 },
+  emptyText: { fontSize: 12, color: DIM },
   errBar: {
     position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
-    background: "rgba(192,57,43,0.14)", border: `1px solid ${RED}`, color: "#F0A79C",
+    background: "rgba(255,247,247,0.92)", border: `1px solid rgba(198,0,16,0.35)`, color: RED,
     fontSize: 11.5, padding: "7px 14px", borderRadius: 8, maxWidth: "80%",
+    boxShadow: "0 10px 24px rgba(80,30,40,0.14)",
   },
   zoomBar: {
     position: "absolute", top: 12, right: 12, display: "flex", alignItems: "center", gap: 4,
-    background: "rgba(11,11,13,0.86)", border: `1px solid ${LINE}`, borderRadius: 7, padding: 3,
+    background: "rgba(255,255,255,0.82)", border: `1px solid ${LINE}`, borderRadius: 8, padding: 3,
+    boxShadow: "0 10px 26px rgba(30,20,50,0.12)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
   },
-  zBtn: { background: "transparent", border: "none", color: DIM, borderRadius: 5, padding: 4, cursor: "pointer", display: "flex" },
-  zBtnOn: { background: "#1E1211", color: RED },
+  zBtn: { background: "transparent", border: "none", color: DIM, borderRadius: 7, padding: 4, cursor: "pointer", display: "flex" },
+  zBtnOn: { background: "rgba(198,0,16,0.08)", color: RED },
   zVal: { fontSize: 9.5, color: TXT, minWidth: 34, textAlign: "center", fontVariantNumeric: "tabular-nums" },
-  zSep: { width: 1, height: 18, background: LINE, margin: "0 2px" },
+  zSep: { width: 1, height: 18, background: "rgba(80,50,70,0.14)", margin: "0 2px" },
   specs: {
     display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1,
-    background: LINE, borderTop: `1px solid ${LINE}`,
+    background: "rgba(80,50,70,0.08)", borderTop: `1px solid ${LINE}`,
   },
-  spec: { background: PANEL, padding: "6px 8px", display: "flex", flexDirection: "column", gap: 0, alignItems: "center" },
+  spec: { background: "rgba(255,255,255,0.56)", padding: "7px 8px", display: "flex", flexDirection: "column", gap: 0, alignItems: "center" },
   specVal: { fontSize: 11, fontWeight: 700, color: TXT, whiteSpace: "nowrap" },
-  specKey: { fontSize: 8, color: DIM, letterSpacing: 0.2 },
+  specKey: { fontSize: 8, color: DIM, letterSpacing: 0 },
   props: {
     width: 208, flexShrink: 0, borderLeft: `1px solid ${LINE}`, background: PANEL,
     padding: 11, overflowY: "auto", maxHeight: 570,
@@ -3432,34 +3526,36 @@ const s = {
   },
   pTitle: { fontSize: 11.5, fontWeight: 700, color: TXT, marginBottom: 9 },
   pLabel: {
-    fontSize: 8, letterSpacing: 1.1, textTransform: "uppercase", color: RED,
+    fontSize: 8, letterSpacing: 0.8, textTransform: "uppercase", color: RED,
     fontWeight: 700, marginTop: 12, marginBottom: 5,
   },
-  pHint: { fontSize: 9.5, color: "#6A6A72", lineHeight: 1.45, marginTop: 8 },
+  pHint: { fontSize: 9.5, color: DIM, lineHeight: 1.45, marginTop: 8 },
   note: {
     marginTop: 7, fontSize: 9.5, color: DIM, lineHeight: 1.45,
-    background: "#0E0E11", border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px",
+    background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 8px",
   },
+  warnNote: { borderColor: "rgba(217,147,32,0.36)", color: "#7A4F00", background: "rgba(255,248,231,0.76)" },
+  dangerNote: { borderColor: "rgba(198,0,16,0.34)", color: RED, background: "rgba(255,247,247,0.82)" },
   seg: { display: "grid", gap: 3 },
   segBtn: {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-    background: "#1A1A1E", border: `1px solid ${LINE}`, color: "#B4B4BC",
-    borderRadius: 5, padding: "5px 4px", fontSize: 9.5, cursor: "pointer", lineHeight: 1.15,
+    background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`, color: TXT,
+    borderRadius: 8, padding: "6px 5px", fontSize: 9.5, cursor: "pointer", lineHeight: 1.15,
   },
-  segOn: { borderColor: RED, background: "#1E1211", color: "#fff", fontWeight: 600 },
+  segOn: { borderColor: BLUE, background: "rgba(47,139,239,0.13)", color: "#0755B8", fontWeight: 700 },
   dot: { width: 7, height: 7, borderRadius: "50%", flexShrink: 0, border: "1px solid rgba(255,255,255,0.25)" },
   stack: { display: "flex", flexDirection: "column", gap: 3 },
   card: {
-    display: "flex", flexDirection: "column", gap: 2, background: "#1A1A1E",
-    border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px",
-    textAlign: "left", cursor: "pointer", color: "#C8C8D0", width: "100%",
+    display: "flex", flexDirection: "column", gap: 2, background: "rgba(255,255,255,0.48)",
+    border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 8px",
+    textAlign: "left", cursor: "pointer", color: TXT, width: "100%",
   },
-  cardOn: { borderColor: RED, background: "#1E1211", color: "#fff" },
+  cardOn: { borderColor: RED, background: "rgba(198,0,16,0.08)", color: TXT },
   cardTitle: { fontSize: 10.5, fontWeight: 600 },
-  cardDesc: { fontSize: 8.5, color: "#7D7D86" },
+  cardDesc: { fontSize: 8.5, color: DIM },
   fields: { display: "flex", gap: 6 },
   readout: {
-    marginTop: 9, background: "#0E0E11", border: `1px solid ${LINE}`,
+    marginTop: 9, background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`,
     borderRadius: 8, padding: "8px 10px",
   },
   readLine: {
@@ -3467,26 +3563,26 @@ const s = {
     fontSize: 9, color: DIM, padding: "2px 0",
   },
   field: {
-    flex: 1, display: "flex", alignItems: "center", gap: 4, background: "#1A1A1E",
-    border: `1px solid ${LINE}`, borderRadius: 5, padding: "4px 6px",
+    flex: 1, display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.55)",
+    border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 7px",
   },
-  fieldLabel: { fontSize: 8.5, color: "#7D7D86", whiteSpace: "nowrap" },
-  fieldInput: { flex: 1, width: "100%", minWidth: 0, background: "transparent", border: "none", color: "#fff", fontSize: 11, fontWeight: 600, outline: "none" },
+  fieldLabel: { fontSize: 8.5, color: DIM, whiteSpace: "nowrap" },
+  fieldInput: { flex: 1, width: "100%", minWidth: 0, background: "transparent", border: "none", color: TXT, fontSize: 11, fontWeight: 700, outline: "none" },
   textarea: {
-    width: "100%", boxSizing: "border-box", background: "#1A1A1E", border: `1px solid ${LINE}`,
-    borderRadius: 6, padding: "8px 9px", color: "#fff", fontSize: 12, fontWeight: 600,
+    width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.55)", border: `1px solid ${LINE}`,
+    borderRadius: 8, padding: "8px 9px", color: TXT, fontSize: 12, fontWeight: 700,
     fontFamily: "inherit", resize: "vertical", outline: "none", lineHeight: 1.35,
   },
-  fieldUnit: { fontSize: 8.5, color: "#6E6E76" },
+  fieldUnit: { fontSize: 8.5, color: DIM },
   colorRow: {
-    display: "flex", alignItems: "center", gap: 8, marginTop: 8, background: "#1A1A1E",
-    border: `1px solid ${LINE}`, borderRadius: 5, padding: "4px 6px", cursor: "pointer",
+    display: "flex", alignItems: "center", gap: 8, marginTop: 8, background: "rgba(255,255,255,0.55)",
+    border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 7px", cursor: "pointer",
   },
   colorInput: { width: 24, height: 18, border: "none", background: "transparent", cursor: "pointer", padding: 0 },
   slider: { marginBottom: 10 },
-  sliderHead: { display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "#9A9AA2", marginBottom: 4 },
+  sliderHead: { display: "flex", justifyContent: "space-between", fontSize: 9.5, color: DIM, marginBottom: 4 },
   sliderVal: { color: TXT, fontVariantNumeric: "tabular-nums" },
-  range: { width: "100%", accentColor: RED },
+  range: { width: "100%", accentColor: BLUE },
   swatches: { display: "flex", gap: 7, paddingLeft: 1 },
   swatch: { width: 17, height: 17, borderRadius: "50%", border: "none", cursor: "pointer", padding: 0 },
 };
