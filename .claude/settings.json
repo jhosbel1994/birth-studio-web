@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(command -v chromium-cli)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(node --experimental-specifier-resolution=node scratch-test-costeo.mjs)",
+      "Bash(sed -i \"s#from './src/utils/costeoLetrasCalc.js'#from './scratch-esm-test/src/utils/costeoLetrasCalc.js'#\" scratch-test-costeo.mjs)",
+      "Bash(sed -i \"s#from './src/utils/nestingLetras.js'#from './scratch-esm-test/src/utils/nestingLetras.js'#\" scratch-test-costeo.mjs)",
+      "Bash(sed -i \"s#from './src/data/costeoLetras.js'#from './scratch-esm-test/src/data/costeoLetras.js'#\" scratch-test-costeo.mjs)",
+      "Bash(node scratch-test-costeo.mjs)",
+      "Bash(git restore *)",
+      "Bash(git clean *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5173/cotizador/src/utils/costeoLetrasCalc.js)",
+      "Read(//tmp/**)",
+      "Bash(git commit -m ' *)",
+      "mcp__claude_ai_Vercel__list_teams",
+      "Bash(curl -s -D - https://bspublicidad.cl/cotizador/ -o /tmp/live-cotizador.html)",
+      "Bash(curl -sL https://bspublicidad.cl/cotizador/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{url_effective}\\\\n\" -L https://bspublicidad.cl/cotizador/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} content-type=%{content_type}\\\\n\" https://www.bspublicidad.cl/cotizador/assets/index-DoPRC-y7.js)",
+      "Bash(curl -s https://www.bspublicidad.cl/cotizador/assets/index-DoPRC-y7.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -L https://bspublicidad.cl/)",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__claude_ai_Vercel__list_deployments",
+      "mcp__claude_ai_Vercel__get_runtime_errors",
+      "Bash(pkill -f \"vite\")",
+      "Bash(npm run *)",
+      "Bash(node --check --input-type=module)",
+      "Bash(curl -s http://localhost:4173/index.html -o /tmp/served.html)",
+      "Bash(curl -sv http://localhost:4173/index.html -o /tmp/served2.html)",
+      "Bash(curl -sf http://localhost:4173/ -o /dev/null)",
+      "Bash(node -e ' *)",
+      "Bash(node --check js/form.js)",
+      "Bash(node -e \"const fs=require\\('fs'\\); const c=fs.readFileSync\\('css/styles.css','utf8'\\); console.log\\(\\(c.match\\(/\\\\{/g\\)||[]\\).length,\\(c.match\\(/\\\\}/g\\)||[]\\).length\\);\")",
+      "Bash(pkill -f \"serve -l 4173\")",
+      "Bash(curl -sf http://localhost:5180/cotizador/ -o /tmp/index.html)"
+    ]
+  }
+}

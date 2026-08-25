@@ -13,7 +13,9 @@
       "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Jhosbel ecophonecl\\\\Documents\\\\acm-logistica\\\\css\")",
       "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Jhosbel ecophonecl\\\\Documents\\\\acm-logistica\\\\js\")",
       "Read(//c/Users/Jhosbel ecophonecl/Documents/**)",
-      "Bash(findstr /i \"acm\")"
+      "Bash(findstr /i \"acm\")",
+      "Bash(curl -sI \"https://bspublicidad.cl/\")",
+      "Bash(curl -sI \"https://www.bspublicidad.cl/\")"
     ]
   }
 }

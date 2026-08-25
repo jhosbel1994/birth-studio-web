@@ -2229,13 +2229,27 @@ export default function Prototipo() {
         box.castShadow = true; box.receiveShadow = true;
         plane.add(box);
       } else if (kind === "letters") {
-        for (let i = 3; i >= 1; i--) {
-          const back = new THREE.Mesh(
+        // Cuerpo corpóreo real: el canto (grosor lateral) sigue el slider
+        // "Canto" del panel Volumen. Apilamos la silueta del logo hacia
+        // atrás en -Z para que el borde se lea como el canto de una letra
+        // fabricada, teñido con el color de canto elegido (más oscuro para
+        // que el lateral quede sombreado como en un render real).
+        const cantoM = depth; // 4–12 cm, tomado del slider Canto
+        const cantoBase = new THREE.Color(edgeColor);
+        const layers = Math.max(8, Math.min(26, Math.round(cantoM * 200)));
+        for (let i = layers; i >= 1; i--) {
+          const t = i / layers; // 1 = capa más profunda (contra el muro)
+          // Degradado de sombra: el fondo del canto va más oscuro.
+          const cantoCol = cantoBase.clone().multiplyScalar(0.45 + 0.2 * (1 - t));
+          const side = new THREE.Mesh(
             new THREE.PlaneGeometry(w, h),
-            new THREE.MeshBasicMaterial({ map: texExtra, transparent: true, opacity: 0.12 * i, color: 0x0b0b0b, side: THREE.DoubleSide })
+            new THREE.MeshBasicMaterial({
+              map: texExtra, transparent: true, color: cantoCol,
+              side: THREE.DoubleSide, depthWrite: true,
+            })
           );
-          back.position.set(0.018 * i, -0.018 * i, -0.018 * i);
-          plane.add(back);
+          side.position.z = -cantoM * t;
+          plane.add(side);
         }
       }
       const art = new THREE.Mesh(
@@ -2245,15 +2259,9 @@ export default function Prototipo() {
       art.position.z = kind === "lightbox" ? 0.012 : 0;
       art.userData.placementId = item.id;
       plane.add(art);
-      if (activePlacementId === item.id) {
-        const border = new THREE.Mesh(
-          new THREE.PlaneGeometry(w * 1.06, h * 1.12),
-          new THREE.MeshBasicMaterial({ color: 0x2f8bef, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
-        );
-        border.position.z = 0.018;
-        border.userData.placementId = item.id;
-        plane.add(border);
-      }
+      // Sin recuadro azul de selección en la escena: el logo activo ya se
+      // resalta en la lista lateral "En el mockup". Un overlay en 3D solo
+      // ensuciaba la vista del letrero.
       rig.add(plane);
       extraTargets.push(plane);
     });
@@ -2855,7 +2863,7 @@ export default function Prototipo() {
     dataUrl: asset.dataUrl,
     aspect: asset.aspect || 1.8,
     surface,
-    kind: "original",
+    kind: "letters", // Corpórea por defecto: el canto se ve de una vez
     boxForm: "rect",
     orientation: surface === "side" ? "left90" : "front",
     ...surfaceDefaults(surface, idx, total),
