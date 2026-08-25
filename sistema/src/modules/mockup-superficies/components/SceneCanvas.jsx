@@ -198,18 +198,25 @@ const SceneCanvas = forwardRef(function SceneCanvas({
       const canvas = canvasRef.current
       if (!canvas || !fotoUrl || !canvas.width || !canvas.height) return null
       redrawRef.current?.()
-      if (!maxWidth || canvas.width <= maxWidth) {
-        return { dataUrl: canvas.toDataURL(type, quality), w: canvas.width, h: canvas.height }
+      // toDataURL lanza SecurityError si el canvas quedó "tainted" (alguna
+      // imagen remota sin CORS). Lo capturamos para NO morir en silencio:
+      // devolvemos null y el llamador muestra un mensaje claro.
+      try {
+        if (!maxWidth || canvas.width <= maxWidth) {
+          return { dataUrl: canvas.toDataURL(type, quality), w: canvas.width, h: canvas.height }
+        }
+        const scale = maxWidth / canvas.width
+        const out = document.createElement('canvas')
+        out.width = Math.round(canvas.width * scale)
+        out.height = Math.round(canvas.height * scale)
+        const ctx = out.getContext('2d')
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        ctx.drawImage(canvas, 0, 0, out.width, out.height)
+        return { dataUrl: out.toDataURL(type, quality), w: out.width, h: out.height }
+      } catch {
+        return null
       }
-      const scale = maxWidth / canvas.width
-      const out = document.createElement('canvas')
-      out.width = Math.round(canvas.width * scale)
-      out.height = Math.round(canvas.height * scale)
-      const ctx = out.getContext('2d')
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(canvas, 0, 0, out.width, out.height)
-      return { dataUrl: out.toDataURL(type, quality), w: out.width, h: out.height }
     },
   }), [fotoUrl])
 

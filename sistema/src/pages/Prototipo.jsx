@@ -2775,6 +2775,19 @@ export default function Prototipo() {
       helper.position.set(sign.position.x, -2.2, sign.position.z);
       rig.add(helper);
       frameTarget = helper;
+    } else if (scene === "foto" && !imageData) {
+      // Foto de fachada sin logo (ej. traída desde Mockup Vitrina): sin un
+      // letrero que encuadrar, la cámara quedaba fuera y la foto no se veía.
+      // Encuadramos un marco invisible del tamaño del área de trabajo para
+      // que la foto llene el cuadro; luego el usuario coloca su logo encima.
+      const fw = Math.max(realW, 0.6), fh = Math.max(realH, 0.6);
+      const helper = new THREE.Mesh(
+        new THREE.PlaneGeometry(fw, fh),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      );
+      helper.position.set(sign.position.x, sign.position.y, 0);
+      rig.add(helper);
+      frameTarget = helper;
     }
     S.current.frameTarget = frameTarget; S.current.fill = fill;
     S.current.lastInfo = { realW, realH };
