@@ -2090,33 +2090,36 @@ input, textarea, select {
    HOME REFRESH 2026 — estilo claro + foco en cotización
 ═══════════════════════════════════════════════════════ */
 :root {
-    --home-bg: #f3f6ff;
-    --home-bg-2: #fdecef;
-    --home-surface: rgba(255, 255, 255, 0.74);
+    /* Fondo blanco limpio (sin degradado azul/rosa) */
+    --home-bg: #ffffff;
+    --home-bg-2: #f6f7f9;
+    /* Tarjetas blancas sólidas, no vidrio translúcido */
+    --home-surface: #ffffff;
     --home-surface-solid: #ffffff;
-    --home-border: rgba(255, 255, 255, 0.72);
-    --home-text: #171923;
-    --home-muted: #604d52;
-    --home-soft: #e7eefc;
-    --home-blue: #2f80ed;
-    --home-shadow: 0 24px 70px rgba(54, 67, 103, 0.14);
-    --home-shadow-soft: 0 14px 40px rgba(54, 67, 103, 0.10);
+    /* Borde gris claro VISIBLE sobre blanco */
+    --home-border: rgba(18, 20, 28, 0.10);
+    --home-text: #14161c;
+    --home-muted: #565b66;
+    --home-soft: #f1f3f6;
+    --home-blue: #2f6fed;
+    /* Sombras neutras y suaves (sin tinte azulado) */
+    --home-shadow: 0 18px 50px rgba(20, 26, 46, 0.10);
+    --home-shadow-soft: 0 10px 30px rgba(20, 26, 46, 0.07);
     --color-bg: var(--home-bg);
     --color-surface: var(--home-surface);
-    --color-surface-2: rgba(255, 255, 255, 0.88);
-    --color-border: rgba(98, 83, 91, 0.12);
+    --color-surface-2: #f7f8fa;
+    --color-border: var(--home-border);
     --color-white: var(--home-text);
-    --color-gray: #7f7377;
+    --color-gray: #7b8089;
     --color-gray-light: var(--home-muted);
-    --color-nav-bg: rgba(245, 248, 255, 0.86);
+    --color-nav-bg: rgba(255, 255, 255, 0.9);
     --logo-filter: none;
     --cal-icon: none;
     --radius-lg: 22px;
 }
 
 body {
-    background:
-        linear-gradient(135deg, #eef4ff 0%, #f7f0ff 42%, #ffecef 100%);
+    background: #ffffff;
     color: var(--home-text);
 }
 
@@ -2126,28 +2129,25 @@ body::after {
 }
 
 .nav {
-    background: rgba(246, 249, 255, 0.82);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.68);
-    box-shadow: 0 16px 40px rgba(51, 57, 86, 0.08);
+    background: rgba(255, 255, 255, 0.85);
+    border-bottom: 1px solid var(--home-border);
+    box-shadow: 0 6px 24px rgba(20, 26, 46, 0.06);
     backdrop-filter: blur(18px);
 }
 
 .nav__brand {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 132px;
-    height: 52px;
-    padding: 0.35rem 0.55rem;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.74);
-    border: 1px solid rgba(255, 255, 255, 0.82);
-    box-shadow: 0 10px 28px rgba(54, 67, 103, 0.10);
+    /* Sin caja: el logo va directo sobre el nav */
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
 }
 
 .nav__logo {
-    width: 100%;
-    height: 100%;
+    width: auto;
+    height: 42px;
     object-fit: contain;
     filter: none;
 }
@@ -2211,39 +2211,50 @@ body::after {
 }
 
 .mosaic {
-    opacity: 0.66;
+    opacity: 0.92;
 }
 
 .mosaic__cell {
-    background: #dfe7f5;
+    background: #eceef1;
 }
 
 .mosaic__layer.is-front {
-    opacity: 0.50;
+    opacity: 0.62;
 }
 
 .mosaic__cell.is-bright .mosaic__layer.is-front {
-    opacity: 0.72;
+    opacity: 0.88;
 }
 
+/* Halo central (legibilidad del texto) + fundido a blanco en los
+   bordes y abajo. En el centro-medio deja ver el mosaico animado. */
 .hero__overlay {
     background:
-        linear-gradient(to bottom, rgba(247, 249, 255, 0.36), rgba(247, 249, 255, 0.74) 52%, rgba(243, 246, 255, 0.98) 100%),
-        linear-gradient(90deg, rgba(247, 249, 255, 0.92), rgba(247, 249, 255, 0.58) 52%, rgba(247, 249, 255, 0.88));
+        radial-gradient(75% 60% at 50% 42%,
+            rgba(255, 255, 255, 0.88) 0%,
+            rgba(255, 255, 255, 0.45) 45%,
+            rgba(255, 255, 255, 0.12) 68%,
+            transparent 85%),
+        linear-gradient(to bottom,
+            rgba(255, 255, 255, 0.55) 0%,
+            transparent 30%,
+            transparent 58%,
+            rgba(255, 255, 255, 0.85) 88%,
+            #ffffff 100%);
 }
 
 .hero__content {
-    width: min(820px, calc(100vw - 2rem));
-    align-items: flex-start;
-    text-align: left;
-    gap: 0.9rem;
-    margin-right: auto;
-    padding: 1.35rem;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.70);
-    border: 1px solid rgba(255, 255, 255, 0.82);
-    box-shadow: var(--home-shadow);
-    backdrop-filter: blur(16px);
+    width: min(900px, calc(100vw - 2rem));
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+    margin: 0 auto;
+    padding: 1rem;
+    /* Sin caja: las letras van directo sobre el mosaico animado */
+    background: none;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
 }
 
 .hero__eyebrow {
@@ -2263,22 +2274,24 @@ body::after {
 }
 
 .hero__title {
-    max-width: 760px;
+    max-width: 900px;
     font-family: var(--font-display);
     font-size: clamp(2.7rem, 6vw, 5.4rem);
     line-height: 0.98;
     letter-spacing: 0.02em;
     color: var(--home-text);
-    text-shadow: none;
+    /* Halo blanco suave: legible sobre el mosaico, sin caja */
+    text-shadow: 0 2px 20px rgba(255, 255, 255, 0.95),
+                 0 1px 4px rgba(255, 255, 255, 0.9);
     background: transparent;
-    border-left: 8px solid var(--color-red);
-    padding: 0.06em 0 0.02em 0.25em;
+    border-left: none;
+    padding: 0;
     border-radius: 0;
     box-shadow: none;
 }
 
 .hero__title span {
-    color: var(--color-red);
+    color: var(--home-text);
 }
 
 .hero__tagline {
@@ -2292,18 +2305,20 @@ body::after {
     border: 0;
     border-radius: 0;
     padding: 0;
-    text-shadow: none;
+    text-shadow: 0 1px 12px rgba(255, 255, 255, 0.95),
+                 0 1px 3px rgba(255, 255, 255, 0.9);
     box-shadow: none;
 }
 
 .hero__actions {
-    justify-content: flex-start;
-    margin-top: 0.25rem;
+    justify-content: center;
+    margin-top: 0.5rem;
 }
 
 .hero__proof {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 0.55rem;
     margin-top: 0.5rem;
 }
@@ -2800,7 +2815,8 @@ body::after {
 }
 
 .footer {
-    background: rgba(245, 248, 255, 0.92);
+    background: #f6f7f9;
+    border-top: 1px solid var(--home-border);
     color: var(--home-text);
 }
 
@@ -2845,19 +2861,26 @@ body::after {
 
 @media (max-width: 768px) {
     .hero {
-        min-height: 640px;
+        min-height: 88vh;
         padding-bottom: 4.5rem;
     }
 
+    /* Tiles del mosaico más grandes = imágenes claras en el teléfono */
+    .mosaic {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(6, 1fr);
+        opacity: 0.95;
+    }
+
     .hero__content {
-        text-align: left;
-        padding: 1rem;
+        text-align: center;
+        padding: 0.5rem;
     }
 
     .hero__title {
         font-size: clamp(2.45rem, 13vw, 4rem);
-        border-left-width: 6px;
-        border-radius: 0 14px 14px 0;
+        border-left: none;
+        border-radius: 0;
     }
 
     .hero__actions {
@@ -2870,8 +2893,8 @@ body::after {
     }
 
     .nav__menu {
-        background: rgba(246, 249, 255, 0.94);
-        box-shadow: -10px 0 35px rgba(54, 67, 103, 0.18);
+        background: #ffffff;
+        box-shadow: -10px 0 35px rgba(20, 26, 46, 0.14);
     }
 
     .nav__menu .nav__link {
@@ -2889,6 +2912,11 @@ body::after {
         grid-template-columns: 1fr;
     }
 
+    /* Más separación entre tarjetas apiladas en móvil */
+    .project-grid {
+        gap: 1.4rem;
+    }
+
     .services-grid {
         grid-template-columns: 1fr;
     }
@@ -2901,7 +2929,39 @@ body::after {
     .project-card--large {
         grid-column: auto;
         grid-row: auto;
-        min-height: 260px;
+        min-height: 340px;
+    }
+
+    /* Ficha del proyecto: más legible y con aire en móvil */
+    .project-card::after {
+        background: linear-gradient(to top,
+            rgba(12, 15, 24, 0.92),
+            rgba(12, 15, 24, 0.55) 45%,
+            rgba(12, 15, 24, 0.05) 78%);
+    }
+
+    .project-card__body {
+        left: 1.15rem;
+        right: 1.15rem;
+        bottom: 1.15rem;
+    }
+
+    .project-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem 1rem;
+        margin-top: 0.9rem;
+    }
+
+    .project-meta dt {
+        font-size: 0.62rem;
+    }
+
+    .project-meta dd {
+        font-size: 0.86rem;
+    }
+
+    .project-card__body h3 {
+        font-size: 1.4rem;
     }
 
     .work-section {
@@ -2916,4 +2976,136 @@ body::after {
         width: min(100% - 1rem, 1180px);
         border-radius: 18px;
     }
+}
+
+/* ═══════════════════════════════════════════════════════
+   LIMPIEZA FONDO BLANCO — corrige los bordes y superficies
+   translúcidas de vidrio que sobre blanco quedaban
+   invisibles o lavadas. Tarjetas sólidas y bordes gris claro.
+═══════════════════════════════════════════════════════ */
+
+/* Tarjetas internas que antes tenían borde blanco (invisible) */
+.trust-strip__items li,
+.form-option span,
+.time-slot {
+    background: var(--home-soft);
+    border: 1px solid var(--home-border);
+}
+
+.service-card__link {
+    background: var(--home-soft);
+    border: 1px solid var(--home-border);
+}
+
+.project-card,
+.banner-proyectos {
+    border: 1px solid var(--home-border);
+}
+
+.footer__brands {
+    background: #ffffff;
+    border: 1px solid var(--home-border);
+}
+
+/* Secciones que tenían un velo blanco casi transparente:
+   dejarlas 100% blancas para un fondo parejo y limpio */
+.about,
+.quote,
+.schedule,
+.led-section,
+.process-section {
+    background: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CATÁLOGO INTERACTIVO — tarjeta se vuelve negra con letras
+   blancas al pasar el cursor, y cada ítem se subraya solo.
+═══════════════════════════════════════════════════════ */
+.catalog__grid {
+    gap: 1.25rem;
+}
+
+.catalog__category {
+    padding: 1.9rem 1.6rem;
+    background: #ffffff;
+    border: 1px solid var(--home-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--home-shadow-soft);
+    backdrop-filter: none;
+    cursor: default;
+    transition: transform 0.35s var(--ease),
+                box-shadow 0.35s var(--ease),
+                background 0.35s var(--ease),
+                border-color 0.35s var(--ease);
+}
+
+.catalog__category:hover {
+    transform: translateY(-6px);
+    background: #131317;
+    border-color: #131317;
+    box-shadow: 0 24px 55px rgba(15, 17, 22, 0.28);
+}
+
+.catalog__category-title {
+    font-size: 0.8rem;
+    letter-spacing: 0.14em;
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--home-border);
+    transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.catalog__category:hover .catalog__category-title {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.catalog__list {
+    gap: 0.85rem;
+}
+
+.catalog__list li {
+    display: flex;
+    align-items: center;
+}
+
+/* Punto rojo antes de cada ítem (llena el espacio vacío) */
+.catalog__list li::before {
+    content: "";
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    margin-right: 0.7rem;
+    border-radius: 50%;
+    background: var(--color-red);
+    transition: transform 0.3s ease;
+}
+
+.catalog__category:hover .catalog__list li::before {
+    transform: scale(1.35);
+}
+
+/* Subrayado animado que "recorre" cada ítem al enfocarlo */
+.catalog__list a {
+    position: relative;
+    color: var(--home-muted);
+    font-size: 0.96rem;
+    line-height: 1.3;
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1.5px;
+    background-repeat: no-repeat;
+    background-position: left 100%;
+    transition: color 0.28s ease, background-size 0.32s var(--ease);
+}
+
+.catalog__list a:hover {
+    background-size: 100% 1.5px;
+}
+
+.catalog__category:hover .catalog__list a {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.catalog__category:hover .catalog__list a:hover {
+    color: #ffffff;
 }
