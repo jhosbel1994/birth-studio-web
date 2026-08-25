@@ -201,7 +201,10 @@ export default function MockupVitrina() {
   const zonaActiva = escena.zonas.find(z => z.id === zonaActivaId) || escena.zonas[0]
   const capaActiva = escena.capas.find(c => c.id === capaActivaId) || escena.capas[0]
   const zonaCapaActiva = escena.zonas.find(z => z.id === capaActiva?.zonaId)
-  const capaActivaIdReal = capaActiva?.id || ''
+  const capasZonaActiva = zonaActiva ? escena.capas.filter(c => c.zonaId === zonaActiva.id) : []
+  const capaEscala = capasZonaActiva.find(c => c.id === capaActiva?.id) || capasZonaActiva[0] || capaActiva
+  const zonaCapaEscala = escena.zonas.find(z => z.id === capaEscala?.zonaId)
+  const capaEscalaIdReal = capaEscala?.id || ''
 
   const disponible = (h) => {
     if (h.disponibleSiempre) return true
@@ -320,23 +323,29 @@ export default function MockupVitrina() {
   }, [setZonaMedidas, zonaActiva?.id])
 
   useEffect(() => {
-    if (!capaActiva || !zonaCapaActiva) {
+    if (!capaEscala || !zonaCapaEscala) {
       setMedidasVinilDraft({ capaId: null, ancho: '', alto: '' })
       return
     }
-    const medidas = medidasCapaCm(capaActiva, zonaCapaActiva)
+    const medidas = medidasCapaCm(capaEscala, zonaCapaEscala)
     setMedidasVinilDraft({
-      capaId: capaActiva.id,
+      capaId: capaEscala.id,
       ancho: formatearMedida(medidas.ancho),
       alto: formatearMedida(medidas.alto),
     })
-  }, [capaActiva?.id, capaActiva?.puntos, zonaCapaActiva?.anchoCm, zonaCapaActiva?.altoCm])
+  }, [capaEscala?.id, capaEscala?.puntos, zonaCapaEscala?.anchoCm, zonaCapaEscala?.altoCm])
+
+  useEffect(() => {
+    if (herramienta === 'escala' && capaEscala?.id && capaActivaId !== capaEscala.id) {
+      setCapaActivaId(capaEscala.id)
+    }
+  }, [capaActivaId, capaEscala?.id, herramienta])
 
   const handleMedidaVinil = useCallback((campo, value) => {
-    if (!capaActiva || !zonaCapaActiva) return
+    if (!capaEscala || !zonaCapaEscala) return
     const limpio = limpiarMedidaInput(value)
     const nextDraft = {
-      capaId: capaActiva.id,
+      capaId: capaEscala.id,
       ancho: campo === 'ancho' ? limpio : medidasVinilDraft.ancho,
       alto: campo === 'alto' ? limpio : medidasVinilDraft.alto,
     }
@@ -345,9 +354,9 @@ export default function MockupVitrina() {
     const ancho = numeroMedida(nextDraft.ancho)
     const alto = numeroMedida(nextDraft.alto)
     if (ancho <= 0 || alto <= 0) return
-    const puntos = redimensionarCapaPorCm(capaActiva, zonaCapaActiva, ancho, alto)
-    if (puntos) updateCapaProps(capaActiva.id, { puntos })
-  }, [capaActiva, medidasVinilDraft.alto, medidasVinilDraft.ancho, updateCapaProps, zonaCapaActiva])
+    const puntos = redimensionarCapaPorCm(capaEscala, zonaCapaEscala, ancho, alto)
+    if (puntos) updateCapaProps(capaEscala.id, { puntos })
+  }, [capaEscala, medidasVinilDraft.alto, medidasVinilDraft.ancho, updateCapaProps, zonaCapaEscala])
 
   const plantillas = [...BUILTIN_TEMPLATES, ...escenas.filter(e => e.esPlantilla)]
   const misEscenas = escenas.filter(e => !e.esPlantilla)
@@ -530,85 +539,90 @@ export default function MockupVitrina() {
 
           {herramienta === 'escala' && zonaActiva && (
             <div className="space-y-4">
-              {escena.capas.length > 0 && (
-                <div className="rounded-xl bg-secondary-container/30 p-3 space-y-3">
-                  <div>
-                    <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Vinil seleccionado</label>
-                    <select
-                      value={capaActivaIdReal}
-                      onChange={e => setCapaActivaId(e.target.value)}
-                      className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/60"
-                    >
-                      {escena.capas.map((c, idx) => {
-                        const z = escena.zonas.find(item => item.id === c.zonaId)
-                        return <option key={c.id} value={c.id}>Vinil {idx + 1} · {z?.nombre || 'Zona eliminada'}</option>
-                      })}
-                    </select>
-                  </div>
-                  {capaActiva && zonaCapaActiva ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="text-xs font-dm text-on-surface-variant">
-                          Ancho vinil cm
-                          <input
-                            type="text" inputMode="decimal" autoComplete="off" value={medidasVinilDraft.ancho}
-                            onChange={e => handleMedidaVinil('ancho', e.target.value)}
-                            className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-secondary bg-white/70"
-                          />
-                        </label>
-                        <label className="text-xs font-dm text-on-surface-variant">
-                          Alto vinil cm
-                          <input
-                            type="text" inputMode="decimal" autoComplete="off" value={medidasVinilDraft.alto}
-                            onChange={e => handleMedidaVinil('alto', e.target.value)}
-                            className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-secondary bg-white/70"
-                          />
-                        </label>
-                      </div>
-                      <p className="text-[11px] font-dm text-on-surface-variant/70">
-                        Estas medidas cambian el tamaño del vinil sobre el vidrio usando la escala real de {zonaCapaActiva.nombre}.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs font-dm text-on-surface-variant/60">Selecciona un vinil para modificar su escala real.</p>
-                  )}
-                </div>
-              )}
-
-              {escena.capas.length === 0 && (
-                <p className="rounded-xl bg-white/35 p-3 text-xs font-dm text-on-surface-variant/70">
-                  Sube un diseño en la pestaña Diseño para poder ajustar el tamaño real del vinil.
-                </p>
-              )}
-
-              <div>
-                <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Medida real del vidrio</label>
+              <div className="rounded-xl bg-secondary-container/35 p-3 space-y-3">
+                <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">
+                  {capaEscala ? 'Zona del vinil' : 'Zona a medir'}
+                </label>
                 <select
                   value={zonaActiva.id}
-                  onChange={e => setZonaActivaId(e.target.value)}
-                  className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                  onChange={e => {
+                    const nextZonaId = e.target.value
+                    setZonaActivaId(nextZonaId)
+                    const nextCapa = escena.capas.find(c => c.zonaId === nextZonaId)
+                    if (nextCapa) setCapaActivaId(nextCapa.id)
+                  }}
+                  className="w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-secondary bg-white/70"
                 >
                   {escena.zonas.map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}
                 </select>
+
+                {capaEscala && (
+                  <>
+                    {capasZonaActiva.length > 1 && (
+                      <select
+                        value={capaEscalaIdReal}
+                        onChange={e => setCapaActivaId(e.target.value)}
+                        className="w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-secondary bg-white/70"
+                      >
+                        {capasZonaActiva.map((c, idx) => <option key={c.id} value={c.id}>Vinil {idx + 1}</option>)}
+                      </select>
+                    )}
+                    <div>
+                      <p className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Tamaño del vinil</p>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <label className="text-xs font-dm text-on-surface-variant">
+                          Ancho cm
+                          <input
+                            type="text" inputMode="decimal" autoComplete="off" value={medidasVinilDraft.ancho}
+                            onChange={e => handleMedidaVinil('ancho', e.target.value)}
+                            className="mt-1 w-full border border-secondary/40 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-secondary bg-white/80"
+                          />
+                        </label>
+                        <label className="text-xs font-dm text-on-surface-variant">
+                          Alto cm
+                          <input
+                            type="text" inputMode="decimal" autoComplete="off" value={medidasVinilDraft.alto}
+                            onChange={e => handleMedidaVinil('alto', e.target.value)}
+                            className="mt-1 w-full border border-secondary/40 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-secondary bg-white/80"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    <p className="text-[11px] font-dm text-on-surface-variant/70">
+                      Al cambiar estos cm, el vinil se agranda o reduce sobre el vidrio manteniendo su centro.
+                    </p>
+                  </>
+                )}
+
+                {!capaEscala && (
+                  <p className="text-xs font-dm text-on-surface-variant/70">
+                    Sube un diseño en la pestaña Diseño para ajustar el tamaño real del vinil.
+                  </p>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs font-dm text-on-surface-variant">
-                  Ancho cm
-                  <input
-                    type="text" inputMode="decimal" autoComplete="off" value={zonaActiva.anchoCm ?? ''}
-                    onChange={e => handleMedidaZona('anchoCm', e.target.value)}
-                    className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
-                  />
-                </label>
-                <label className="text-xs font-dm text-on-surface-variant">
-                  Alto cm
-                  <input
-                    type="text" inputMode="decimal" autoComplete="off" value={zonaActiva.altoCm ?? ''}
-                    onChange={e => handleMedidaZona('altoCm', e.target.value)}
-                    className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
-                  />
-                </label>
+
+              <div className="rounded-xl bg-white/30 p-3 space-y-3">
+                <p className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Escala base del vidrio</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs font-dm text-on-surface-variant">
+                    Ancho vidrio cm
+                    <input
+                      type="text" inputMode="decimal" autoComplete="off" value={zonaActiva.anchoCm ?? ''}
+                      onChange={e => handleMedidaZona('anchoCm', e.target.value)}
+                      className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                    />
+                  </label>
+                  <label className="text-xs font-dm text-on-surface-variant">
+                    Alto vidrio cm
+                    <input
+                      type="text" inputMode="decimal" autoComplete="off" value={zonaActiva.altoCm ?? ''}
+                      onChange={e => handleMedidaZona('altoCm', e.target.value)}
+                      className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
+                    />
+                  </label>
+                </div>
               </div>
+
               <div className="rounded-xl bg-white/35 p-3 text-xs font-dm text-on-surface-variant">
                 <p>Imagen: {Math.round(pxZona.ancho)} × {Math.round(pxZona.alto)} px</p>
                 <p className="mt-1 font-semibold text-on-surface">Área real: {m2 ? `${m2.toFixed(2)} m²` : 'ingresa ancho y alto'}</p>
