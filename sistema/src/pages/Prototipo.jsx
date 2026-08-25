@@ -3156,18 +3156,6 @@ export default function Prototipo() {
     loadCanvas(c, "Texto: " + lineas.join(" ").trim().slice(0, 24), "dark");
   }, [texto, weightStep, fontStyle, customFont, textAlign, lineHeightTx, letterSpacing, upper, anchoM, loadCanvas]);
 
-  // Con proporción bloqueada, el texto SIEMPRE llena el ancho del letrero
-  // manteniendo su proporción natural: nunca se achica al "33%" ni deja
-  // aire. Al cambiar el texto (y su relación de aspecto) o el Ancho, el
-  // Alto se recalcula solo para que el texto entre completo y a escala.
-  useEffect(() => {
-    if (sourceType !== "texto" || !whLocked || !textAspect) return;
-    const target = anchoM / textAspect;
-    if (target > 0.02 && Math.abs(target - altoM) > 0.01) {
-      setAltoM(Number(target.toFixed(2)));
-    }
-  }, [sourceType, whLocked, textAspect, anchoM, altoM]);
-
   const cargarFuentePropia = useCallback(async (file) => {
     if (!file) return;
     setFontMsg(null);
