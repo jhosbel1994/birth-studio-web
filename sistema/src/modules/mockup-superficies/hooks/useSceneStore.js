@@ -24,6 +24,24 @@ const CAPA_DEFAULTS = {
   textura: 0.5,
 }
 
+function nombreAutomaticoEscena(escena) {
+  const now = new Date()
+  const fecha = now.toLocaleDateString('es-CL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+  const hora = now.toLocaleTimeString('es-CL', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const zonas = escena.zonas?.length || 0
+  const capas = escena.capas?.length || 0
+  if (capas > 0) return `Mockup vitrina ${fecha} ${hora} - ${capas} diseño${capas === 1 ? '' : 's'}`
+  if (zonas > 0) return `Mockup vitrina ${fecha} ${hora} - ${zonas} zona${zonas === 1 ? '' : 's'}`
+  return `Mockup vitrina ${fecha} ${hora}`
+}
+
 function normalizarZona(zona) {
   return {
     ...zona,
@@ -230,17 +248,17 @@ export default function useSceneStore() {
 
   // ─── PERSISTENCIA ───────────────────────────────────────────────────────────
   const guardar = useCallback(async () => {
-    if (!escena.nombre.trim()) { setError('Ponle un nombre a la escena.'); return false }
     if (!escena.fotoUrl) { setError('Sube una foto primero.'); return false }
     setError(null)
     setGuardando(true)
     try {
+      const nombre = escena.nombre.trim() || nombreAutomaticoEscena(escena)
       // Guardado LOCAL (IndexedDB): la foto y los diseños ya son dataURL en
       // memoria, así que se persiste la escena tal cual, sin subir a Firebase
       // Storage (pausado). La nube queda como paso posterior.
       const guardada = {
         id: escena.id || crypto.randomUUID(),
-        nombre: escena.nombre.trim(),
+        nombre,
         fotoUrl: escena.fotoUrl,
         fotoW: escena.fotoW, fotoH: escena.fotoH,
         storagePath: escena.storagePath || null,
@@ -248,6 +266,7 @@ export default function useSceneStore() {
         zonas: escena.zonas,
         capas: escena.capas,
         createdAt: escena.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         local: true,
       }
       await guardarEscenaLocal(guardada)
@@ -256,7 +275,10 @@ export default function useSceneStore() {
       setCapasBlobPendientes({})
       return true
     } catch (e) {
-      setError(e?.message || 'No se pudo guardar la escena en este navegador.')
+      const msg = e?.name === 'QuotaExceededError'
+        ? 'No se pudo guardar: el navegador se quedó sin espacio para esta escena. Prueba con una foto más liviana o descarga el mockup final.'
+        : e?.message || 'No se pudo guardar la escena en este navegador.'
+      setError(msg)
       return false
     } finally {
       setGuardando(false)
