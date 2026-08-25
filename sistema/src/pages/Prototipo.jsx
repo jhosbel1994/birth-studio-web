@@ -1113,10 +1113,12 @@ function buildTree(h = 3.4) {
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(h * 0.05, h * 0.08, trunkH, 8), trunkMat);
   trunk.position.y = trunkH / 2; trunk.castShadow = true;
   g.add(trunk);
-  const fy = trunkH + h * 0.2;
+  const fy = trunkH + h * 0.16;
+  // Copa poco frondosa: pocas esferas y chicas.
   const blobs = [
-    [0, fy, 0, h * 0.32], [h * 0.17, fy + h * 0.1, 0, h * 0.24],
-    [-h * 0.16, fy + h * 0.05, h * 0.05, h * 0.22], [0, fy + h * 0.22, 0, h * 0.2],
+    [0, fy, 0, h * 0.22],
+    [h * 0.1, fy + h * 0.12, 0, h * 0.16],
+    [-h * 0.1, fy + h * 0.08, 0, h * 0.15],
   ];
   for (const [x, y, z, r] of blobs) {
     const leaf = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), leafMat);
@@ -1206,10 +1208,10 @@ function buildStreetEnv(envGroup, m, opts) {
     }
     // Un árbol a cada lado del galpón — chicos y pegados al muro, para que
     // enmarquen la escena sin tapar los autos ni la fachada.
-    const treeH = Math.min(2.8, Math.max(2.2, m.shopH * 0.55));
+    const treeH = Math.min(2.3, Math.max(1.8, m.shopH * 0.45));
     for (const side of [-1, 1]) {
       const tree = buildTree(treeH);
-      tree.position.set(side * (facW / 2 + 0.8), yGround, zWall + 0.7);
+      tree.position.set(side * (facW / 2 + 0.7), yGround, zWall + 0.7);
       envGroup.add(tree);
     }
   }
@@ -2686,7 +2688,7 @@ export default function Prototipo() {
     const isGalponScene = showFacade && facadeStyle === "galpon";
     const fill = scene === "totem" ? 0.5
       : scene === "interior" ? 0.45
-      : isGalponScene ? 0.55
+      : isGalponScene ? 0.48
       : showFacade ? 0.3 : 0.75;
     // El galpón es una fachada grande: en vez de encuadrar el letrero (que
     // puede ser chico o estar vacío), encuadramos un marco invisible del
