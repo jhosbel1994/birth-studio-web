@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
-import { saveCotizacion, deleteCotizacion, saveCliente, getClienteById, subscribeCotizaciones, subscribeClientes, syncPublicStats } from '../utils/storage'
+import {
+  saveCotizacion, deleteCotizacion, saveCliente, getClienteById,
+  subscribeCotizaciones, subscribeClientes, syncPublicStats,
+  saveGasto, deleteGasto, savePago, deletePago, subscribeGastos, subscribePagos,
+} from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, formatEmailJSError } from '../utils/email'
@@ -9,7 +13,7 @@ import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
 import {
   Plus, Download, Trash2, Edit2, X, Search,
   Eye, Mail, MessageCircle, FileText, MoreHorizontal, CheckCircle, AlertCircle, Loader2,
-  BookOpen,
+  BookOpen, Wallet,
 } from 'lucide-react'
 
 // Catálogo plano para el selector — excluye calculadoras complejas
@@ -273,7 +277,7 @@ function ActionPill({ icon: Icon, label, tone = 'neutral', onClick, disabled }) 
 }
 
 // ─── MENÚ DE ACCIONES ─────────────────────────────────────────────────────────
-function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onClose }) {
+function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onFinanzas, onClose }) {
   const cliente = clientes.find(c => c.id === cotizacion.clienteId) || null
 
   const acciones = [
@@ -281,6 +285,7 @@ function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, 
       grupo: 'Ver',
       items: [
         { icon: Eye, label: 'Ver resumen', desc: 'Inline sin PDF', onClick: onResumen },
+        { icon: Wallet, label: 'Finanzas del proyecto', desc: 'Abonos, materiales y residual', onClick: onFinanzas },
         { icon: FileText, label: 'Ver PDF', desc: 'Vista previa', onClick: onVerPDF },
         { icon: Download, label: 'Descargar PDF', desc: 'Guardar archivo', onClick: onDescargar },
       ]
@@ -695,6 +700,219 @@ function ConfirmDeleteModal({ cotizacion, onConfirm, onCancel }) {
   )
 }
 
+// ─── FINANZAS POR COTIZACIÓN ──────────────────────────────────────────────────
+// Panel propio de cada cotización: abonos recibidos, materiales comprados
+// (gastos etiquetados a esta cotización) y el residual del abono. Los abonos y
+// gastos que se registran acá quedan vinculados por `cotizacionId` y ruedan
+// automáticamente al Gastos & Finanzas general.
+function FinanzasCotizacion({ cotizacion, onClose }) {
+  const [gastos, setGastos] = useState([])
+  const [pagos, setPagos] = useState([])
+  const [formMat, setFormMat] = useState(null)   // { descripcion, monto, fecha } | null
+  const [formAbono, setFormAbono] = useState(null) // { monto, fecha, tipo, notas } | null
+  const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    const u1 = subscribeGastos(setGastos)
+    const u2 = subscribePagos(setPagos)
+    return () => { u1(); u2() }
+  }, [])
+
+  const misGastos = gastos.filter(g => g.cotizacionId === cotizacion.id)
+  const misPagos = pagos.filter(p => p.cotizacionId === cotizacion.id)
+
+  const totalMateriales = misGastos.reduce((s, g) => s + (g.monto || 0), 0)
+  const totalAbonos = misPagos.reduce((s, p) => s + (p.monto || 0), 0)
+  const saldoPorCobrar = (cotizacion.total || 0) - totalAbonos
+  const residual = totalAbonos - totalMateriales
+
+  const guardarMaterial = async () => {
+    const monto = parseFloat(formMat.monto)
+    if (!formMat.descripcion?.trim() || isNaN(monto) || monto < 0) return
+    setGuardando(true)
+    try {
+      await saveGasto({
+        descripcion: formMat.descripcion.trim(),
+        monto: Math.round(monto),
+        fecha: formMat.fecha || hoy(),
+        categoria: 'Materiales',
+        notas: `Proyecto #${cotizacion.numero}`,
+        cotizacionId: cotizacion.id,
+      })
+      setFormMat(null)
+    } finally { setGuardando(false) }
+  }
+
+  const guardarAbono = async () => {
+    const monto = parseFloat(formAbono.monto)
+    if (isNaN(monto) || monto <= 0) return
+    setGuardando(true)
+    try {
+      await savePago({
+        cotizacionId: cotizacion.id,
+        monto: Math.round(monto),
+        fecha: formAbono.fecha || hoy(),
+        tipo: formAbono.tipo || 'anticipo',
+        notas: formAbono.notas || '',
+      })
+      setFormAbono(null)
+    } finally { setGuardando(false) }
+  }
+
+  const Card = ({ label, valor, tono }) => (
+    <div className="rounded-xl border border-white/50 bg-white/60 px-3 py-2.5">
+      <p className="text-[10px] font-dm uppercase tracking-wider text-on-surface-variant">{label}</p>
+      <p className={`font-barlow text-lg font-bold ${tono || 'text-on-surface'}`}>{clp(valor)}</p>
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-[80] p-0 md:p-4">
+      <div className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget z-10">
+          <div>
+            <h2 className="font-barlow text-xl font-bold tracking-wide">FINANZAS DEL PROYECTO</h2>
+            <p className="text-xs text-on-surface-variant font-dm">#{cotizacion.numero} · {cotizacion.clienteNombre || '—'}</p>
+          </div>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
+        </div>
+
+        <div className="p-5 md:p-6 space-y-5">
+          {/* Resumen */}
+          <div className="grid grid-cols-2 gap-2">
+            <Card label="Total cotización" valor={cotizacion.total || 0} />
+            <Card label="Abonos recibidos" valor={totalAbonos} tono="text-green-700" />
+            <Card label="Saldo por cobrar" valor={saldoPorCobrar} tono={saldoPorCobrar > 0 ? 'text-primary' : 'text-green-700'} />
+            <Card label="Materiales comprados" valor={totalMateriales} tono="text-on-surface" />
+          </div>
+          <div className="rounded-xl border-2 border-on-surface bg-on-surface text-white px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-dm uppercase tracking-wider text-white/60">Residual del abono</p>
+              <p className="text-[11px] font-dm text-white/50">Abonos − materiales</p>
+            </div>
+            <p className={`font-barlow text-2xl font-bold ${residual >= 0 ? 'text-green-400' : 'text-red-300'}`}>{clp(residual)}</p>
+          </div>
+
+          {/* ── Materiales / gastos del proyecto ── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-barlow text-sm font-bold tracking-wider text-on-surface uppercase">Materiales comprados</h3>
+              {!formMat && (
+                <button onClick={() => setFormMat({ descripcion: '', monto: '', fecha: hoy() })}
+                  className="flex items-center gap-1 text-xs font-dm font-medium text-primary hover:underline">
+                  <Plus size={14} /> Agregar material
+                </button>
+              )}
+            </div>
+            {misGastos.length === 0 && !formMat && (
+              <p className="text-xs text-on-surface-variant font-dm py-2">Sin materiales registrados para este proyecto.</p>
+            )}
+            <div className="space-y-1.5">
+              {misGastos.map(g => (
+                <div key={g.id} className="flex items-center justify-between gap-2 border border-white/50 rounded-lg px-3 py-2 bg-white/60">
+                  <div className="min-w-0">
+                    <p className="text-sm font-dm text-on-surface truncate">{g.descripcion}</p>
+                    <p className="text-[11px] text-on-surface-variant font-dm">{fechaCorta(g.fecha)}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-dm font-bold text-on-surface">{clp(g.monto)}</span>
+                    <button onClick={() => deleteGasto(g.id)} title="Borrar"
+                      className="text-on-surface-variant hover:text-primary"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {formMat && (
+              <div className="mt-2 border border-white/50 rounded-lg p-3 bg-white/50 space-y-2">
+                <input value={formMat.descripcion} autoFocus placeholder="Descripción del material"
+                  onChange={e => setFormMat(f => ({ ...f, descripcion: e.target.value }))}
+                  className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-on-surface-variant text-xs">$</span>
+                    <input type="number" min="0" value={formMat.monto} placeholder="Monto"
+                      onChange={e => setFormMat(f => ({ ...f, monto: e.target.value }))}
+                      className="w-full border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                  </div>
+                  <input type="date" value={formMat.fecha}
+                    onChange={e => setFormMat(f => ({ ...f, fecha: e.target.value }))}
+                    className="border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={guardarMaterial} disabled={guardando || !formMat.descripcion.trim() || formMat.monto === ''}
+                    className="flex-1 bg-primary text-white py-2 rounded-full text-sm font-dm font-medium hover:bg-red-700 disabled:opacity-40 transition-colors">
+                    Guardar material
+                  </button>
+                  <button onClick={() => setFormMat(null)} className="px-4 text-sm font-dm text-on-surface-variant hover:text-on-surface">Cancelar</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Abonos ── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-barlow text-sm font-bold tracking-wider text-on-surface uppercase">Abonos recibidos</h3>
+              {!formAbono && (
+                <button onClick={() => setFormAbono({ monto: '', fecha: hoy(), tipo: 'anticipo', notas: '' })}
+                  className="flex items-center gap-1 text-xs font-dm font-medium text-primary hover:underline">
+                  <Plus size={14} /> Registrar abono
+                </button>
+              )}
+            </div>
+            {misPagos.length === 0 && !formAbono && (
+              <p className="text-xs text-on-surface-variant font-dm py-2">Sin abonos registrados.</p>
+            )}
+            <div className="space-y-1.5">
+              {misPagos.map(p => (
+                <div key={p.id} className="flex items-center justify-between gap-2 border border-white/50 rounded-lg px-3 py-2 bg-white/60">
+                  <div className="min-w-0">
+                    <p className="text-sm font-dm text-on-surface capitalize">{p.tipo}{p.notas ? ` · ${p.notas}` : ''}</p>
+                    <p className="text-[11px] text-on-surface-variant font-dm">{fechaCorta(p.fecha)}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-dm font-bold text-green-700">{clp(p.monto)}</span>
+                    <button onClick={() => deletePago(p.id)} title="Borrar"
+                      className="text-on-surface-variant hover:text-primary"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {formAbono && (
+              <div className="mt-2 border border-white/50 rounded-lg p-3 bg-white/50 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-on-surface-variant text-xs">$</span>
+                    <input type="number" min="0" autoFocus value={formAbono.monto} placeholder="Monto"
+                      onChange={e => setFormAbono(f => ({ ...f, monto: e.target.value }))}
+                      className="w-full border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                  </div>
+                  <select value={formAbono.tipo} onChange={e => setFormAbono(f => ({ ...f, tipo: e.target.value }))}
+                    className="border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
+                    <option value="anticipo">Anticipo</option>
+                    <option value="saldo">Saldo</option>
+                    <option value="total">Pago total</option>
+                  </select>
+                </div>
+                <input type="date" value={formAbono.fecha}
+                  onChange={e => setFormAbono(f => ({ ...f, fecha: e.target.value }))}
+                  className="w-full border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                <div className="flex gap-2">
+                  <button onClick={guardarAbono} disabled={guardando || formAbono.monto === ''}
+                    className="flex-1 bg-green-600 text-white py-2 rounded-full text-sm font-dm font-medium hover:bg-green-700 disabled:opacity-40 transition-colors">
+                    Guardar abono
+                  </button>
+                  <button onClick={() => setFormAbono(null)} className="px-4 text-sm font-dm text-on-surface-variant hover:text-on-surface">Cancelar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
 export default function Cotizaciones() {
   const location = useLocation()
@@ -703,6 +921,7 @@ export default function Cotizaciones() {
   const [modal, setModal] = useState(null)
   const [menuAbierto, setMenuAbierto] = useState(null) // cotizacion id
   const [resumen, setResumen] = useState(null) // cotizacion obj
+  const [finanzas, setFinanzas] = useState(null) // cotizacion obj (panel de finanzas)
   const [pdfPreview, setPdfPreview] = useState(null) // { url, filename }
   const [envioEstado, setEnvioEstado] = useState(null)
   const [filtroEstado, setFiltroEstado] = useState('')
@@ -816,6 +1035,13 @@ export default function Cotizaciones() {
         />
       )}
 
+      {finanzas && (
+        <FinanzasCotizacion
+          cotizacion={finanzas}
+          onClose={() => setFinanzas(null)}
+        />
+      )}
+
       {pdfPreview && (
         <ModalPreviewPDF
           url={pdfPreview.url}
@@ -842,6 +1068,7 @@ export default function Cotizaciones() {
           onDescargar={() => { handlePDF(cotMenu, 'download'); setMenuAbierto(null) }}
           onEnviarEmail={() => handleEnviarEmail(cotMenu)}
           onEnviarWhatsApp={() => handleEnviarWhatsApp(cotMenu)}
+          onFinanzas={() => { setFinanzas(cotMenu); setMenuAbierto(null) }}
           onEditar={() => { setModal({ ...cotMenu }); setMenuAbierto(null) }}
           onEliminar={() => handleDelete(cotMenu)}
           onClose={() => setMenuAbierto(null)}
@@ -958,6 +1185,10 @@ export default function Cotizaciones() {
                           <button onClick={() => setResumen(c)} title="Ver resumen"
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors text-[11px] font-dm">
                             <Eye size={13} /> <span>Resumen</span>
+                          </button>
+                          <button onClick={() => setFinanzas(c)} title="Finanzas del proyecto"
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded border transition-colors text-[11px] font-dm ${c.estado === 'aceptada' ? 'border-green-300 text-green-700 hover:border-green-600 hover:bg-green-50' : 'border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface'}`}>
+                            <Wallet size={13} /> <span>Finanzas</span>
                           </button>
                           <button onClick={() => handlePDF(c, 'download')} title="Descargar PDF"
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors text-[11px] font-dm">
