@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ImagePlus, LayoutGrid, Ruler, PenTool, Sparkles, SunMedium, Settings2, FilePlus2,
   Send,
 } from 'lucide-react'
 import useSceneStore from './hooks/useSceneStore'
-import { subscribeEscenas, deleteEscena, deleteEscenaFoto } from './utils/firestore'
+import { listarEscenasLocal, borrarEscenaLocal } from './utils/localScenes'
 import SceneCanvas from './components/SceneCanvas'
 import ZoneEditor from './components/ZoneEditor'
 import DesignLayer from './components/DesignLayer'
@@ -70,16 +70,17 @@ export default function MockupVitrina() {
     addCapa, addCapaMaterial, updateCapaPunto, ajustarCapaAZona, updateCapaProps, removeCapa,
   } = useSceneStore()
 
-  useEffect(() => {
-    const unsub = subscribeEscenas(
-      (docs) => {
-        setEscenas(docs)
-        setErrorListado(null)
-      },
-      setErrorListado,
-    )
-    return unsub
+  const refrescarEscenas = useCallback(async () => {
+    try {
+      const docs = await listarEscenasLocal()
+      setEscenas(docs)
+      setErrorListado(null)
+    } catch (e) {
+      setErrorListado(e?.message || 'No se pudieron leer las escenas guardadas.')
+    }
   }, [])
+
+  useEffect(() => { refrescarEscenas() }, [refrescarEscenas])
 
   const tieneFoto = !!escena.fotoUrl
   const tieneZona = escena.zonas.length > 0
@@ -105,6 +106,7 @@ export default function MockupVitrina() {
     const ok = await guardar()
     if (ok) {
       setGuardadoOk(true)
+      refrescarEscenas()
       setTimeout(() => setGuardadoOk(false), 2400)
     }
   }
@@ -156,11 +158,11 @@ export default function MockupVitrina() {
     if (!confirm(`¿Eliminar la escena "${doc.nombre}"?`)) return
     setErrorListado(null)
     try {
-      await deleteEscenaFoto(doc.storagePath)
-      await deleteEscena(doc.id)
+      await borrarEscenaLocal(doc.id)
       if (escena.id === doc.id) handleNueva()
+      refrescarEscenas()
     } catch (err) {
-      setErrorListado(err?.message || 'No se pudo eliminar la escena. Revisa tu sesión de Firebase.')
+      setErrorListado(err?.message || 'No se pudo eliminar la escena.')
     }
   }
 

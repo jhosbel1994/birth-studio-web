@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { saveEscena, uploadEscenaFoto } from '../utils/firestore'
+import { guardarEscenaLocal } from '../utils/localScenes'
 import { canvasToBlob, canvasToPngBlob, knockoutBackground, loadImageFile } from '../utils/loadImage'
 import { quadDefault } from '../utils/warpQuad'
 
@@ -235,49 +235,33 @@ export default function useSceneStore() {
     setError(null)
     setGuardando(true)
     try {
-      let fotoUrl = escena.fotoUrl
-      let storagePath = escena.storagePath
-      if (fotoBlobPendiente) {
-        const up = await conTimeout(
-          uploadEscenaFoto(new File([fotoBlobPendiente], 'escena.jpg', { type: 'image/jpeg' })),
-          25000,
-          'La subida de la foto tardó demasiado. Revisa tu conexión e intenta de nuevo.',
-        )
-        fotoUrl = up.url
-        storagePath = up.path
+      // Guardado LOCAL (IndexedDB): la foto y los diseños ya son dataURL en
+      // memoria, así que se persiste la escena tal cual, sin subir a Firebase
+      // Storage (pausado). La nube queda como paso posterior.
+      const guardada = {
+        id: escena.id || crypto.randomUUID(),
+        nombre: escena.nombre.trim(),
+        fotoUrl: escena.fotoUrl,
+        fotoW: escena.fotoW, fotoH: escena.fotoH,
+        storagePath: escena.storagePath || null,
+        esPlantilla: !!escena.esPlantilla,
+        zonas: escena.zonas,
+        capas: escena.capas,
+        createdAt: escena.createdAt || new Date().toISOString(),
+        local: true,
       }
-
-      const capas = await Promise.all(escena.capas.map(async (capa) => {
-        const blob = capasBlobPendientes[capa.id]
-        if (!blob) return capa
-        const up = await conTimeout(
-          uploadEscenaFoto(new File([blob], `diseno-${capa.id}.png`, { type: 'image/png' })),
-          25000,
-          'La subida del diseño tardó demasiado. Revisa tu conexión e intenta de nuevo.',
-        )
-        return { ...capa, imgUrl: up.url, storagePath: up.path }
-      }))
-
-      const guardada = await conTimeout(
-        saveEscena({
-          id: escena.id, nombre: escena.nombre.trim(), fotoUrl,
-          fotoW: escena.fotoW, fotoH: escena.fotoH, storagePath,
-          esPlantilla: !!escena.esPlantilla, zonas: escena.zonas, capas,
-        }),
-        25000,
-        'Guardar tardó demasiado. Revisa tu conexión e intenta de nuevo.',
-      )
+      await guardarEscenaLocal(guardada)
       setEscena(prev => ({ ...prev, ...guardada }))
       setFotoBlobPendiente(null)
       setCapasBlobPendientes({})
       return true
     } catch (e) {
-      setError(e?.message || 'No se pudo guardar la escena. Revisa tu conexión.')
+      setError(e?.message || 'No se pudo guardar la escena en este navegador.')
       return false
     } finally {
       setGuardando(false)
     }
-  }, [escena, fotoBlobPendiente, capasBlobPendientes])
+  }, [escena])
 
   const cargarEscena = useCallback((doc) => {
     setError(null)
