@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { saveEscena, uploadEscenaFoto } from '../utils/firestore'
-import { canvasToBlob, canvasToPngBlob, loadImageFile } from '../utils/loadImage'
+import { canvasToBlob, canvasToPngBlob, knockoutBackground, loadImageFile } from '../utils/loadImage'
 import { quadDefault } from '../utils/warpQuad'
 
 // Si Storage no responde (regla de permisos, red caida) el usuario no debe
@@ -151,6 +151,10 @@ export default function useSceneStore() {
         15000,
         'El diseño tardó demasiado en procesarse. Prueba con una imagen más liviana.',
       )
+      // Quita el fondo blanco/claro del adhesivo (si lo trae horneado) para
+      // que sobre el vidrio no se vea un rectángulo sólido. Si el PNG ya es
+      // transparente, no cambia nada.
+      knockoutBackground(canvas)
       const blob = await canvasToPngBlob(canvas)
       const id = crypto.randomUUID()
       const nueva = {
