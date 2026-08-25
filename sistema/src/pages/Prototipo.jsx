@@ -2344,7 +2344,11 @@ export default function Prototipo() {
       hitArea.userData.mainHitArea = true;
       sign.add(hitArea);
     }
-    if (placedLogos.length > 0) sign.visible = false;
+    // El letrero de texto principal SÍ se muestra junto a los logos
+    // colocados (se puede combinar un logo con texto en letras). Solo se
+    // oculta cuando el letrero principal es un logo, que sería redundante
+    // con las capas colocadas.
+    if (placedLogos.length > 0 && sourceType !== "texto") sign.visible = false;
     rig.add(sign);
     const extraTargets = [];
     placedLogos.forEach((item, layerIndex) => {
@@ -3146,6 +3150,18 @@ export default function Prototipo() {
     setSourceType("texto");
     loadCanvas(c, "Texto: " + lineas.join(" ").trim().slice(0, 24), "dark");
   }, [texto, weightStep, fontStyle, customFont, textAlign, lineHeightTx, letterSpacing, upper, anchoM, loadCanvas]);
+
+  // Con proporción bloqueada, el texto SIEMPRE llena el ancho del letrero
+  // manteniendo su proporción natural: nunca se achica al "33%" ni deja
+  // aire. Al cambiar el texto (y su relación de aspecto) o el Ancho, el
+  // Alto se recalcula solo para que el texto entre completo y a escala.
+  useEffect(() => {
+    if (sourceType !== "texto" || !whLocked || !textAspect) return;
+    const target = anchoM / textAspect;
+    if (target > 0.02 && Math.abs(target - altoM) > 0.01) {
+      setAltoM(Number(target.toFixed(2)));
+    }
+  }, [sourceType, whLocked, textAspect, anchoM, altoM]);
 
   const cargarFuentePropia = useCallback(async (file) => {
     if (!file) return;
