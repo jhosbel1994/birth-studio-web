@@ -1199,10 +1199,11 @@ function buildStreetEnv(envGroup, m, opts) {
   // como en la foto real.
   if (cars) {
     const palette = ["#8a8d92", "#e9eaec"];
-    const gap = 4.7;
+    const gap = 2.6;
     const startX = -gap / 2; // 2 autos centrados
     for (let i = 0; i < 2; i++) {
       const car = buildCar(palette[i % palette.length]);
+      car.scale.setScalar(0.45); // autos en miniatura
       car.position.set(startX + i * gap, yGround, zWall + 2.9);
       envGroup.add(car);
     }
