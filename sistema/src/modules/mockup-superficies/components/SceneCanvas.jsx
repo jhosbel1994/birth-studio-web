@@ -260,7 +260,7 @@ const SceneCanvas = forwardRef(function SceneCanvas({
 
   const handleR = fotoW * 0.011
   const mostrarZonas = herramienta === 'zonas' || herramienta === 'escala'
-  const mostrarCapa = ['diseno', 'acabado', 'luz'].includes(herramienta)
+  const mostrarCapa = ['diseno', 'escala', 'acabado', 'luz'].includes(herramienta)
 
   return (
     <div className="relative flex h-full items-center justify-center overflow-auto p-4">

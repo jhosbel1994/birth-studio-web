@@ -42,6 +42,65 @@ function medidasZonaPx(zona) {
   }
 }
 
+function centroPuntos(puntos = []) {
+  if (!puntos.length) return { x: 0, y: 0 }
+  return puntos.reduce((acc, p) => ({ x: acc.x + p.x / puntos.length, y: acc.y + p.y / puntos.length }), { x: 0, y: 0 })
+}
+
+function normalizarVector(v) {
+  const len = Math.hypot(v.x, v.y) || 1
+  return { x: v.x / len, y: v.y / len }
+}
+
+function medidasCapaCm(capa, zona) {
+  if (!capa?.puntos?.length || !zona?.puntos?.length) return { ancho: 0, alto: 0 }
+  const zonaPx = medidasZonaPx(zona)
+  const anchoZonaCm = numeroMedida(zona.anchoCm)
+  const altoZonaCm = numeroMedida(zona.altoCm)
+  const capaPx = medidasZonaPx(capa)
+  return {
+    ancho: zonaPx.ancho > 0 && anchoZonaCm > 0 ? (capaPx.ancho / zonaPx.ancho) * anchoZonaCm : 0,
+    alto: zonaPx.alto > 0 && altoZonaCm > 0 ? (capaPx.alto / zonaPx.alto) * altoZonaCm : 0,
+  }
+}
+
+function formatearMedida(value) {
+  if (!Number.isFinite(value) || value <= 0) return ''
+  const rounded = Math.round(value * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',')
+}
+
+function redimensionarCapaPorCm(capa, zona, anchoCm, altoCm) {
+  if (!capa?.puntos?.length || !zona?.puntos?.length) return null
+  const zonaPx = medidasZonaPx(zona)
+  const anchoZonaCm = numeroMedida(zona.anchoCm)
+  const altoZonaCm = numeroMedida(zona.altoCm)
+  if (!zonaPx.ancho || !zonaPx.alto || !anchoZonaCm || !altoZonaCm || !anchoCm || !altoCm) return null
+
+  const top = {
+    x: ((zona.puntos[1].x - zona.puntos[0].x) + (zona.puntos[2].x - zona.puntos[3].x)) / 2,
+    y: ((zona.puntos[1].y - zona.puntos[0].y) + (zona.puntos[2].y - zona.puntos[3].y)) / 2,
+  }
+  const left = {
+    x: ((zona.puntos[3].x - zona.puntos[0].x) + (zona.puntos[2].x - zona.puntos[1].x)) / 2,
+    y: ((zona.puntos[3].y - zona.puntos[0].y) + (zona.puntos[2].y - zona.puntos[1].y)) / 2,
+  }
+  const ux = normalizarVector(top)
+  const uy = normalizarVector(left)
+  const centro = centroPuntos(capa.puntos)
+  const anchoPx = Math.max(1, (anchoCm / anchoZonaCm) * zonaPx.ancho)
+  const altoPx = Math.max(1, (altoCm / altoZonaCm) * zonaPx.alto)
+  const wx = { x: ux.x * anchoPx / 2, y: ux.y * anchoPx / 2 }
+  const hy = { x: uy.x * altoPx / 2, y: uy.y * altoPx / 2 }
+
+  return [
+    { x: centro.x - wx.x - hy.x, y: centro.y - wx.y - hy.y },
+    { x: centro.x + wx.x - hy.x, y: centro.y + wx.y - hy.y },
+    { x: centro.x + wx.x + hy.x, y: centro.y + wx.y + hy.y },
+    { x: centro.x - wx.x + hy.x, y: centro.y - wx.y + hy.y },
+  ]
+}
+
 function propsAcabado(value) {
   if (value === 'microperforado') return { acabado: value, opacidad: 0.96, textura: 0.5, luz: 0.12 }
   if (value === 'empavonado-sin-diseno') return { acabado: value, opacidad: 0.58, textura: 0.7, luz: 0.35 }
@@ -116,6 +175,7 @@ export default function MockupVitrina() {
   const [calidad, setCalidad] = useState('alta')
   const [puenteOk, setPuenteOk] = useState(false)
   const [enviandoPrototipo, setEnviandoPrototipo] = useState(false)
+  const [medidasVinilDraft, setMedidasVinilDraft] = useState({ capaId: null, ancho: '', alto: '' })
   const {
     escena, cargandoFoto, guardando, error,
     subirFoto, setNombre, setEsPlantilla, guardar, cargarEscena, cargarComoPlantilla, nuevaEscena,
@@ -141,6 +201,7 @@ export default function MockupVitrina() {
   const zonaActiva = escena.zonas.find(z => z.id === zonaActivaId) || escena.zonas[0]
   const capaActiva = escena.capas.find(c => c.id === capaActivaId) || escena.capas[0]
   const zonaCapaActiva = escena.zonas.find(z => z.id === capaActiva?.zonaId)
+  const capaActivaIdReal = capaActiva?.id || ''
 
   const disponible = (h) => {
     if (h.disponibleSiempre) return true
@@ -257,6 +318,36 @@ export default function MockupVitrina() {
     if (!zonaActiva?.id) return
     setZonaMedidas(zonaActiva.id, { [campo]: limpiarMedidaInput(value) })
   }, [setZonaMedidas, zonaActiva?.id])
+
+  useEffect(() => {
+    if (!capaActiva || !zonaCapaActiva) {
+      setMedidasVinilDraft({ capaId: null, ancho: '', alto: '' })
+      return
+    }
+    const medidas = medidasCapaCm(capaActiva, zonaCapaActiva)
+    setMedidasVinilDraft({
+      capaId: capaActiva.id,
+      ancho: formatearMedida(medidas.ancho),
+      alto: formatearMedida(medidas.alto),
+    })
+  }, [capaActiva?.id, capaActiva?.puntos, zonaCapaActiva?.anchoCm, zonaCapaActiva?.altoCm])
+
+  const handleMedidaVinil = useCallback((campo, value) => {
+    if (!capaActiva || !zonaCapaActiva) return
+    const limpio = limpiarMedidaInput(value)
+    const nextDraft = {
+      capaId: capaActiva.id,
+      ancho: campo === 'ancho' ? limpio : medidasVinilDraft.ancho,
+      alto: campo === 'alto' ? limpio : medidasVinilDraft.alto,
+    }
+    setMedidasVinilDraft(nextDraft)
+
+    const ancho = numeroMedida(nextDraft.ancho)
+    const alto = numeroMedida(nextDraft.alto)
+    if (ancho <= 0 || alto <= 0) return
+    const puntos = redimensionarCapaPorCm(capaActiva, zonaCapaActiva, ancho, alto)
+    if (puntos) updateCapaProps(capaActiva.id, { puntos })
+  }, [capaActiva, medidasVinilDraft.alto, medidasVinilDraft.ancho, updateCapaProps, zonaCapaActiva])
 
   const plantillas = [...BUILTIN_TEMPLATES, ...escenas.filter(e => e.esPlantilla)]
   const misEscenas = escenas.filter(e => !e.esPlantilla)
@@ -439,8 +530,59 @@ export default function MockupVitrina() {
 
           {herramienta === 'escala' && zonaActiva && (
             <div className="space-y-4">
+              {escena.capas.length > 0 && (
+                <div className="rounded-xl bg-secondary-container/30 p-3 space-y-3">
+                  <div>
+                    <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Vinil seleccionado</label>
+                    <select
+                      value={capaActivaIdReal}
+                      onChange={e => setCapaActivaId(e.target.value)}
+                      className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/60"
+                    >
+                      {escena.capas.map((c, idx) => {
+                        const z = escena.zonas.find(item => item.id === c.zonaId)
+                        return <option key={c.id} value={c.id}>Vinil {idx + 1} · {z?.nombre || 'Zona eliminada'}</option>
+                      })}
+                    </select>
+                  </div>
+                  {capaActiva && zonaCapaActiva ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="text-xs font-dm text-on-surface-variant">
+                          Ancho vinil cm
+                          <input
+                            type="text" inputMode="decimal" autoComplete="off" value={medidasVinilDraft.ancho}
+                            onChange={e => handleMedidaVinil('ancho', e.target.value)}
+                            className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-secondary bg-white/70"
+                          />
+                        </label>
+                        <label className="text-xs font-dm text-on-surface-variant">
+                          Alto vinil cm
+                          <input
+                            type="text" inputMode="decimal" autoComplete="off" value={medidasVinilDraft.alto}
+                            onChange={e => handleMedidaVinil('alto', e.target.value)}
+                            className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-secondary bg-white/70"
+                          />
+                        </label>
+                      </div>
+                      <p className="text-[11px] font-dm text-on-surface-variant/70">
+                        Estas medidas cambian el tamaño del vinil sobre el vidrio usando la escala real de {zonaCapaActiva.nombre}.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs font-dm text-on-surface-variant/60">Selecciona un vinil para modificar su escala real.</p>
+                  )}
+                </div>
+              )}
+
+              {escena.capas.length === 0 && (
+                <p className="rounded-xl bg-white/35 p-3 text-xs font-dm text-on-surface-variant/70">
+                  Sube un diseño en la pestaña Diseño para poder ajustar el tamaño real del vinil.
+                </p>
+              )}
+
               <div>
-                <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Zona a medir</label>
+                <label className="text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">Medida real del vidrio</label>
                 <select
                   value={zonaActiva.id}
                   onChange={e => setZonaActivaId(e.target.value)}
