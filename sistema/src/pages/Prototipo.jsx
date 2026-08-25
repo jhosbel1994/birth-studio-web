@@ -1820,6 +1820,7 @@ export default function Prototipo() {
   const [anchoM, setAnchoM] = useState(3);
   const [altoM, setAltoM] = useState(1);
   const [depthCm, setDepthCm] = useState(8);
+  const [textDepthCm, setTextDepthCm] = useState(8); // canto propio del texto, independiente de los logos
   const [standoffCm, setStandoffCm] = useState(6);
   const [threshold, setThreshold] = useState(140);
   const [invert, setInvert] = useState(false);
@@ -2169,6 +2170,10 @@ export default function Prototipo() {
 
     // El canto fabricable va de 4 a 12 cm en ambos productos
     const depth = Math.max(4, Math.min(12, depthCm)) / 100;
+    // Canto propio del texto, independiente del canto de los logos.
+    const textDepth = Math.max(4, Math.min(12, textDepthCm)) / 100;
+    // El letrero principal usa su propio canto según sea texto o logo.
+    const signDepth = sourceType === "texto" ? textDepth : depth;
     const standoff = standoffCm / 100;
     const litFront = mode === "front" || mode === "both";
     let shapes, uvParams, realW, realH, perim, faceArea, tex, sil;
@@ -2249,7 +2254,7 @@ export default function Prototipo() {
     shapes.forEach((shape) => {
       try {
         const geo = new THREE.ExtrudeGeometry(shape, {
-          depth, bevelEnabled: true, bevelThickness: depth * 0.08, bevelSize: depth * 0.05,
+          depth: signDepth, bevelEnabled: true, bevelThickness: signDepth * 0.08, bevelSize: signDepth * 0.05,
           bevelSegments: 2, curveSegments: product === "lightbox" ? 64 : 14,
         });
         applyUV(geo, product, uvParams);
@@ -2737,7 +2742,7 @@ export default function Prototipo() {
     setBusy(false);
   }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, placedLogos, activePlacementId, edgeColor, edgeMetal,
-      anchoM, altoM, whLocked, depthCm, standoffCm, threshold, invert, detect,
+      anchoM, altoM, whLocked, depthCm, textDepthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
 
   // Micro-retardo: al arrastrar un slider no se reconstruye la escena en
@@ -3707,6 +3712,10 @@ export default function Prototipo() {
 
           <div style={s.pLabel}>Estilo</div>
           <Seg items={ESTILOS} value={fontStyle} onPick={(o) => { setCustomFont(null); setFontStyle(o.id); }} />
+
+          <div style={s.pLabel}>Canto de la letra (volumen)</div>
+          <Slider label="Canto" value={textDepthCm} unit=" cm" min={4} max={12} step={1} onChange={setTextDepthCm} />
+          <div style={s.pHint}>Profundidad 3D solo del texto, independiente del canto de los logos (Volumen → Canto).</div>
 
           {resSel.fell && !customFont && (
             <div style={s.note}>
