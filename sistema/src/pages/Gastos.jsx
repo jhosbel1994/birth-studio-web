@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { saveGasto, deleteGasto, savePago, deletePago, subscribeGastos, subscribePagos, subscribeCotizaciones } from '../utils/storage'
+import { saveGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos, subscribeCotizaciones } from '../utils/storage'
 import { clp, fechaCorta, hoy, CATEGORIAS_GASTO } from '../utils/formatters'
 import { escanearBoleta } from '../utils/scanner'
 import { Plus, Trash2, X, TrendingUp, TrendingDown, DollarSign, Camera, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
@@ -334,25 +334,28 @@ export default function Gastos() {
               ) : (
                 <>
                 <div className="md:hidden divide-y divide-white/40">
-                  {[...gastosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(g => (
+                  {[...gastosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(g => {
+                    const cot = cotizaciones.find(c => c.id === g.cotizacionId)
+                    return (
                     <div key={g.id} className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-dm font-semibold text-sm text-on-surface truncate">{g.descripcion}</p>
-                          <p className="text-xs text-on-surface-variant mt-1 font-dm">{fechaCorta(g.fecha)}</p>
+                          <p className="text-xs text-on-surface-variant mt-1 font-dm">{fechaCorta(g.fecha)}{cot ? ` · #${cot.numero}` : ''}</p>
                           <span className="inline-block mt-2 bg-white/60 px-2 py-0.5 rounded text-[11px] font-dm text-on-surface-variant">{g.categoria}</span>
                         </div>
                         <p className="font-barlow text-lg font-bold text-primary shrink-0">{clp(g.monto)}</p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id) } }}
+                        onClick={() => { if (confirm('¿Eliminar?')) { deleteGastoConReversa(g) } }}
                         className="mt-4 h-10 w-full rounded border border-white/50 text-xs font-dm text-primary flex items-center justify-center gap-2 active:border-primary"
                       >
                         <Trash2 size={14} /> Eliminar gasto
                       </button>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <table className="hidden md:table w-full text-sm font-dm">
                   <thead>
@@ -365,22 +368,28 @@ export default function Gastos() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...gastosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(g => (
+                    {[...gastosMes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(g => {
+                      const cot = cotizaciones.find(c => c.id === g.cotizacionId)
+                      return (
                       <tr key={g.id} className="border-b border-white/50 hover:bg-white/60">
-                        <td className="px-5 py-3 font-medium">{g.descripcion}</td>
+                        <td className="px-5 py-3 font-medium">
+                          {g.descripcion}
+                          {cot && <span className="ml-2 text-[11px] font-dm text-on-surface-variant">#{cot.numero}</span>}
+                        </td>
                         <td className="px-3 py-3">
                           <span className="bg-white/60 px-2 py-0.5 rounded text-xs">{g.categoria}</span>
                         </td>
                         <td className="px-3 py-3 text-on-surface-variant">{fechaCorta(g.fecha)}</td>
                         <td className="px-3 py-3 text-right font-medium text-primary">{clp(g.monto)}</td>
                         <td className="px-5 py-3">
-                          <button onClick={() => { if (confirm('¿Eliminar?')) { deleteGasto(g.id) } }}
+                          <button onClick={() => { if (confirm('¿Eliminar?')) { deleteGastoConReversa(g) } }}
                             className="p-1.5 text-on-surface-variant hover:text-primary rounded hover:bg-white/60">
                             <Trash2 size={14} />
                           </button>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
                 </>

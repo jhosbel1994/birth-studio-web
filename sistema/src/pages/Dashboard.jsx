@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { subscribeCotizaciones, subscribeGastos, syncPublicStats } from '../utils/storage'
+import { subscribeCotizaciones, subscribeGastos, subscribePagos, syncPublicStats } from '../utils/storage'
 import { clp, fechaCorta, ESTADOS } from '../utils/formatters'
 import {
   TrendingUp, FileText, Clock, CheckCircle, XCircle, DollarSign,
@@ -57,12 +57,14 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [cotizaciones, setCotizaciones] = useState([])
   const [gastos, setGastos] = useState([])
+  const [pagos, setPagos] = useState([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     const u1 = subscribeCotizaciones((data) => { setCotizaciones(data); setLoaded(true) })
     const u2 = subscribeGastos(setGastos)
-    return () => { u1(); u2() }
+    const u3 = subscribePagos(setPagos)
+    return () => { u1(); u2(); u3() }
   }, [])
 
   const mes = new Date().getMonth()
@@ -81,12 +83,16 @@ export default function Dashboard() {
     if (loaded) syncPublicStats(aceptadas).catch(() => {})
   }, [loaded, aceptadas])
 
-  const ingresosMes = cotizaciones
-    .filter(c => c.estado === 'aceptada' && enMes(c.createdAt))
-    .reduce((s, c) => s + (c.total || 0), 0)
-
+  // Ingresos = pagos/abonos realmente recibidos este mes (misma base que la
+  // página Gastos & Finanzas, para que ambas cifras coincidan).
+  const ingresosMes = pagos.filter(p => enMes(p.fecha)).reduce((s, p) => s + (p.monto || 0), 0)
   const gastosMes = gastos.filter(g => enMes(g.fecha)).reduce((s, g) => s + (g.monto || 0), 0)
   const gananciaNeta = ingresosMes - gastosMes
+
+  // Pipeline: total comprometido en cotizaciones aceptadas este mes.
+  const aceptadoMes = cotizaciones
+    .filter(c => c.estado === 'aceptada' && enMes(c.createdAt))
+    .reduce((s, c) => s + (c.total || 0), 0)
 
   const ultimas5 = [...cotizaciones]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -110,9 +116,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-5 md:mb-8">
         <StatCard label="Total cotizaciones" value={cotizaciones.length} icon={FileText} blob="bg-primary/5 group-hover:bg-primary/10" />
         <StatCard label="Por aceptar" value={porAceptar} color="text-yellow-600" icon={Clock} blob="bg-yellow-400/10 group-hover:bg-yellow-400/20" />
-        <StatCard label="Aceptadas" value={aceptadas} color="text-green-600" icon={CheckCircle} blob="bg-green-400/10 group-hover:bg-green-400/20" />
+        <StatCard label="Aceptadas" value={aceptadas} color="text-green-600" sub={`Aceptado mes: ${clp(aceptadoMes)}`} icon={CheckCircle} blob="bg-green-400/10 group-hover:bg-green-400/20" />
         <StatCard label="Rechazadas" value={rechazadas} color="text-primary" icon={XCircle} blob="bg-primary/5 group-hover:bg-primary/10" />
-        <StatCard label="Ingresos mes" value={clp(ingresosMes)} color="text-green-700" sub="aceptadas" icon={TrendingUp} blob="bg-secondary/5 group-hover:bg-secondary/10" />
+        <StatCard label="Ingresos mes" value={clp(ingresosMes)} color="text-green-700" sub="pagos recibidos" icon={TrendingUp} blob="bg-secondary/5 group-hover:bg-secondary/10" />
         <StatCard
           label="Ganancia neta"
           value={clp(gananciaNeta)}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   saveCotizacion, deleteCotizacion, saveCliente, getClienteById,
   subscribeCotizaciones, subscribeClientes, syncPublicStats,
-  saveGasto, deleteGasto, savePago, deletePago, subscribeGastos, subscribePagos,
+  saveGasto, deleteGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos,
   subscribeInventario, saveInventarioItem,
 } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
@@ -789,13 +789,9 @@ function FinanzasCotizacion({ cotizacion, onClose }) {
     } finally { setGuardando(false) }
   }
 
-  // Borra un material y revierte su movimiento de inventario, si tuvo uno.
+  // Borra un material; la reversa del stock la maneja la función centralizada.
   const borrarMaterial = async (g) => {
-    if (g.inventarioId && g.inventarioCantidad && g.inventarioMovimiento && g.inventarioMovimiento !== 'ninguno') {
-      const reverso = g.inventarioMovimiento === 'sumar' ? 'descontar' : 'sumar'
-      await moverStock(g.inventarioId, g.inventarioCantidad, reverso)
-    }
-    await deleteGasto(g.id)
+    await deleteGastoConReversa(g)
   }
 
   const guardarAbono = async () => {

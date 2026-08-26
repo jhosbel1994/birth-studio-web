@@ -125,6 +125,22 @@ export async function deleteGasto(id) {
   await deleteDoc(doc(db, 'gastos', id))
 }
 
+// Borra un gasto y, si estaba vinculado a un ítem de inventario con
+// movimiento de stock, lo revierte (compra→resta, uso→suma). Fuente única
+// de la reversa para que dé igual borrar desde Finanzas o desde Gastos.
+export async function deleteGastoConReversa(gasto) {
+  if (gasto?.inventarioId && gasto?.inventarioCantidad && gasto?.inventarioMovimiento && gasto.inventarioMovimiento !== 'ninguno') {
+    const snap = await getDoc(doc(db, 'inventario', gasto.inventarioId))
+    if (snap.exists()) {
+      const item = snap.data()
+      const delta = gasto.inventarioMovimiento === 'sumar' ? -gasto.inventarioCantidad : gasto.inventarioCantidad
+      await setDoc(doc(db, 'inventario', gasto.inventarioId),
+        { ...item, cantidad: Math.max(0, (item.cantidad || 0) + delta) }, { merge: true })
+    }
+  }
+  await deleteDoc(doc(db, 'gastos', gasto.id))
+}
+
 // ─── PAGOS ────────────────────────────────────────────────────────────────────
 export async function getPagos() {
   const snap = await getDocs(query(collection(db, 'pagos'), orderBy('createdAt', 'desc')))
