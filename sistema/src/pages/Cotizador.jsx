@@ -11,6 +11,7 @@ import {
   getCatalogoItems, saveCatalogoItem, deleteCatalogoItem,
   getCatalogoSecciones, saveCatalogoSeccion, deleteCatalogoSeccion,
   getSeccionesOverrides, saveSeccionesOverrides,
+  subscribeProveedores,
 } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, formatEmailJSError } from '../utils/email'
@@ -742,6 +743,9 @@ const UNIDADES_ITEM = [
   { v: 'libre', label: 'precio libre' },
 ]
 
+// Mapea la unidad del proveedor a las unidades del ítem del cotizador
+const UNIDAD_PROV_A_ITEM = { 'm²': 'm2', 'm2': 'm2', 'ml': 'ml', 'unidad': 'unidad', 'plancha': 'plancha', 'set': 'set', 'rollo': 'unidad', 'caja': 'unidad', 'kilo': 'unidad', 'litro': 'unidad' }
+
 function AgregarItemForm({ categoria, defaultMult }) {
   const { addItem } = useContext(CatalogoContext)
   const [abierto, setAbierto] = useState(false)
@@ -751,6 +755,29 @@ function AgregarItemForm({ categoria, defaultMult }) {
   const [aplicaMult, setAplicaMult] = useState(true)
   const [mult, setMult] = useState(String(defaultMult ?? 2.5))
   const [guardando, setGuardando] = useState(false)
+  const [proveedores, setProveedores] = useState([])
+
+  useEffect(() => {
+    if (!abierto) return
+    const u = subscribeProveedores(setProveedores)
+    return () => u()
+  }, [abierto])
+
+  // Materiales de proveedores en lista plana para el selector "traer de proveedor"
+  const opcionesProv = proveedores.flatMap(p =>
+    (p.materiales || []).map((m, i) => ({
+      key: `${p.id}:${i}`, proveedorNombre: p.nombre,
+      nombre: m.nombre, unidad: m.unidad, precio: m.precio,
+    })))
+
+  const traerDeProveedor = (key) => {
+    const o = opcionesProv.find(x => x.key === key)
+    if (!o) return
+    if (!nombre.trim()) setNombre(o.nombre)
+    if (o.precio != null) setPrecio(String(o.precio))
+    const u = UNIDAD_PROV_A_ITEM[o.unidad]
+    if (u && UNIDADES_ITEM.some(x => x.v === u)) setUnidad(u)
+  }
 
   const reset = () => {
     setNombre(''); setPrecio(''); setUnidad('m2')
@@ -794,6 +821,15 @@ function AgregarItemForm({ categoria, defaultMult }) {
   return (
     <div className="px-4 py-3 border-t border-white/50 bg-white/50 flex flex-col gap-2">
       <p className="text-xs font-dm uppercase tracking-wider text-on-surface-variant">Nuevo ítem personalizado</p>
+      {opcionesProv.length > 0 && (
+        <select value="" onChange={e => traerDeProveedor(e.target.value)}
+          className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
+          <option value="">Traer de proveedor (rellena nombre y precio)…</option>
+          {opcionesProv.map(o => (
+            <option key={o.key} value={o.key}>{o.proveedorNombre} · {o.nombre} — {clp(o.precio)}/{o.unidad}</option>
+          ))}
+        </select>
+      )}
       <input value={nombre} onChange={e => setNombre(e.target.value)} autoFocus
         placeholder="Nombre del ítem (ej. Vinil fundido premium)"
         className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />

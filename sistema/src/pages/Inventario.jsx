@@ -21,10 +21,33 @@ const tipoLabel = (v) => TIPOS.find(t => t.v === v)?.v || v
 
 const EMPTY = { nombre: '', tipo: 'm2', cantidad: '', precio: '', proveedorId: '', nota: '' }
 
+// Mapea la unidad del proveedor (m², ml…) al tipo del inventario (m2, ml…)
+const UNIDAD_A_TIPO = { 'm²': 'm2', 'm2': 'm2', 'ml': 'ml', 'unidad': 'unidad', 'plancha': 'plancha', 'rollo': 'rollo', 'caja': 'caja', 'kilo': 'kilo', 'litro': 'litro', 'set': 'set' }
+
 // ─── MODAL CREAR/EDITAR ÍTEM ──────────────────────────────────────────────────
 function Modal({ item, proveedores, onClose, onSave }) {
   const [form, setForm] = useState(item?.id ? { ...EMPTY, ...item } : { ...EMPTY })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Materiales de todos los proveedores, en una lista plana para el selector.
+  const opcionesProv = proveedores.flatMap(p =>
+    (p.materiales || []).map((m, i) => ({
+      key: `${p.id}:${i}`, proveedorId: p.id, proveedorNombre: p.nombre,
+      nombre: m.nombre, unidad: m.unidad, precio: m.precio,
+    })))
+
+  const traerDeProveedor = (key) => {
+    const o = opcionesProv.find(x => x.key === key)
+    if (!o) return
+    const tipo = UNIDAD_A_TIPO[o.unidad]
+    setForm(f => ({
+      ...f,
+      nombre: f.nombre?.trim() ? f.nombre : o.nombre,
+      precio: o.precio ?? f.precio,
+      proveedorId: o.proveedorId,
+      tipo: tipo && TIPOS.some(t => t.v === tipo) ? tipo : f.tipo,
+    }))
+  }
 
   const submit = (e) => {
     e.preventDefault()
@@ -45,6 +68,18 @@ function Modal({ item, proveedores, onClose, onSave }) {
           <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-3">
+          {opcionesProv.length > 0 && (
+            <div>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Traer de proveedor (opcional)</label>
+              <select value="" onChange={e => traerDeProveedor(e.target.value)}
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white">
+                <option value="">Rellenar desde un material de proveedor…</option>
+                {opcionesProv.map(o => (
+                  <option key={o.key} value={o.key}>{o.proveedorNombre} · {o.nombre} — {clp(o.precio)}/{o.unidad}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Material *</label>
             <input value={form.nombre} onChange={e => set('nombre', e.target.value)} required autoFocus
