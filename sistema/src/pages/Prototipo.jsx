@@ -2472,13 +2472,13 @@ export default function Prototipo() {
           // emisión para leerse encendida (acrílico iluminado por dentro).
           pFace.emissiveMap = pTex;
           pFace.emissive = new THREE.Color(ledColor);
-          pFace.emissiveIntensity = mode === "both" ? 1.2 : 1.8;
+          pFace.emissiveIntensity = mode === "both" ? 1.4 : 2.1;
         }
       } else {
         pFace.color = new THREE.Color(faceColor);
         if (litFront) {
           pFace.emissive = new THREE.Color(faceColor).multiply(new THREE.Color(ledColor));
-          pFace.emissiveIntensity = mode === "both" ? 1.35 : 1.95;
+          pFace.emissiveIntensity = mode === "both" ? 1.55 : 2.25;
         }
       }
       if (mode === "back") { pFace.emissive = new THREE.Color(0x000000); pFace.emissiveIntensity = 0; pFace.color.multiplyScalar(0.45); }
@@ -2579,13 +2579,15 @@ export default function Prototipo() {
       } else if (kind === "letters" && cached?.imageData) {
         const grp = buildCorporeo(cached.imageData, cached.tex, wTarget);
         plane.add(grp || flatArt(cached.tex));
-        // Luz de acento del color del LED: la pieza "derrama" luz sobre el
-        // muro y refleja en su entorno, como el letrero principal.
+        // Iluminación FRONTAL: un foco por DELANTE que roza las caras y el
+        // canto (resalta el relieve y da reflejo en el acrílico), sin lavar
+        // el muro de atrás — eso se leería como retroiluminado. Neutro para
+        // no teñir el arte; la emisión de la cara ya aporta el color del LED.
         if (grp && litFront) {
-          const spot = new THREE.PointLight(new THREE.Color(ledColor), mode === "both" ? 0.35 : 0.55, wTarget * 4, 2);
-          spot.position.set(0, 0, -standoff * 0.6);
-          spot.raycast = () => {};
-          plane.add(spot);
+          const front = new THREE.PointLight(0xffffff, mode === "both" ? 0.5 : 0.85, wTarget * 6, 2);
+          front.position.set(0, wTarget * 0.15, Math.max(0.28, wTarget * 0.45));
+          front.raycast = () => {};
+          plane.add(front);
         }
       } else {
         const texExtra = cached?.tex || new THREE.TextureLoader().load(item.dataUrl);
