@@ -3694,7 +3694,7 @@ export default function Prototipo() {
             </label>
           </>
         )}
-        {placedLogos.length === 0 && (
+        {(placedLogos.length === 0 || placedLogos.some((it) => (it.kind || "original") === "letters")) && (
           <>
             <div style={s.pLabel}>Color del canto</div>
             <div style={s.swatches}>
@@ -3713,6 +3713,9 @@ export default function Prototipo() {
             </label>
             <Seg items={[{ id: "mate", label: "Mate" }, { id: "metal", label: "Metalico" }]}
               value={edgeMetal ? "metal" : "mate"} onPick={(o) => setEdgeMetal(o.id === "metal")} />
+            {placedLogos.length > 0 && (
+              <div style={s.pHint}>El color y acabado del canto se aplican a todas las letras corpóreas colocadas.</div>
+            )}
           </>
         )}
         {placedLogos.length === 0 && sourceType !== "texto" && product !== "lightbox" && (
