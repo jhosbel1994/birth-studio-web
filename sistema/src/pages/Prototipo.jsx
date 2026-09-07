@@ -2205,6 +2205,38 @@ export default function Prototipo() {
     if (S.current.camera) applyZoom(S.current.camera, zoom);
   }, [zoom]);
 
+  // Decodifica cada logo colocado a ImageData + textura (cache en S.current),
+  // para poder construir su CORPÓREO REAL (extrusión 3D + iluminación) de
+  // forma síncrona dentro de build(). Al completar una decodificación nueva
+  // se dispara un rebuild (genSeq). El cache se marca con null "en curso"
+  // para no relanzar la misma imagen dos veces.
+  useEffect(() => {
+    const cache = S.current.placedCache || (S.current.placedCache = new Map());
+    placedLogos.forEach((item) => {
+      if (!item.dataUrl || cache.has(item.dataUrl)) return;
+      cache.set(item.dataUrl, null);
+      const img = new Image();
+      img.onload = () => {
+        const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+        if (!iw || !ih) return;
+        const targetW = 1000, targetH = Math.max(1, Math.round((ih / iw) * targetW));
+        const c = document.createElement("canvas");
+        c.width = targetW; c.height = targetH;
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+        ctx.clearRect(0, 0, targetW, targetH);
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        const imageData = ctx.getImageData(0, 0, targetW, targetH);
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = SRGB; tex.anisotropy = 8;
+        cache.set(item.dataUrl, { imageData, tex });
+        setGenSeq((n) => n + 1);
+      };
+      img.onerror = () => {};
+      img.src = item.dataUrl;
+    });
+  }, [placedLogos]);
+
   /* -- Construccion de la escena -- */
   const build = useCallback(() => {
     const { rig, envGroup, spill, wallWash, keyLight, fillLight, rimLight, ambient, sc, camera, imageData, srcCanvas } = S.current;
@@ -2417,66 +2449,139 @@ export default function Prototipo() {
     if (placedLogos.length > 0 && sourceType !== "texto") sign.visible = false;
     rig.add(sign);
     const extraTargets = [];
+    // Corpóreo REAL para un logo colocado: mismo motor que el letrero
+    // principal (buildLetters -> ExtrudeGeometry) con canto 3D que atrapa la
+    // luz + iluminación LED (frontal/retro/ambos, color, temperatura) y halo
+    // de retroiluminación. Devuelve un Group centrado (cara al frente, canto
+    // hacia el muro) o null si no se pudo trazar.
+    const buildCorporeo = (pImg, pTex, wTarget) => {
+      let pres;
+      try { pres = buildLetters(pImg, { threshold, invert, detect, anchoM: wTarget, altoM: wTarget * 12 }); }
+      catch { pres = null; }
+      if (!pres || !pres.shapes.length) return null;
+      const grp = new THREE.Group();
+      const pUv = { mPerPx: pres.mPerPx, cx: pres.cx, cy: pres.cy, imgW: pImg.width, imgH: pImg.height };
+
+      const pFace = new THREE.MeshStandardMaterial({
+        color: 0xffffff, roughness: 0.42, metalness: 0, envMapIntensity: 0.4,
+      });
+      if (useArt) {
+        pFace.map = pTex;
+        if (litFront) {
+          pFace.emissiveMap = pTex;
+          pFace.emissive = new THREE.Color(ledColor);
+          pFace.emissiveIntensity = mode === "both" ? 0.75 : 1.0;
+        }
+      } else {
+        pFace.color = new THREE.Color(faceColor);
+        if (litFront) {
+          pFace.emissive = new THREE.Color(faceColor).multiply(new THREE.Color(ledColor));
+          pFace.emissiveIntensity = mode === "both" ? 0.85 : 1.15;
+        }
+      }
+      if (mode === "back") { pFace.emissive = new THREE.Color(0x000000); pFace.emissiveIntensity = 0; pFace.color.multiplyScalar(0.45); }
+      const pEdge = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(edgeColor),
+        roughness: edgeMetal ? 0.32 : 0.6,
+        metalness: edgeMetal ? 0.85 : 0.15,
+        envMapIntensity: edgeMetal ? 1.2 : 0.9,
+      });
+      applyPolygonOffset(pFace); applyPolygonOffset(pEdge);
+      pres.shapes.forEach((shape) => {
+        try {
+          const geo = new THREE.ExtrudeGeometry(shape, {
+            depth, bevelEnabled: true, bevelThickness: depth * 0.08, bevelSize: depth * 0.05,
+            bevelSegments: 2, curveSegments: 14,
+          });
+          applyUV(geo, "letters", pUv);
+          geo.computeVertexNormals();
+          const m = new THREE.Mesh(geo, [pFace, pEdge]);
+          m.castShadow = true; m.receiveShadow = true;
+          m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 20), edgeLineMat));
+          grp.add(m);
+        } catch { /* forma degenerada, se omite */ }
+      });
+      if (!grp.children.length) return null;
+      // Cara al frente (z=0 del grupo) y canto hacia el muro (-Z).
+      grp.position.z = -depth;
+
+      // Halo de retroiluminación (solo modos con luz por detrás), tomado de
+      // la silueta real del logo, teñido con el color del LED.
+      if (mode === "back" || mode === "both") {
+        const { mask } = buildMask(pImg, threshold, invert, detect);
+        const silCanvas = silhouetteCanvas(mask, pImg.width, pImg.height);
+        const silWM = pImg.width * pres.mPerPx;
+        const silOffX = (pImg.width / 2 - pres.cx) * pres.mPerPx;
+        const silOffY = -(pImg.height / 2 - pres.cy) * pres.mPerPx;
+        const mPerPxSil = silWM / silCanvas.width;
+        const radiusPx = Math.max(2, (standoff * 0.9) / mPerPxSil);
+        const { canvas: hc, pad } = haloCanvas(silCanvas, radiusPx);
+        const htex = new THREE.CanvasTexture(hc); htex.colorSpace = SRGB;
+        const haloMat = new THREE.MeshBasicMaterial({
+          map: htex, color: new THREE.Color(ledColor), transparent: true,
+          opacity: mode === "back" ? 0.95 : 0.6,
+          blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+        });
+        const halo = new THREE.Mesh(
+          new THREE.PlaneGeometry((silCanvas.width + pad * 2) * mPerPxSil, (silCanvas.height + pad * 2) * mPerPxSil),
+          haloMat
+        );
+        halo.position.set(silOffX, silOffY, -standoff);
+        halo.raycast = () => {};
+        grp.add(halo);
+      }
+      return grp;
+    };
+
     placedLogos.forEach((item, layerIndex) => {
       if (!item.dataUrl) return;
-      const texExtra = new THREE.TextureLoader().load(item.dataUrl);
-      texExtra.colorSpace = SRGB;
-      texExtra.anisotropy = 8;
-      const w = Math.max(0.12, item.w || Math.min(anchoM * 0.42, 1.1));
-      const h = w / Math.max(0.12, item.aspect || 1.8);
       const kind = item.kind || "original";
       const layerZ = layerIndex * 0.018;
+      const wTarget = Math.max(0.12, item.w || Math.min(anchoM * 0.42, 1.1));
+      const hTarget = wTarget / Math.max(0.12, item.aspect || 1.8);
       const plane = new THREE.Group();
       plane.position.set(item.x || 0, item.y || 0, (item.z ?? 0.065) + layerZ);
       plane.rotation.y = item.ry || 0;
       plane.userData.placementId = item.id;
+      const cached = S.current.placedCache?.get(item.dataUrl) || null;
+
+      // Arte plano (vinilo impreso "Original", o respaldo mientras el logo
+      // se decodifica para el corpóreo real).
+      const flatArt = (map) => {
+        const a = new THREE.Mesh(
+          new THREE.PlaneGeometry(wTarget, hTarget),
+          new THREE.MeshBasicMaterial({ map, transparent: true, color: 0xffffff, side: THREE.DoubleSide })
+        );
+        a.userData.placementId = item.id;
+        return a;
+      };
+
       if (kind === "lightbox") {
         const boxMat = new THREE.MeshStandardMaterial({
-            color: 0xf7f8fb, roughness: 0.34, metalness: 0.02,
-            emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 0.24 : 0.08,
+          color: 0xf7f8fb, roughness: 0.34, metalness: 0.02,
+          emissive: new THREE.Color(ledColor), emissiveIntensity: night ? 0.5 : 0.16,
         });
         const isCircle = (item.boxForm || "rect") === "circle";
         const box = isCircle
-          ? new THREE.Mesh(new THREE.CylinderGeometry(Math.max(w, h) * 0.58, Math.max(w, h) * 0.58, 0.055, 48), boxMat)
-          : new THREE.Mesh(new THREE.BoxGeometry(w * 1.1, h * 1.16, 0.055), boxMat);
+          ? new THREE.Mesh(new THREE.CylinderGeometry(Math.max(wTarget, hTarget) * 0.58, Math.max(wTarget, hTarget) * 0.58, 0.055, 48), boxMat)
+          : new THREE.Mesh(new THREE.BoxGeometry(wTarget * 1.1, hTarget * 1.16, 0.055), boxMat);
         if (isCircle) box.rotation.x = Math.PI / 2;
         box.position.z = -0.035;
         box.castShadow = true; box.receiveShadow = true;
         plane.add(box);
-      } else if (kind === "letters") {
-        // Cuerpo corpóreo real: el canto (grosor lateral) sigue el slider
-        // "Canto" del panel Volumen. Apilamos la silueta del logo hacia
-        // atrás en -Z para que el borde se lea como el canto de una letra
-        // fabricada, teñido con el color de canto elegido (más oscuro para
-        // que el lateral quede sombreado como en un render real).
-        const cantoM = depth; // 4–12 cm, tomado del slider Canto
-        const cantoBase = new THREE.Color(edgeColor);
-        const layers = Math.max(8, Math.min(26, Math.round(cantoM * 200)));
-        for (let i = layers; i >= 1; i--) {
-          const t = i / layers; // 1 = capa más profunda (contra el muro)
-          // Degradado de sombra: el fondo del canto va más oscuro.
-          const cantoCol = cantoBase.clone().multiplyScalar(0.45 + 0.2 * (1 - t));
-          const side = new THREE.Mesh(
-            new THREE.PlaneGeometry(w, h),
-            new THREE.MeshBasicMaterial({
-              map: texExtra, transparent: true, color: cantoCol,
-              side: THREE.DoubleSide, depthWrite: true,
-            })
-          );
-          side.position.z = -cantoM * t;
-          plane.add(side);
-        }
+        const texExtra = cached?.tex || new THREE.TextureLoader().load(item.dataUrl);
+        texExtra.colorSpace = SRGB; texExtra.anisotropy = 8;
+        const art = flatArt(texExtra);
+        art.position.z = 0.012;
+        plane.add(art);
+      } else if (kind === "letters" && cached?.imageData) {
+        const grp = buildCorporeo(cached.imageData, cached.tex, wTarget);
+        plane.add(grp || flatArt(cached.tex));
+      } else {
+        const texExtra = cached?.tex || new THREE.TextureLoader().load(item.dataUrl);
+        texExtra.colorSpace = SRGB; texExtra.anisotropy = 8;
+        plane.add(flatArt(texExtra));
       }
-      const art = new THREE.Mesh(
-        new THREE.PlaneGeometry(w, h),
-        new THREE.MeshBasicMaterial({ map: texExtra, transparent: true, color: 0xffffff, opacity: 1, side: THREE.DoubleSide })
-      );
-      art.position.z = kind === "lightbox" ? 0.012 : 0;
-      art.userData.placementId = item.id;
-      plane.add(art);
-      // Sin recuadro azul de selección en la escena: el logo activo ya se
-      // resalta en la lista lateral "En el mockup". Un overlay en 3D solo
-      // ensuciaba la vista del letrero.
       rig.add(plane);
       extraTargets.push(plane);
     });
