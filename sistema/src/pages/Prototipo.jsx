@@ -2463,20 +2463,22 @@ export default function Prototipo() {
       const pUv = { mPerPx: pres.mPerPx, cx: pres.cx, cy: pres.cy, imgW: pImg.width, imgH: pImg.height };
 
       const pFace = new THREE.MeshStandardMaterial({
-        color: 0xffffff, roughness: 0.42, metalness: 0, envMapIntensity: 0.4,
+        color: 0xffffff, roughness: 0.32, metalness: 0, envMapIntensity: 0.5,
       });
       if (useArt) {
         pFace.map = pTex;
         if (litFront) {
+          // ACES comprime los brillos: la cara necesita empujar más la
+          // emisión para leerse encendida (acrílico iluminado por dentro).
           pFace.emissiveMap = pTex;
           pFace.emissive = new THREE.Color(ledColor);
-          pFace.emissiveIntensity = mode === "both" ? 0.75 : 1.0;
+          pFace.emissiveIntensity = mode === "both" ? 1.2 : 1.8;
         }
       } else {
         pFace.color = new THREE.Color(faceColor);
         if (litFront) {
           pFace.emissive = new THREE.Color(faceColor).multiply(new THREE.Color(ledColor));
-          pFace.emissiveIntensity = mode === "both" ? 0.85 : 1.15;
+          pFace.emissiveIntensity = mode === "both" ? 1.35 : 1.95;
         }
       }
       if (mode === "back") { pFace.emissive = new THREE.Color(0x000000); pFace.emissiveIntensity = 0; pFace.color.multiplyScalar(0.45); }
@@ -2577,6 +2579,14 @@ export default function Prototipo() {
       } else if (kind === "letters" && cached?.imageData) {
         const grp = buildCorporeo(cached.imageData, cached.tex, wTarget);
         plane.add(grp || flatArt(cached.tex));
+        // Luz de acento del color del LED: la pieza "derrama" luz sobre el
+        // muro y refleja en su entorno, como el letrero principal.
+        if (grp && litFront) {
+          const spot = new THREE.PointLight(new THREE.Color(ledColor), mode === "both" ? 0.35 : 0.55, wTarget * 4, 2);
+          spot.position.set(0, 0, -standoff * 0.6);
+          spot.raycast = () => {};
+          plane.add(spot);
+        }
       } else {
         const texExtra = cached?.tex || new THREE.TextureLoader().load(item.dataUrl);
         texExtra.colorSpace = SRGB; texExtra.anisotropy = 8;
