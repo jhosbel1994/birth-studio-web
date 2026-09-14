@@ -1201,7 +1201,10 @@ function BastidoresPanel({ multiplicador }) {
   let precio = null, desc = ''
   if (tipo === 'proveedor') {
     const b = BASTIDORES_PROVEEDOR.find(b => b.id === selProv)
-    if (b) { precio = Math.round((caras === 'una' ? provCara(b) : provDoble(b)) * mult); desc = `${b.nombre} ${caras === 'una' ? '1 cara' : 'doble'}` }
+    // El precio proveedor viene con IVA incluido; se normaliza a neto (÷1.19)
+    // antes de aplicar el margen, porque el carrito trata los ítems como neto
+    // y el IVA se aplica sobre el subtotal (evita el doble IVA).
+    if (b) { const baseNeto = (caras === 'una' ? provCara(b) : provDoble(b)) / 1.19; precio = Math.round(baseNeto * mult); desc = `${b.nombre} ${caras === 'una' ? '1 cara' : 'doble'}` }
   } else if (esPaloma) {
     const p = PALOMAS.find(p => p.id === selPaloma)
     if (p) { precio = palomaVal(p); desc = p.nombre }
@@ -1894,9 +1897,12 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
   const pctDesc         = Math.min(Math.max(parseFloat(descuento) || 0, 0), 100)
   const montoDescuento  = pctDesc > 0 ? Math.round(subtotalBruto * pctDesc / 100) : 0
   const subtotal        = subtotalBruto - montoDescuento
-  const montoTraslado   = parseFloat(traslado) || 0
-  const iva             = conIva ? Math.round(subtotal * 0.19) : 0
-  const total           = subtotal + iva + montoTraslado
+  const montoTraslado   = Math.round(parseFloat(traslado) || 0)
+  // El traslado es un servicio afecto a IVA: entra a la base imponible junto
+  // con el subtotal (antes se sumaba después del IVA y no tributaba).
+  const baseAfecta      = subtotal + montoTraslado
+  const iva             = conIva ? Math.round(baseAfecta * 0.19) : 0
+  const total           = baseAfecta + iva
   const anticipo        = Math.round(total * 0.5)
 
   const buildCot = () => ({
@@ -1905,7 +1911,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
     conIva, fecha: hoy(), validez: 15,
     fechaVencimiento: sumarDias(hoy(), 15),
     items, subtotal, iva, total,
-    anticipo, saldo: anticipo,
+    anticipo, saldo: total - anticipo,
     descuento: pctDesc,
     montoDescuento,
     traslado: montoTraslado,

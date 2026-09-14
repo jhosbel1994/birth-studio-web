@@ -1,0 +1,39 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Reglas de Storage — Birth Studio
+//
+// Solo se sube a `galeria/` (fotos de portafolio y mockups de vitrina).
+// Lectura pública (son imágenes de portafolio, no datos sensibles); escritura
+// solo cuentas de la allowlist. Debe coincidir con Login.jsx y firestore.rules.
+//
+// Desplegar con:  firebase deploy --only storage
+// ═══════════════════════════════════════════════════════════════════════════
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAllowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'jhosbelevilla@gmail.com',
+          'bstudio.designe@gmail.com'
+        ];
+    }
+
+    match /galeria/{fileName} {
+      allow read: if true;
+      // Solo imágenes de hasta 10 MB, y solo cuentas autorizadas.
+      allow write: if isAllowed()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAllowed();
+    }
+
+    // Cualquier otra ruta: denegada por defecto.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

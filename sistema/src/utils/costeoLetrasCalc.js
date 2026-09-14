@@ -62,7 +62,9 @@ export function calcularCosteoLetras({
   const logistica = logisticaFija + logisticaVariable
 
   const costoTotal = Math.round(baseMateriales + produccionTotal + logistica + desgaste)
-  const ventaNeta = Math.round(costoTotal * (parseFloat(margen) || 0))
+  // Fallback a 1 (no 0): un margen vacío/inválido nunca debe colapsar la venta
+  // a $0. Con 1 se vende al costo (utilidad 0), nunca bajo costo.
+  const ventaNeta = Math.round(costoTotal * (parseFloat(margen) || 1))
   const ventaIva = Math.round(ventaNeta * 1.19)
   const anticipo = Math.round(ventaIva * 0.5)
   const utilidad = ventaNeta - costoTotal

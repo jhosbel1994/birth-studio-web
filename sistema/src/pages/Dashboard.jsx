@@ -69,7 +69,15 @@ export default function Dashboard() {
 
   const mes = new Date().getMonth()
   const año = new Date().getFullYear()
-  const enMes = (d) => { const x = new Date(d); return x.getMonth() === mes && x.getFullYear() === año }
+  const mesStr = `${año}-${String(mes + 1).padStart(2, '0')}` // 'YYYY-MM' del mes actual
+  // Las fechas 'YYYY-MM-DD' (pagos/gastos) se comparan por prefijo — igual que
+  // la página Gastos — para no correrse de mes por zona horaria (new Date()
+  // parsearía la fecha como UTC y en Chile caería al mes anterior). Los
+  // timestamps completos (createdAt) sí usan Date en hora local.
+  const enMes = (d) => {
+    if (typeof d === 'string' && d.length === 10) return d.slice(0, 7) === mesStr
+    const x = new Date(d); return x.getMonth() === mes && x.getFullYear() === año
+  }
 
   const porAceptar = cotizaciones.filter(c => c.estado === 'por_aceptar').length
   const aceptadas = cotizaciones.filter(c => c.estado === 'aceptada').length

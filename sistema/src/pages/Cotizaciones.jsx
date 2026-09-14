@@ -109,16 +109,28 @@ const EMPTY_COT = {
   plazoEntrega: '', incluye: '', noIncluye: '',
   conIva: true, estado: 'por_aceptar',
   fechaInicio: '', fechaEntrega: '',
+  descuento: 0, traslado: 0,
   tipoProyecto: 'publicidad', // 'publicidad' (Birth Studio) | 'estructuras' (Tensión)
 }
 
-function calcularTotales(items, conIva) {
-  const subtotal = items.reduce((s, i) => s + (i.total || 0), 0)
-  const iva = conIva ? Math.round(subtotal * 0.19) : 0
-  const total = subtotal + iva
+// Debe replicar exactamente el cálculo de la creación (Cotizador.jsx) para que
+// editar no altere los totales: aplica descuento sobre el subtotal bruto y suma
+// el traslado a la base afecta a IVA (el traslado es un servicio afecto).
+function calcularTotales(items, conIva, descuento = 0, traslado = 0) {
+  const subtotalBruto = items.reduce((s, i) => s + (i.total || 0), 0)
+  const pctDesc = Math.min(Math.max(parseFloat(descuento) || 0, 0), 100)
+  const montoDescuento = pctDesc > 0 ? Math.round(subtotalBruto * pctDesc / 100) : 0
+  const subtotal = subtotalBruto - montoDescuento
+  const montoTraslado = Math.round(parseFloat(traslado) || 0)
+  const baseAfecta = subtotal + montoTraslado
+  const iva = conIva ? Math.round(baseAfecta * 0.19) : 0
+  const total = baseAfecta + iva
   const anticipo = Math.round(total * 0.5)
   const saldo = total - anticipo
-  return { subtotal, iva, total, anticipo, saldo }
+  return {
+    subtotalBruto, subtotal, iva, total, anticipo, saldo,
+    descuento: pctDesc, montoDescuento, traslado: montoTraslado,
+  }
 }
 
 // ─── MODAL RESUMEN INLINE (sin PDF) ──────────────────────────────────────────
@@ -431,7 +443,7 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
   const [ncForm, setNcForm] = useState({ nombre: '', empresa: '', rut: '', ciudad: '', correo: '', telefono: '' })
   const [showCatalog, setShowCatalog] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const totales = calcularTotales(form.items, form.conIva)
+  const totales = calcularTotales(form.items, form.conIva, form.descuento, form.traslado)
   const fechaVencimiento = sumarDias(form.fecha, parseInt(form.validez) || 15)
   const agregarItem = () => set('items', [...form.items, { descripcion: '', cantidad: 1, precioUnitario: 0, total: 0 }])
   const agregarDesde = (item) => set('items', [...form.items, { ...item }])
@@ -632,9 +644,33 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
                 <input type="checkbox" checked={form.conIva} onChange={e => set('conIva', e.target.checked)} className="accent-primary" />
                 <span className="text-on-surface-variant">IVA (19%)</span>
               </label>
-              <div className="flex justify-between text-sm font-dm text-on-surface-variant">
-                <span>Subtotal</span><span>{clp(totales.subtotal)}</span>
+              <div className="grid grid-cols-2 gap-2 mb-1">
+                <div>
+                  <label className="block text-[10px] text-on-surface-variant mb-0.5 font-dm uppercase tracking-wider">Desc. %</label>
+                  <input type="number" min="0" max="100" step="1" value={form.descuento ?? 0}
+                    onChange={e => set('descuento', e.target.value)}
+                    className="w-full border border-white/50 rounded px-2 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-on-surface-variant mb-0.5 font-dm uppercase tracking-wider">Traslado $</label>
+                  <input type="number" min="0" step="1000" value={form.traslado ?? 0}
+                    onChange={e => set('traslado', e.target.value)}
+                    className="w-full border border-white/50 rounded px-2 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                </div>
               </div>
+              <div className="flex justify-between text-sm font-dm text-on-surface-variant">
+                <span>Subtotal</span><span>{clp(totales.subtotalBruto)}</span>
+              </div>
+              {totales.montoDescuento > 0 && (
+                <div className="flex justify-between text-sm font-dm text-on-surface-variant">
+                  <span>Descuento ({totales.descuento}%)</span><span>-{clp(totales.montoDescuento)}</span>
+                </div>
+              )}
+              {totales.traslado > 0 && (
+                <div className="flex justify-between text-sm font-dm text-on-surface-variant">
+                  <span>Traslado</span><span>{clp(totales.traslado)}</span>
+                </div>
+              )}
               {form.conIva && (
                 <div className="flex justify-between text-sm font-dm text-on-surface-variant">
                   <span>IVA</span><span>{clp(totales.iva)}</span>

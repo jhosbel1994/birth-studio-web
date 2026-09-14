@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Reglas de Firestore — Birth Studio (sistema interno)
+//
+// Modelo de seguridad: la app es 100% cliente. La ÚNICA barrera real de acceso
+// a los datos son estas reglas. El PIN y el flag de sessionStorage del login
+// son solo comodidad de UI y NO protegen nada.
+//
+// La allowlist DEBE coincidir con ALLOWED_EMAILS en sistema/src/pages/Login.jsx.
+// Si agregas/quitas un correo allá, actualízalo aquí también.
+//
+// Desplegar con:  firebase deploy --only firestore:rules
+// ═══════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAllowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'jhosbelevilla@gmail.com',
+          'bstudio.designe@gmail.com'
+        ];
+    }
+
+    // Contador público que lee la web pública (bspublicidad.cl): "+180 Proyectos".
+    // Lectura abierta a propósito; escritura solo cuentas autorizadas.
+    match /publicStats/{docId} {
+      allow read: if true;
+      allow write: if isAllowed();
+    }
+
+    // Todo el resto de colecciones (clientes, cotizaciones, gastos, pagos,
+    // contratos, proveedores, inventario, materiales, settings/PIN, galeria,
+    // mockupsVitrina, catalogos, miscelaneos): solo cuentas de la allowlist.
+    match /{collection}/{docId} {
+      allow read, write: if isAllowed();
+    }
+  }
+}

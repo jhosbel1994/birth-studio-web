@@ -15,7 +15,9 @@ export function calcularMateriales(materiales, itemsState, multiplicador) {
     (acc, m) => acc + calcularCostoMaterial(m, itemsState[m.id]).subtotal,
     0
   )
-  const mult = parseFloat(multiplicador) || 0
+  // Fallback a 1 (no 0): un multiplicador vacío/ inválido nunca debe colapsar
+  // la venta a $0. Con 1 se vende al costo (utilidad 0), nunca bajo costo.
+  const mult = parseFloat(multiplicador) || 1
   const ventaNeta = Math.round(costoTotal * mult)
   const iva = Math.round(ventaNeta * 0.19)
   const totalConIva = ventaNeta + iva
