@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Estilos propios de la landing (migrados del bloque <style> del diseño) ── */
+body {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Grilla técnica de fondo del hero */
+.technical-grid {
+  background-size: 32px 32px;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.025) 1px, transparent 1px);
+}
+
+/* Tabs de filtro de monografías */
+.tab-btn.active {
+  background-color: #111113;
+  color: #ffffff;
+}
+
+/* Acordeón de tarjetas de disciplina */
+.discipline-preview {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, margin-top 0.3s ease;
+}
+.discipline-card.expanded .discipline-preview {
+  max-height: 360px;
+  opacity: 1;
+  margin-top: 1rem;
+}
+.discipline-card.expanded .arrow-indicator {
+  transform: rotate(180deg);
+}
+
+/* Respeto a usuarios que reducen movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
