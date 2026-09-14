@@ -95,7 +95,7 @@ function ModalGasto({ gasto, onClose, onSave }) {
           )}
         </div>
 
-        <form onSubmit={e => { e.preventDefault(); if (!form.descripcion || !form.monto) return; onSave(form) }}
+        <form onSubmit={e => { e.preventDefault(); if (!form.descripcion || !(Number(form.monto) > 0)) return; onSave(form) }}
           className="p-5 md:p-6 pt-4 space-y-4">
           <div>
             <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Descripción *</label>

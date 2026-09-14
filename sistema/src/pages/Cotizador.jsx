@@ -209,7 +209,7 @@ function ProductoFila({ producto, multiplicador }) {
     const ml = parseFloat(d1 || 0)
     if (ml > 0) total = Math.round(ml * precioBase * multItem)
   } else if (u === 'libre') {
-    total = parseFloat(d1 || 0)
+    total = Math.round(parseFloat(d1) || 0)
   } else {
     const qty = parseFloat(d1 || 0) || 1
     if (precioBase > 0) total = Math.round(qty * precioBase * multItem)

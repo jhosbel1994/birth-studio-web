@@ -5,3 +5,6 @@ sistema/.env.local
 
 # Fotos originales sin comprimir (20MB) — el sitio usa assets/fotos-web/
 assets/fotos/
+
+# Logs de dev / temporales (no deben commitearse)
+*.log
