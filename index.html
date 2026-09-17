@@ -130,8 +130,10 @@
   position:fixed;
   right:1.25rem;
   bottom:1.25rem;
-  z-index:9999;
-  display:flex;
+  z-index:2147483647;
+  display:flex!important;
+  visibility:visible!important;
+  opacity:1!important;
   align-items:center;
   justify-content:center;
   width:4rem;
@@ -156,16 +158,13 @@ a[href*="wa.me"]:not(.whatsapp-float){
   color:#fff!important;
   background:#e60000;
   border:1px solid #e60000;
-  box-shadow:0 5px 14px rgba(230,0,0,.2);
-  animation:whatsapp-link-pulse 2.4s ease-in-out infinite;
+  box-shadow:none;
 }
-a[href*="wa.me"]:not(.whatsapp-float):hover{background:#b90000;border-color:#b90000;color:#fff!important;animation-play-state:paused;transform:translateY(-1px)}
-@keyframes whatsapp-link-pulse{0%,100%{box-shadow:0 5px 14px rgba(230,0,0,.2)}50%{box-shadow:0 7px 20px rgba(230,0,0,.45)}}
+a[href*="wa.me"]:not(.whatsapp-float):hover{background:#b90000;border-color:#b90000;color:#fff!important}
 .whatsapp-float{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .whatsapp-float.is-dragging{cursor:grabbing;transition:none;transform:scale(1.08)}
-.whatsapp-float__icon{width:2.65rem;height:2.65rem;color:#fff;display:block;pointer-events:none}
-.whatsapp-float__icon svg{width:100%;height:100%;display:block}
-@media (prefers-reduced-motion:reduce){a[href*="wa.me"]:not(.whatsapp-float){animation:none}}
+.whatsapp-float__icon{width:2.65rem;height:2.65rem;color:#fff;display:block;flex:0 0 auto;pointer-events:none}
+.whatsapp-float__icon svg{width:100%!important;height:100%!important;display:block!important;fill:#fff!important;opacity:1!important}
 /* Ajustes de composición para pantallas pequeñas */
 @media (max-width:767px){
   html,body{overflow-x:hidden}
@@ -176,12 +175,15 @@ a[href*="wa.me"]:not(.whatsapp-float):hover{background:#b90000;border-color:#b90
   main>section.py-20{padding-top:4rem;padding-bottom:4rem}
   .servicios-grid{margin-top:2rem}
   .servicios-grid .discipline-card{padding:1.5rem}
+  .discipline-card>.mt-8{flex-direction:column;align-items:stretch;gap:1rem}
+  .discipline-card>.mt-8>a[href*="wa.me"]{width:100%;min-height:2.75rem;white-space:nowrap}
   .service-web-action{flex-direction:column;align-items:stretch;gap:1rem}
   .service-web-action .text-right{text-align:left}
   .service-web-action a{text-align:center}
-  .whatsapp-float{right:1rem;bottom:1rem;width:3.5rem;height:3.5rem;outline-width:3px}
+  #insumos a[href*="wa.me"]{width:100%;align-self:stretch}
+  .whatsapp-float{position:fixed!important;right:1rem;bottom:max(1rem,env(safe-area-inset-bottom));width:3.75rem;height:3.75rem;outline-width:3px}
   .whatsapp-float img{width:2.3rem;height:2.3rem}
-  .whatsapp-float__icon{width:2.3rem;height:2.3rem}
+  .whatsapp-float__icon{width:2.45rem;height:2.45rem}
 }
 @media (max-width:374px){
   .hero-content h1{font-size:2.1rem}
@@ -744,7 +746,7 @@ Diseños, cálculo estructural y fabricación propia de letreros corpóreos, caj
 </footer>
 
 <a class="whatsapp-float" id="whatsapp-float" href="https://wa.me/56977247545?text=Hola%2C%20les%20escribo%20a%20trav%C3%A9s%20de%20la%20p%C3%A1gina%20web%20de%20Birth%20Studio.%20Quiero%20cotizar%20un%20letrero%20para%20mi%20empresa%20y%20recibir%20asesor%C3%ADa%20para%20mi%20proyecto." target="_blank" rel="noopener" aria-label="Cotizar por WhatsApp. Arrastra para mover el botón.">
-<span class="whatsapp-float__icon" aria-hidden="true"><svg viewBox="0 0 176 176" focusable="false"><path fill="currentColor" d="M126.8 49.2a54.57 54.57 0 0 0-87.42 63.13l-5.79 28.11a2.08 2.08 0 0 0 .33 1.63 2.11 2.11 0 0 0 2.24.87l27.55-6.53a54.56 54.56 0 0 0 63.09-87.21zm-8.59 68.56a42.74 42.74 0 0 1-49.22 8l-3.84-1.9-16.89 4 .05-.21 3.5-17-1.88-3.71a42.72 42.72 0 0 1 7.86-49.59 42.73 42.73 0 0 1 60.42 0 2.28 2.28 0 0 0 .22.22 42.72 42.72 0 0 1-.22 60.19z"/><path fill="currentColor" d="M116.71 105.29c-2.07 3.26-5.34 7.25-9.45 8.24-7.2 1.74-18.25.06-32-12.76l-.17-.15c-12.09-11.21-15.23-20.54-14.47-27.94.42-4.2 3.92-8 6.87-10.48a3.93 3.93 0 0 1 6.15 1.41l4.45 10a3.91 3.91 0 0 1-.49 4l-2.25 2.92a3.87 3.87 0 0 0-.35 4.32c1.26 2.21 4.28 5.46 7.63 8.47 3.76 3.4 7.93 6.51 10.57 7.57a3.82 3.82 0 0 0 4.19-.88l2.61-2.63a4 4 0 0 1 3.9-1l10.57 3a4 4 0 0 1 2.24 5.91z"/></svg></span>
+<span class="whatsapp-float__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 176 176" focusable="false"><path fill="#ffffff" d="M126.8 49.2a54.57 54.57 0 0 0-87.42 63.13l-5.79 28.11a2.08 2.08 0 0 0 .33 1.63 2.11 2.11 0 0 0 2.24.87l27.55-6.53a54.56 54.56 0 0 0 63.09-87.21zm-8.59 68.56a42.74 42.74 0 0 1-49.22 8l-3.84-1.9-16.89 4 .05-.21 3.5-17-1.88-3.71a42.72 42.72 0 0 1 7.86-49.59 42.73 42.73 0 0 1 60.42 0 2.28 2.28 0 0 0 .22.22 42.72 42.72 0 0 1-.22 60.19z"/><path fill="#ffffff" d="M116.71 105.29c-2.07 3.26-5.34 7.25-9.45 8.24-7.2 1.74-18.25.06-32-12.76l-.17-.15c-12.09-11.21-15.23-20.54-14.47-27.94.42-4.2 3.92-8 6.87-10.48a3.93 3.93 0 0 1 6.15 1.41l4.45 10a3.91 3.91 0 0 1-.49 4l-2.25 2.92a3.87 3.87 0 0 0-.35 4.32c1.26 2.21 4.28 5.46 7.63 8.47 3.76 3.4 7.93 6.51 10.57 7.57a3.82 3.82 0 0 0 4.19-.88l2.61-2.63a4 4 0 0 1 3.9-1l10.57 3a4 4 0 0 1 2.24 5.91z"/></svg></span>
 </a>
 
 <!-- SCRIPTS -->
