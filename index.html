@@ -146,6 +146,27 @@
 .whatsapp-float:focus-visible{outline:4px solid #e60000;outline-offset:3px}
 .whatsapp-float img{width:2.65rem;height:2.65rem;display:block}
 @media (min-width:640px){.whatsapp-float{right:1.5rem;bottom:1.5rem}}
+/* Ajustes de composición para pantallas pequeñas */
+@media (max-width:767px){
+  html,body{overflow-x:hidden}
+  .hero-content{padding:2rem 1.25rem 2.75rem}
+  .hero-content>div{gap:1.75rem;padding-top:2.25rem;padding-bottom:0}
+  .hero-content h1{font-size:clamp(2.25rem,10vw,3.25rem);line-height:1.02}
+  .hero-content p{text-align:center}
+  main>section.py-20{padding-top:4rem;padding-bottom:4rem}
+  .servicios-grid{margin-top:2rem}
+  .servicios-grid .discipline-card{padding:1.5rem}
+  .service-web-action{flex-direction:column;align-items:stretch;gap:1rem}
+  .service-web-action .text-right{text-align:left}
+  .service-web-action a{text-align:center}
+  .whatsapp-float{right:1rem;bottom:1rem;width:3.5rem;height:3.5rem;outline-width:3px}
+  .whatsapp-float img{width:2.3rem;height:2.3rem}
+}
+@media (max-width:374px){
+  .hero-content h1{font-size:2.1rem}
+  .hero-content{padding-left:1rem;padding-right:1rem}
+  .servicios-grid .discipline-card{padding:1.25rem}
+}
 </style>
 <!-- Widget del muro de Instagram (Behold.so) -->
 <script type="module" src="https://w.behold.so/widget.js"></script>
@@ -371,7 +392,7 @@ Diseños, cálculo estructural y fabricación propia de letreros corpóreos, caj
 <p class="text-[13px] text-secondary mt-0.5">Complementa la fachada física de tu local con una presencia digital a la altura. Rápida, limpia y enfocada en conversiones.</p>
 </div>
 </div>
-<div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+<div class="service-web-action flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
 <div class="text-right"><span class="block text-[9px] font-mono uppercase text-secondary">Inversión Proyecto</span><div class="flex items-baseline justify-end gap-1 mt-0.5"><span class="text-[12px] font-medium text-secondary font-price">Desde</span><span class="text-2xl font-bold font-price tracking-tight text-[#e60000]">$150.000</span><span class="text-[11px] font-semibold text-secondary font-price">CLP</span></div></div>
 <a class="px-5 py-2.5 bg-primary text-white text-[11px] font-medium tracking-wider uppercase hover:bg-black/90 transition-all whitespace-nowrap" href="https://wa.me/56977247545?text=Hola%2C%20les%20escribo%20a%20trav%C3%A9s%20de%20la%20p%C3%A1gina%20web%20de%20Birth%20Studio.%20Quiero%20cotizar%20un%20letrero%20para%20mi%20empresa%20y%20recibir%20asesor%C3%ADa%20para%20mi%20proyecto." target="_blank" rel="noopener">Consultar Web</a>
 </div>
