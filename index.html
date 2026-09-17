@@ -97,6 +97,38 @@
 
 <!-- ── Tailwind compilado (sin CDN, apto para producción) ── -->
 <link href="css/landing.css" rel="stylesheet"/>
+<style>
+/* Hover de las tarjetas de Servicios: fondo gris claro (más oscuro que el blanco) */
+.discipline-card{transition:background-color .3s ease, border-color .3s ease}
+.discipline-card:hover{background-color:#f0f0f1}
+/* Tarjetas del mismo tamaño (foto siempre visible) con bordes parejos */
+.servicios-grid{align-items:stretch}
+.servicios-grid .discipline-card{border:1px solid #e4e4e7;margin-left:-1px;margin-top:-1px}
+/* Carrusel de marcas (footer) */
+.marquee{width:100%;overflow:hidden}
+.marquee__track{display:flex;align-items:center;gap:5rem;width:max-content;animation:marquee-scroll 45s linear infinite}
+.marquee:hover .marquee__track{animation-play-state:paused}
+.marquee__logo{height:96px;width:auto;flex:0 0 auto;filter:grayscale(1) brightness(.35);opacity:.75;transition:opacity .3s ease,filter .3s ease}
+.marquee__logo:hover{opacity:1}
+@keyframes marquee-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+/* Mosaico de fotos con velo degradé (hero) */
+.hero-mosaic{position:absolute;inset:0;z-index:0;display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:1fr;gap:2px;animation:hero-mosaic-drift 40s ease-in-out infinite alternate}
+.hero-mosaic img{width:100%;height:100%;object-fit:cover;opacity:.65;filter:grayscale(.15);transition:opacity .8s ease}
+.hero-content{position:relative;z-index:2}
+.hero-mosaic__veil{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(255,255,255,.72) 0%,rgba(255,255,255,.55) 45%,rgba(255,255,255,.9) 100%),radial-gradient(ellipse at 32% 42%,rgba(255,255,255,.35) 0%,rgba(255,255,255,.8) 72%)}
+@keyframes hero-mosaic-drift{from{transform:scale(1.06) translate(0,0)}to{transform:scale(1.12) translate(-1.5%,-1%)}}
+@media (max-width:768px){.hero-mosaic{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:640px){
+  .marquee__logo{height:54px}
+  .marquee__track{gap:2.5rem}
+}
+/* Fondo cuadriculado en movimiento */
+.technical-grid{animation:grid-move 18s linear infinite}
+@keyframes grid-move{from{background-position:0 0}to{background-position:32px 32px}}
+@media (prefers-reduced-motion:reduce){.marquee__track,.hero-mosaic,.technical-grid{animation:none}}
+</style>
+<!-- Widget del muro de Instagram (Behold.so) -->
+<script type="module" src="https://w.behold.so/widget.js"></script>
 </head>
 
 <body class="bg-[#fafafa] text-on-surface font-sans antialiased">
@@ -107,15 +139,15 @@
 <div class="flex items-center gap-4">
 <span class="inline-flex items-center gap-1.5 text-white font-sans font-medium text-[10px]">
 <span class="w-1.5 h-1.5 rounded-full bg-[#e60000] animate-pulse"></span>
-TALLER ACTIVO · TALCA, CHILE
+· TALCA, ATENCION EN LA REGION DEL MAULE
 </span>
 <span class="text-white/20">|</span>
-<span>RUT: 77.990.344-3</span>
-<span class="text-white/20">|</span>
-<span>COORD: 35°25'36.4"S 71°40'18.8"W</span>
+
+
+
 </div>
 <div class="flex items-center gap-6">
-<span class="text-[#d4d4d8]">Fabricación Propia &amp; Montaje Estructural</span>
+<span class="text-[#d4d4d8]">Fabricación &amp; Montaje Estructural</span>
 <a class="text-white hover:text-[#e60000] transition-colors flex items-center gap-1" href="https://wa.me/56977247545" target="_blank" rel="noopener">
 <span class="material-symbols-outlined text-[13px]">call</span>
 +56 9 7724 7545
@@ -127,63 +159,76 @@ TALLER ACTIVO · TALCA, CHILE
 <!-- NAV -->
 <header class="sticky top-0 z-50 bg-[#fafafa]/85 backdrop-blur-md border-b border-outline">
 <div class="max-w-7xl mx-auto px-6 h-[4.5rem] py-3.5 flex items-center justify-between">
-<a class="flex items-center gap-3.5 group" href="#" aria-label="Birth Studio — inicio">
-<div class="w-8 h-8 rounded-none border border-black/15 bg-black flex items-center justify-center text-white font-bold text-xs tracking-tighter">
-B<span class="text-[#e60000]">S</span>
-</div>
-<div class="flex flex-col">
-<span class="font-medium tracking-tight text-[15px] leading-tight text-primary uppercase">Birth Studio</span>
-<span class="text-[9px] tracking-widest uppercase text-secondary font-mono">Publicidad &amp; Arquitectura</span>
-</div>
+<a class="flex items-center group" href="#" aria-label="Birth Studio — inicio">
+<img src="assets/logo-birth-dark.png" alt="Birth Studio — Publicidad" width="3947" height="2065" style="height:40px;width:auto;max-width:none"/>
 </a>
 <nav class="hidden lg:flex items-center gap-8 text-[11px] font-medium tracking-widest uppercase text-on-surface-variant" aria-label="Principal">
-<a class="hover:text-primary transition-colors" href="#capacidades">Capacidades</a>
-<a class="hover:text-primary transition-colors" href="#monografias">Monografías de Obra</a>
-<a class="hover:text-primary transition-colors" href="#insumos">Tecnología LED</a>
-<a class="hover:text-primary transition-colors" href="#proceso">Protocolo</a>
-<a class="hover:text-primary transition-colors" href="#visita">Visita en Terreno</a>
+<a class="hover:text-primary transition-colors" href="#capacidades">Servicios</a>
+<a class="hover:text-primary transition-colors" href="#monografias">Proyectos</a>
+<a class="hover:text-primary transition-colors" href="#insumos">Insumos</a>
+<a class="hover:text-primary transition-colors" href="#proceso">Formas de trabajo</a>
+<a class="hover:text-primary transition-colors" href="#visita">Contáctanos</a>
 </nav>
-<div class="flex items-center gap-3">
-<a class="hidden sm:inline-flex items-center gap-2 px-4 py-2 border border-outline bg-white text-primary text-[11px] font-medium tracking-wider uppercase hover:border-primary transition-all" href="https://wa.me/56977247545?text=Hola,%20quisiera%20solicitar%20evaluaci%C3%B3n%20para%20un%20proyecto" target="_blank" rel="noopener">
-<span class="w-1.5 h-1.5 rounded-full bg-[#e60000]"></span>
-Directo Taller
-</a>
-<a class="inline-flex items-center justify-center px-5 py-2 bg-primary text-white text-[11px] font-medium tracking-widest uppercase hover:bg-black/85 transition-all" href="#cotizador">
-Iniciar Especificación
-</a>
+<button id="menu-btn" class="lg:hidden inline-flex items-center justify-center w-10 h-10 -mr-2 text-primary" aria-label="Abrir menú" aria-expanded="false"><span class="material-symbols-outlined" id="menu-icon">menu</span></button>
 </div>
+<div id="mobile-menu" class="lg:hidden hidden border-t border-outline bg-[#fafafa]">
+<nav class="max-w-7xl mx-auto px-6 py-2 flex flex-col text-[13px] font-medium tracking-widest uppercase text-on-surface-variant" aria-label="Menú móvil">
+<a class="mobile-link py-3.5 border-b border-outline/60 hover:text-primary transition-colors" href="#capacidades">Servicios</a>
+<a class="mobile-link py-3.5 border-b border-outline/60 hover:text-primary transition-colors" href="#monografias">Proyectos</a>
+<a class="mobile-link py-3.5 border-b border-outline/60 hover:text-primary transition-colors" href="#insumos">Insumos</a>
+<a class="mobile-link py-3.5 border-b border-outline/60 hover:text-primary transition-colors" href="#proceso">Formas de trabajo</a>
+<a class="mobile-link py-3.5 hover:text-primary transition-colors" href="#visita">Contáctanos</a>
+</nav>
 </div>
 </header>
 
 <main class="w-full">
 
 <!-- HERO -->
-<section class="relative w-full border-b border-outline bg-white overflow-hidden technical-grid">
-<div class="max-w-7xl mx-auto px-6 pt-16 pb-20 lg:pt-24 lg:pb-28">
+<section class="relative w-full border-b border-outline bg-white overflow-hidden">
+<div class="hero-mosaic" aria-hidden="true">
+<img src="assets/fotos-web/LIVERPOOL.jpg" alt=""/>
+<img src="assets/fotos-web/LETRACORPOREA.jpg" alt=""/>
+<img src="assets/fotos-web/CAJETIN-LUMINOSO.jpg" alt=""/>
+<img src="assets/fotos-web/2DEAZUCAR.jpg" alt=""/>
+<img src="assets/fotos-web/BARBERIA.jpg" alt=""/>
+<img src="assets/fotos-web/TOTTEM.jpg" alt=""/>
+<img src="assets/fotos-web/PEDRAGON.jpg" alt=""/>
+<img src="assets/fotos-web/PANAS.jpg" alt=""/>
+<img src="assets/fotos-web/TOSTADURIA.jpg" alt=""/>
+<img src="assets/fotos-web/OPEN.jpg" alt=""/>
+<img src="assets/fotos-web/CIRCULO-LUMINOSO.jpg" alt=""/>
+<img src="assets/fotos-web/ADHESIVO.jpg" alt=""/>
+<img src="assets/fotos-web/BASTIDOR-KUMHO.jpg" alt=""/>
+<img src="assets/fotos-web/LIVER.jpg" alt=""/>
+<img src="assets/fotos-web/DRAGON.jpg" alt=""/>
+<img src="assets/fotos-web/FYWACRILICO.jpg" alt=""/>
+<img src="assets/fotos-web/LACUMBRE.jpg" alt=""/>
+<img src="assets/fotos-web/SOS.jpg" alt=""/>
+</div>
+<div class="hero-mosaic__veil" aria-hidden="true"></div>
+<div class="hero-content max-w-7xl mx-auto px-6 pt-16 pb-20 lg:pt-24 lg:pb-28">
 <div class="flex flex-wrap items-center justify-between gap-4 pb-12 border-b border-outline">
 <div class="flex items-center gap-3">
-<span class="px-2 py-0.5 border border-black/10 bg-[#fafafa] font-mono text-[10px] tracking-wider uppercase text-primary font-medium">ATELIER INDUSTRIAL N° 01</span>
-<span class="text-[11px] tracking-widest uppercase text-secondary">Maule Interior / Costa</span>
+<span class="px-2 py-0.5 border border-black/10 bg-[#fafafa] font-mono text-[10px] tracking-wider uppercase text-primary font-medium">Publicidad Gráfica</span>
+<span class="text-[11px] tracking-widest uppercase text-secondary">Región del Maule</span>
 </div>
 <div class="flex items-center gap-6 font-mono text-[11px] text-secondary">
-<span>NORMA RESISTENCIA UV CHILE</span>
-<span class="text-outline">/</span>
-<span>CORTE CNC &amp; FIBRA ÓPTICA</span>
 </div>
 </div>
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 pt-12 pb-14 items-end">
 <div class="lg:col-span-8 flex flex-col gap-6">
 <div class="inline-flex items-center gap-2">
 <span class="w-1 h-3.5 bg-[#e60000]"></span>
-<span class="font-mono text-[11px] uppercase tracking-widest text-secondary">Estructuras · Identidad · Gran Escala</span>
+<span class="font-mono text-[11px] uppercase tracking-widest text-secondary">Estructuras · Identidad visual a Gran Escala</span>
 </div>
 <h1 class="text-4xl sm:text-6xl lg:text-[70px] font-normal tracking-tighter leading-[1.03] text-primary">
-Servicios de publicidad visual en Talca y el Maule.
+Servicios de publicidad grafica
 </h1>
 </div>
-<div class="lg:col-span-4 flex flex-col justify-end gap-6 border-l border-outline lg:pl-8 pb-1">
+<div class="lg:col-span-4 flex flex-col justify-end gap-6 lg:border-l lg:border-outline lg:pl-8 pb-1">
 <p class="text-[15px] sm:text-[16px] text-on-surface-variant font-normal leading-relaxed">
-Diseño de autor, cálculo estructural y manufactura propia de letreros corpóreos 3D, cajetines luminosos con óptica LED homogénea y gráfica arquitectónica de alta durabilidad exterior.
+Diseños, cálculo estructural y fabricación propia de letreros corpóreos, cajetines luminosos  de alta durabilidad interior / exterior.
 </p>
 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
 <a class="inline-flex items-center justify-center px-6 py-3.5 bg-primary text-white text-[11px] font-medium tracking-widest uppercase hover:bg-black/90 transition-all" href="#cotizador">Cotizar Proyecto</a>
@@ -192,35 +237,10 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 </div>
 </div>
 
-<!-- FOTO MONUMENTAL -->
-<div class="relative w-full border border-outline bg-black group overflow-hidden">
-<div class="relative aspect-[16/9] lg:aspect-[2.35/1] w-full overflow-hidden">
-<img alt="Fachada corporativa iluminada fabricada por Birth Studio en Talca" width="1600" height="680" class="w-full h-full object-cover object-center opacity-95 transition-transform duration-700 ease-out group-hover:scale-[1.02]" src="assets/fotos-web/LIVERPOOL.jpg"/>
-<div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-</div>
-</div>
-
-<!-- MÉTRICAS -->
-<div class="grid grid-cols-2 md:grid-cols-4 border-x border-b border-outline bg-[#fafafa]">
-<div class="p-6 lg:p-8 border-b md:border-b-0 border-r border-outline flex flex-col justify-between">
-<span class="font-mono text-[10px] uppercase tracking-widest text-secondary">01 / HISTORIAL</span>
-<div class="mt-4"><span id="stat-proyectos" class="block text-3xl lg:text-4xl font-normal text-primary tracking-tight">+180</span><span class="text-xs text-secondary mt-1 block">Fachadas comerciales completadas</span></div>
-</div>
-<div class="p-6 lg:p-8 border-b md:border-b-0 border-r border-outline flex flex-col justify-between">
-<span class="font-mono text-[10px] uppercase tracking-widest text-secondary">02 / RADIUS</span>
-<div class="mt-4"><span class="block text-3xl lg:text-4xl font-normal text-primary tracking-tight">Talca &amp; Maule</span><span class="text-xs text-secondary mt-1 block">Cobertura técnica sin subcontratos</span></div>
-</div>
-<div class="p-6 lg:p-8 border-r border-outline flex flex-col justify-between">
-<span class="font-mono text-[10px] uppercase tracking-widest text-secondary">03 / MONTAJE</span>
-<div class="mt-4"><span class="block text-3xl lg:text-4xl font-normal text-primary tracking-tight">Terreno</span><span class="text-xs text-secondary mt-1 block">Fijación con anclaje químico y perno Hilti</span></div>
-</div>
-<div class="p-6 lg:p-8 flex flex-col justify-between">
-<span class="font-mono text-[10px] uppercase tracking-widest text-secondary">04 / GARANTÍA</span>
-<div class="mt-4"><span class="block text-3xl lg:text-4xl font-normal text-primary tracking-tight">5 Años</span><span class="text-xs text-secondary mt-1 block">Oficio de taller y soporte estructural</span></div>
-</div>
-</div>
 </div>
 </section>
+
+
 
 <!-- CAPACIDADES -->
 <section class="w-full py-20 lg:py-28 bg-[#fafafa] border-b border-outline" id="capacidades">
@@ -228,175 +248,103 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 <div class="flex flex-col lg:flex-row lg:items-end justify-between pb-12 border-b border-outline gap-6">
 <div>
 <div class="flex items-center gap-2 mb-2"><span class="w-1.5 h-1.5 rounded-full bg-[#e60000]"></span><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">Catálogo Técnico Oficial</span></div>
-<h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary">Capacidades de manufactura &amp; disciplinas.</h2>
+<h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary">Nuestros Servicios</h2>
 </div>
 <div class="flex flex-col items-start lg:items-end gap-2">
-<p class="text-[14px] text-on-surface-variant max-w-md leading-relaxed">Cada letrero se proyecta con cálculo de cargas, disipación de calor para módulos LED y durabilidad garantizada ante la radiación UV y el clima del Maule.</p>
+
 <span class="text-[11px] font-mono text-[#e60000] flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">touch_app</span> Haz clic en cada subtítulo para desplegar la muestra fotográfica real</span>
 </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-l border-t border-outline mt-12">
+<div class="servicios-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-12">
 
 <!-- 01 Corpóreos -->
 <div class="discipline-card p-8 border-r border-b border-outline bg-white flex flex-col justify-between group hover:border-black transition-colors duration-300" id="card-01">
 <div>
-<div class="flex items-center justify-between pb-4"><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">ESP. 01</span><span class="px-2 py-0.5 bg-[#fafafa] border border-outline font-mono text-[9px] uppercase tracking-widest text-[#e60000] font-semibold">Alta Demanda</span></div>
-<button class="toggle-card-btn w-full text-left flex items-center justify-between gap-3 group/btn cursor-pointer py-1.5 focus:outline-none" aria-expanded="false" aria-controls="preview-01" onclick="toggleDiscipline('card-01')">
-<h3 class="text-2xl font-bold tracking-tight text-[#e60000] group-hover/btn:text-[#c40000] transition-colors">Letras Corpóreas 3D</h3>
-<span class="arrow-indicator inline-flex items-center justify-center w-8 h-8 rounded-full border border-[#e60000]/20 bg-[#e60000]/5 text-[#e60000] transition-transform duration-300 group-hover/btn:bg-[#e60000] group-hover/btn:text-white flex-shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
-</button>
-<div class="mt-2 flex items-center justify-between">
-<button class="text-[10px] font-mono uppercase tracking-wider text-secondary hover:text-[#e60000] flex items-center gap-1 transition-colors" onclick="toggleDiscipline('card-01')"><span class="material-symbols-outlined text-[13px]">visibility</span><span class="toggle-label">Ver muestra en imagen</span></button>
-<span class="text-[10px] font-mono text-zinc-400">Interactivo</span>
-</div>
-<div class="discipline-preview" id="preview-01">
 <div class="relative aspect-[16/10] w-full overflow-hidden border border-outline bg-black group/img">
 <img alt="Letras corpóreas 3D fabricadas por Birth Studio" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105" src="assets/fotos-web/LETRACORPOREA.jpg"/>
-<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-3 text-white"><span class="font-mono text-[9px] uppercase tracking-widest text-[#d4d4d8]">MUESTRA TALLER TALCA</span><p class="text-[12px] font-medium leading-snug">Letras con separación flotante y corte láser en relieve milimétrico</p></div>
 </div>
-</div>
-<p class="text-[13px] text-on-surface-variant mt-3 leading-relaxed">Volumen tridimensional cortado a láser en acrílico colado, aluminio anodizado o PVC espumado. Con opción de luz indirecta halo (retroiluminada) o frontal uniforme.</p>
-<div class="mt-5 pt-4 border-t border-outline/70 font-mono text-[11px] text-secondary space-y-1"><div class="flex justify-between"><span>Materialidad:</span> <span class="text-on-surface">Acrílico / Aluminio</span></div><div class="flex justify-between"><span>Terminación:</span> <span class="text-on-surface">Pintura electrostática</span></div></div>
+<h3 class="text-xl font-bold tracking-tight text-[#e60000] mt-4">Letras Corpóreas 3D</h3>
+<p class="text-[13px] text-on-surface-variant mt-2 leading-relaxed">Volumen y presencia para tu marca.</p>
 </div>
 <div class="mt-8 pt-6 border-t border-outline flex items-end justify-between">
 <div><span class="block text-[10px] font-mono uppercase tracking-wider text-secondary">Inversión Base</span><div class="flex items-baseline gap-1 mt-0.5"><span class="text-[12px] font-medium text-secondary font-price">Desde</span><span class="text-2xl font-bold font-price tracking-tight text-[#e60000]">$80.000</span><span class="text-[11px] font-semibold text-secondary font-price">CLP</span></div></div>
-<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20especificar%20Letras%20Corp%C3%B3reas%203D" target="_blank" rel="noopener">Ficha →</a>
+<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20Letras%20Corp%C3%B3reas" target="_blank" rel="noopener">Ir a WhatsApp →</a>
 </div>
 </div>
 
 <!-- 02 Cajetín -->
 <div class="discipline-card p-8 border-r border-b border-outline bg-white flex flex-col justify-between group hover:border-black transition-colors duration-300" id="card-02">
 <div>
-<div class="flex items-center justify-between pb-4"><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">ESP. 02</span><span class="px-2 py-0.5 bg-[#fafafa] border border-outline font-mono text-[9px] uppercase tracking-widest text-secondary font-medium">Nocturno</span></div>
-<button class="toggle-card-btn w-full text-left flex items-center justify-between gap-3 group/btn cursor-pointer py-1.5 focus:outline-none" aria-expanded="false" aria-controls="preview-02" onclick="toggleDiscipline('card-02')">
-<h3 class="text-2xl font-bold tracking-tight text-[#e60000] group-hover/btn:text-[#c40000] transition-colors">Cajetines Luminosos (Cajas de Luz)</h3>
-<span class="arrow-indicator inline-flex items-center justify-center w-8 h-8 rounded-full border border-[#e60000]/20 bg-[#e60000]/5 text-[#e60000] transition-transform duration-300 group-hover/btn:bg-[#e60000] group-hover/btn:text-white flex-shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
-</button>
-<div class="mt-2 flex items-center justify-between">
-<button class="text-[10px] font-mono uppercase tracking-wider text-secondary hover:text-[#e60000] flex items-center gap-1 transition-colors" onclick="toggleDiscipline('card-02')"><span class="material-symbols-outlined text-[13px]">visibility</span><span class="toggle-label">Ver muestra en imagen</span></button>
-<span class="text-[10px] font-mono text-zinc-400">Interactivo</span>
-</div>
-<div class="discipline-preview" id="preview-02">
 <div class="relative aspect-[16/10] w-full overflow-hidden border border-outline bg-black group/img">
 <img alt="Cajetín luminoso LED fabricado por Birth Studio" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105" src="assets/fotos-web/CAJETIN-LUMINOSO.jpg"/>
-<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-3 text-white"><span class="font-mono text-[9px] uppercase tracking-widest text-[#d4d4d8]">MUESTRA TALLER TALCA</span><p class="text-[12px] font-medium leading-snug">Caja perimetral de aluminio con luz LED de alto impacto y difusor 160°</p></div>
 </div>
-</div>
-<p class="text-[13px] text-on-surface-variant mt-3 leading-relaxed">Estructura de perfiles extruidos de aluminio con difusor acrílico o lona traslúcida tensada. Módulos LED inyectados de alta luminosidad para visibilidad comercial 24/7.</p>
-<div class="mt-5 pt-4 border-t border-outline/70 font-mono text-[11px] text-secondary space-y-1"><div class="flex justify-between"><span>Óptica:</span> <span class="text-on-surface">LED Lente 160° Gran Angular</span></div><div class="flex justify-between"><span>Chasis:</span> <span class="text-on-surface">Perfilería Aluminio IP65</span></div></div>
+<h3 class="text-xl font-bold tracking-tight text-[#e60000] mt-4">Cajetines Luminosos</h3>
+<p class="text-[13px] text-on-surface-variant mt-2 leading-relaxed">Luz que se ve de día y de noche.</p>
 </div>
 <div class="mt-8 pt-6 border-t border-outline flex items-end justify-between">
 <div><span class="block text-[10px] font-mono uppercase tracking-wider text-secondary">Inversión Base</span><div class="flex items-baseline gap-1 mt-0.5"><span class="text-[12px] font-medium text-secondary font-price">Desde</span><span class="text-2xl font-bold font-price tracking-tight text-[#e60000]">$250.000</span><span class="text-[11px] font-semibold text-secondary font-price">CLP</span></div></div>
-<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20especificar%20un%20Cajet%C3%ADn%20Luminoso%20LED" target="_blank" rel="noopener">Ficha →</a>
+<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20un%20Cajet%C3%ADn%20Luminoso" target="_blank" rel="noopener">Ir a WhatsApp →</a>
 </div>
 </div>
 
 <!-- 03 Vinilos -->
 <div class="discipline-card p-8 border-r border-b border-outline bg-white flex flex-col justify-between group hover:border-black transition-colors duration-300" id="card-03">
 <div>
-<div class="flex items-center justify-between pb-4"><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">ESP. 03</span><span class="px-2 py-0.5 bg-[#fafafa] border border-outline font-mono text-[9px] uppercase tracking-widest text-secondary font-medium">Comercial</span></div>
-<button class="toggle-card-btn w-full text-left flex items-center justify-between gap-3 group/btn cursor-pointer py-1.5 focus:outline-none" aria-expanded="false" aria-controls="preview-03" onclick="toggleDiscipline('card-03')">
-<h3 class="text-2xl font-bold tracking-tight text-[#e60000] group-hover/btn:text-[#c40000] transition-colors">Vinilos &amp; Vitrinas</h3>
-<span class="arrow-indicator inline-flex items-center justify-center w-8 h-8 rounded-full border border-[#e60000]/20 bg-[#e60000]/5 text-[#e60000] transition-transform duration-300 group-hover/btn:bg-[#e60000] group-hover/btn:text-white flex-shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
-</button>
-<div class="mt-2 flex items-center justify-between">
-<button class="text-[10px] font-mono uppercase tracking-wider text-secondary hover:text-[#e60000] flex items-center gap-1 transition-colors" onclick="toggleDiscipline('card-03')"><span class="material-symbols-outlined text-[13px]">visibility</span><span class="toggle-label">Ver muestra en imagen</span></button>
-<span class="text-[10px] font-mono text-zinc-400">Interactivo</span>
-</div>
-<div class="discipline-preview" id="preview-03">
 <div class="relative aspect-[16/10] w-full overflow-hidden border border-outline bg-black group/img">
 <img alt="Vinilos y vitrinas comerciales en Talca" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105" src="assets/fotos-web/ADHESIVO.jpg"/>
-<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-3 text-white"><span class="font-mono text-[9px] uppercase tracking-widest text-[#d4d4d8]">MUESTRA TALLER TALCA</span><p class="text-[12px] font-medium leading-snug">Vinil arenado empavonado y gráfica polimérica cortada a plotter</p></div>
 </div>
-</div>
-<p class="text-[13px] text-on-surface-variant mt-3 leading-relaxed">Intervención de paños de cristal para locales comerciales. Vinil empavonado arenado para privacidad corporativa, microperforado exterior UV o vinilo de corte de alta precisión.</p>
-<div class="mt-5 pt-4 border-t border-outline/70 font-mono text-[11px] text-secondary space-y-1"><div class="flex justify-between"><span>Durabilidad:</span> <span class="text-on-surface">Polimérico 5-7 años sol directo</span></div><div class="flex justify-between"><span>Aplicación:</span> <span class="text-on-surface">Vitrina interior / exterior</span></div></div>
+<h3 class="text-xl font-bold tracking-tight text-[#e60000] mt-4">Vinilos &amp; Vitrinas</h3>
+<p class="text-[13px] text-on-surface-variant mt-2 leading-relaxed">Tu vitrina comunica y vende.</p>
 </div>
 <div class="mt-8 pt-6 border-t border-outline flex items-end justify-between">
 <div><span class="block text-[10px] font-mono uppercase tracking-wider text-secondary">Inversión Base</span><div class="flex items-baseline gap-1 mt-0.5"><span class="text-[12px] font-medium text-secondary font-price">Desde</span><span class="text-2xl font-bold font-price tracking-tight text-[#e60000]">$80.000</span><span class="text-[11px] font-semibold text-secondary font-price">CLP</span></div></div>
-<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20Vinilos%20para%20Vitrina" target="_blank" rel="noopener">Ficha →</a>
+<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20Vinilos%20adhesivos" target="_blank" rel="noopener">Ir a WhatsApp →</a>
 </div>
 </div>
 
 <!-- 04 Bastidores -->
 <div class="discipline-card p-8 border-r border-b border-outline bg-white flex flex-col justify-between group hover:border-black transition-colors duration-300" id="card-04">
 <div>
-<div class="flex items-center justify-between pb-4"><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">ESP. 04</span><span class="px-2 py-0.5 bg-[#fafafa] border border-outline font-mono text-[9px] uppercase tracking-widest text-secondary font-medium">Estructural</span></div>
-<button class="toggle-card-btn w-full text-left flex items-center justify-between gap-3 group/btn cursor-pointer py-1.5 focus:outline-none" aria-expanded="false" aria-controls="preview-04" onclick="toggleDiscipline('card-04')">
-<h3 class="text-2xl font-bold tracking-tight text-[#e60000] group-hover/btn:text-[#c40000] transition-colors">Bastidores Publicitarios</h3>
-<span class="arrow-indicator inline-flex items-center justify-center w-8 h-8 rounded-full border border-[#e60000]/20 bg-[#e60000]/5 text-[#e60000] transition-transform duration-300 group-hover/btn:bg-[#e60000] group-hover/btn:text-white flex-shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
-</button>
-<div class="mt-2 flex items-center justify-between">
-<button class="text-[10px] font-mono uppercase tracking-wider text-secondary hover:text-[#e60000] flex items-center gap-1 transition-colors" onclick="toggleDiscipline('card-04')"><span class="material-symbols-outlined text-[13px]">visibility</span><span class="toggle-label">Ver muestra en imagen</span></button>
-<span class="text-[10px] font-mono text-zinc-400">Interactivo</span>
-</div>
-<div class="discipline-preview" id="preview-04">
 <div class="relative aspect-[16/10] w-full overflow-hidden border border-outline bg-black group/img">
-<img alt="Bastidores publicitarios y estructuras soldadas" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105" src="assets/fotos-web/TOTTEM.jpg"/>
-<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-3 text-white"><span class="font-mono text-[9px] uppercase tracking-widest text-[#d4d4d8]">MUESTRA TALLER TALCA</span><p class="text-[12px] font-medium leading-snug">Chasis de acero estructural con pintura anticorrosiva y anclaje Hilti</p></div>
+<img alt="Bastidor publicitario con lona PVC — KUMHO" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105" src="assets/fotos-web/BASTIDOR-KUMHO.jpg"/>
 </div>
-</div>
-<p class="text-[13px] text-on-surface-variant mt-3 leading-relaxed">Bastidores soldados en perfilería de acero estructural tratados con pintura anticorrosiva. Diseñados para fachadas de gran longitud, medianeras y montaje en altura garantizado.</p>
-<div class="mt-5 pt-4 border-t border-outline/70 font-mono text-[11px] text-secondary space-y-1"><div class="flex justify-between"><span>Estructura:</span> <span class="text-on-surface">Perfil tubular soldado TIG/MIG</span></div><div class="flex justify-between"><span>Fijación:</span> <span class="text-on-surface">Anclaje mecánico a losa/muro</span></div></div>
+<h3 class="text-xl font-bold tracking-tight text-[#e60000] mt-4">Bastidores Publicitarios</h3>
+<p class="text-[13px] text-on-surface-variant mt-2 leading-relaxed">Gran formato que impacta a distancia.</p>
 </div>
 <div class="mt-8 pt-6 border-t border-outline flex items-end justify-between">
 <div><span class="block text-[10px] font-mono uppercase tracking-wider text-secondary">Inversión Base</span><div class="flex items-baseline gap-1 mt-0.5"><span class="text-[12px] font-medium text-secondary font-price">Desde</span><span class="text-2xl font-bold font-price tracking-tight text-[#e60000]">$45.000</span><span class="text-[11px] font-semibold text-secondary font-price">CLP</span></div></div>
-<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20un%20Bastidor%20Estructural" target="_blank" rel="noopener">Ficha →</a>
+<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20un%20Bastidor%20Publicitario" target="_blank" rel="noopener">Ir a WhatsApp →</a>
 </div>
 </div>
 
 <!-- 05 Acrílicos 360 -->
 <div class="discipline-card p-8 border-r border-b border-outline bg-white flex flex-col justify-between group hover:border-black transition-colors duration-300" id="card-05">
 <div>
-<div class="flex items-center justify-between pb-4"><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">ESP. 05</span><span class="px-2 py-0.5 bg-[#fafafa] border border-outline font-mono text-[9px] uppercase tracking-widest text-secondary font-medium">Banderola</span></div>
-<button class="toggle-card-btn w-full text-left flex items-center justify-between gap-3 group/btn cursor-pointer py-1.5 focus:outline-none" aria-expanded="false" aria-controls="preview-05" onclick="toggleDiscipline('card-05')">
-<h3 class="text-2xl font-bold tracking-tight text-[#e60000] group-hover/btn:text-[#c40000] transition-colors">Acrílicos 360° Circular</h3>
-<span class="arrow-indicator inline-flex items-center justify-center w-8 h-8 rounded-full border border-[#e60000]/20 bg-[#e60000]/5 text-[#e60000] transition-transform duration-300 group-hover/btn:bg-[#e60000] group-hover/btn:text-white flex-shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
-</button>
-<div class="mt-2 flex items-center justify-between">
-<button class="text-[10px] font-mono uppercase tracking-wider text-secondary hover:text-[#e60000] flex items-center gap-1 transition-colors" onclick="toggleDiscipline('card-05')"><span class="material-symbols-outlined text-[13px]">visibility</span><span class="toggle-label">Ver muestra en imagen</span></button>
-<span class="text-[10px] font-mono text-zinc-400">Interactivo</span>
-</div>
-<div class="discipline-preview" id="preview-05">
 <div class="relative aspect-[16/10] w-full overflow-hidden border border-outline bg-black group/img">
-<img alt="Banderolas acrílicas 360 grados" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105" src="assets/fotos-web/CIRCULO-LUMINOSO.jpg"/>
-<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-3 text-white"><span class="font-mono text-[9px] uppercase tracking-widest text-[#d4d4d8]">MUESTRA TALLER TALCA</span><p class="text-[12px] font-medium leading-snug">Banderola perpendicular de doble faz en acrílico termoformado</p></div>
+<img alt="Acrílicos 360° circulares luminosos" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105" src="assets/fotos-web/CIRCULO-LUMINOSO.jpg"/>
 </div>
-</div>
-<p class="text-[13px] text-on-surface-variant mt-3 leading-relaxed">Letrero perpendicular tipo bandera de doble faz. Fabricación circular o formato personalizado en acrílico termoformado con iluminación perimetral simétrica sin puntos oscuros.</p>
-<div class="mt-5 pt-4 border-t border-outline/70 font-mono text-[11px] text-secondary space-y-1"><div class="flex justify-between"><span>Visión:</span> <span class="text-on-surface">Doble cara peatonal y vehicular</span></div><div class="flex justify-between"><span>Brazo:</span> <span class="text-on-surface">Fierro forjado / soporte minimalista</span></div></div>
+<h3 class="text-xl font-bold tracking-tight text-[#e60000] mt-4">Acrílicos 360°</h3>
+<p class="text-[13px] text-on-surface-variant mt-2 leading-relaxed">Visibilidad desde todos los ángulos.</p>
 </div>
 <div class="mt-8 pt-6 border-t border-outline flex items-end justify-between">
 <div><span class="block text-[10px] font-mono uppercase tracking-wider text-secondary">Inversión Base</span><div class="flex items-baseline gap-1 mt-0.5"><span class="text-[12px] font-medium text-secondary font-price">Desde</span><span class="text-2xl font-bold font-price tracking-tight text-[#e60000]">$55.000</span><span class="text-[11px] font-semibold text-secondary font-price">CLP</span></div></div>
-<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20Banderola%20Acr%C3%ADlica%20360" target="_blank" rel="noopener">Ficha →</a>
+<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20Acr%C3%ADlicos%20360" target="_blank" rel="noopener">Ir a WhatsApp →</a>
 </div>
 </div>
 
 <!-- 06 Gran Formato -->
 <div class="discipline-card p-8 border-r border-b border-outline bg-white flex flex-col justify-between group hover:border-black transition-colors duration-300" id="card-06">
 <div>
-<div class="flex items-center justify-between pb-4"><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">ESP. 06</span><span class="px-2 py-0.5 bg-[#fafafa] border border-outline font-mono text-[9px] uppercase tracking-widest text-secondary font-medium">Gran Escala</span></div>
-<button class="toggle-card-btn w-full text-left flex items-center justify-between gap-3 group/btn cursor-pointer py-1.5 focus:outline-none" aria-expanded="false" aria-controls="preview-06" onclick="toggleDiscipline('card-06')">
-<h3 class="text-2xl font-bold tracking-tight text-[#e60000] group-hover/btn:text-[#c40000] transition-colors">Gran Formato &amp; Rotulación</h3>
-<span class="arrow-indicator inline-flex items-center justify-center w-8 h-8 rounded-full border border-[#e60000]/20 bg-[#e60000]/5 text-[#e60000] transition-transform duration-300 group-hover/btn:bg-[#e60000] group-hover/btn:text-white flex-shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
-</button>
-<div class="mt-2 flex items-center justify-between">
-<button class="text-[10px] font-mono uppercase tracking-wider text-secondary hover:text-[#e60000] flex items-center gap-1 transition-colors" onclick="toggleDiscipline('card-06')"><span class="material-symbols-outlined text-[13px]">visibility</span><span class="toggle-label">Ver muestra en imagen</span></button>
-<span class="text-[10px] font-mono text-zinc-400">Interactivo</span>
-</div>
-<div class="discipline-preview" id="preview-06">
 <div class="relative aspect-[16/10] w-full overflow-hidden border border-outline bg-black group/img">
 <img alt="Gran formato y rotulación vehicular" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105" src="assets/fotos-web/PANAS.jpg"/>
-<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-3 text-white"><span class="font-mono text-[9px] uppercase tracking-widest text-[#d4d4d8]">MUESTRA TALLER TALCA</span><p class="text-[12px] font-medium leading-snug">Rotulación de vehículos corporativos y lonas frontlit de alto gramaje</p></div>
 </div>
-</div>
-<p class="text-[13px] text-on-surface-variant mt-3 leading-relaxed">Lona frontlit de 510g con ojetillos vulcanizados, pendones para centros comerciales y rotulación vehicular corporativa total o por piezas con plotter de corte computarizado.</p>
-<div class="mt-5 pt-4 border-t border-outline/70 font-mono text-[11px] text-secondary space-y-1"><div class="flex justify-between"><span>Tinta:</span> <span class="text-on-surface">Ecosolvente curado UV</span></div><div class="flex justify-between"><span>Acabado:</span> <span class="text-on-surface">Refuerzo perimetral termosellado</span></div></div>
+<h3 class="text-xl font-bold tracking-tight text-[#e60000] mt-4">Gran Formato &amp; Rotulación</h3>
+<p class="text-[13px] text-on-surface-variant mt-2 leading-relaxed">Impresión a gran escala, sin límites.</p>
 </div>
 <div class="mt-8 pt-6 border-t border-outline flex items-end justify-between">
 <div><span class="block text-[10px] font-mono uppercase tracking-wider text-secondary">Inversión Base</span><div class="flex items-baseline gap-1 mt-0.5"><span class="text-[12px] font-medium text-secondary font-price">Desde</span><span class="text-2xl font-bold font-price tracking-tight text-[#e60000]">$30.000</span><span class="text-[11px] font-semibold text-secondary font-price">CLP</span></div></div>
-<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20Gran%20Formato%20o%20Rotulaci%C3%B3n" target="_blank" rel="noopener">Ficha →</a>
+<a class="text-[11px] tracking-wider uppercase font-mono text-primary hover:text-[#e60000] flex items-center gap-1 transition-colors pb-1" href="https://wa.me/56977247545?text=Hola,%20quisiera%20cotizar%20impresiones%20de%20lona%20PVC%20o%20Backlight" target="_blank" rel="noopener">Ir a WhatsApp →</a>
 </div>
 </div>
 
@@ -424,14 +372,14 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 <div class="max-w-7xl mx-auto px-6">
 <div class="flex flex-col lg:flex-row lg:items-end justify-between pb-8 gap-6 border-b border-outline">
 <div>
-<span class="font-mono text-[11px] tracking-widest uppercase text-secondary">Archivo Documental</span>
-<h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary mt-2">Monografías de obra seleccionadas.</h2>
+
+<h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary mt-2">Proyectos realizados</h2>
 </div>
 <div class="flex flex-wrap items-center gap-2 font-mono text-[11px]">
-<button class="tab-btn active px-3 py-1.5 border border-outline transition-colors" data-filter="todas">Todas las obras</button>
-<button class="tab-btn px-3 py-1.5 border border-outline transition-colors text-secondary hover:text-primary hover:border-black" data-filter="luminosos">Luminosos &amp; Cajas</button>
-<button class="tab-btn px-3 py-1.5 border border-outline transition-colors text-secondary hover:text-primary hover:border-black" data-filter="corporeos">Corpóreos 3D</button>
-<button class="tab-btn px-3 py-1.5 border border-outline transition-colors text-secondary hover:text-primary hover:border-black" data-filter="flotas">Flotas &amp; Lonas</button>
+<button class="tab-btn active px-3 py-1.5 border border-primary bg-primary text-white transition-colors" data-filter="todas">Proyectos realizados</button>
+<button class="tab-btn px-3 py-1.5 border border-outline transition-colors text-secondary hover:text-primary hover:border-black" data-filter="luminosos">Letreros luminosos</button>
+<button class="tab-btn px-3 py-1.5 border border-outline transition-colors text-secondary hover:text-primary hover:border-black" data-filter="corporeos">Letreros corpóreas (3D)</button>
+<button class="tab-btn px-3 py-1.5 border border-outline transition-colors text-secondary hover:text-primary hover:border-black" data-filter="flotas">Vinil adhesivo</button>
 </div>
 </div>
 
@@ -439,19 +387,14 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 
 <article class="obra flex flex-col border border-outline bg-[#fafafa] group" data-cat="luminosos">
 <div class="aspect-[16/10] w-full overflow-hidden bg-black relative">
-<img alt="Cajetín luminoso Liverpool en Talca" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="assets/fotos-web/LIVERPOOL.jpg"/>
+<img alt="Círculo luminoso 2 de Azúcar en Talca" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="assets/fotos-web/2DEAZUCAR.jpg"/>
 <span class="absolute top-4 left-4 px-2.5 py-1 bg-black/80 text-white font-mono text-[9px] uppercase tracking-widest backdrop-blur-sm">OBRA 01 // TALCA CENTRO</span>
 </div>
 <div class="p-6 lg:p-8 flex flex-col justify-between flex-1">
 <div>
-<div class="flex items-center justify-between text-secondary font-mono text-[11px] pb-2"><span>CAJETÍN LUMINOSO LED</span><span>CLIENTE: LIVERPOOL</span></div>
-<h3 class="text-2xl font-normal tracking-tight text-primary">Cajetín Frontal de Alto Contraste Nocturno</h3>
-<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Caja de luz perimetral con frente acrílico opalino y perfilería de aluminio negro satinado. Calugas LED para un impacto lumínico parejo y de largo alcance sobre avenida principal.</p>
-</div>
-<div class="mt-6 pt-6 border-t border-outline grid grid-cols-3 gap-2 font-mono text-[10px]">
-<div><span class="text-secondary block uppercase">Material</span><span class="text-primary font-medium">Acrílico + LED IP67</span></div>
-<div><span class="text-secondary block uppercase">Montaje</span><span class="text-primary font-medium">Fachada Terreno</span></div>
-<div><span class="text-secondary block uppercase">Consumo</span><span class="text-primary font-medium">Bajo Voltaje 12V</span></div>
+<div class="flex items-center text-secondary font-mono text-[11px] pb-2"><span>Letrero luminoso</span></div>
+<h3 class="text-2xl font-normal tracking-tight text-primary">Círculos luminosos</h3>
+<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Círculos luminosos desde 50 cm de diámetro en adelante.</p>
 </div>
 </div>
 </article>
@@ -463,33 +406,23 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 </div>
 <div class="p-6 lg:p-8 flex flex-col justify-between flex-1">
 <div>
-<div class="flex items-center justify-between text-secondary font-mono text-[11px] pb-2"><span>CORPÓREOS 3D INTERIOR</span><span>CLIENTE: BARBERÍA DE AUTOR</span></div>
-<h3 class="text-2xl font-normal tracking-tight text-primary">Tipografía Corpórea en Acrílico Macizo</h3>
-<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Corte láser de precisión con cantos pulidos espejo. Fijación mecánica milimétrica sobre revestimiento de madera, manteniendo separación para generar sombra natural.</p>
-</div>
-<div class="mt-6 pt-6 border-t border-outline grid grid-cols-3 gap-2 font-mono text-[10px]">
-<div><span class="text-secondary block uppercase">Espesor</span><span class="text-primary font-medium">Acrílico 10mm Mate</span></div>
-<div><span class="text-secondary block uppercase">Corte</span><span class="text-primary font-medium">Láser CNC Vector</span></div>
-<div><span class="text-secondary block uppercase">Anclaje</span><span class="text-primary font-medium">Espárragos Ocultos</span></div>
+<div class="flex items-center text-secondary font-mono text-[11px] pb-2"><span>Letras corpóreas (3D)</span></div>
+<h3 class="text-2xl font-normal tracking-tight text-primary">Letras corpóreas en acrílico</h3>
+<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Letras corpóreas 3D en acrílico, instaladas con separación para dar volumen.</p>
 </div>
 </div>
 </article>
 
-<article class="obra flex flex-col border border-outline bg-[#fafafa] group" data-cat="corporeos">
+<article class="obra flex flex-col border border-outline bg-[#fafafa] group" data-cat="flotas">
 <div class="aspect-[16/10] w-full overflow-hidden bg-black relative">
-<img alt="Letrero corpóreo para Tostaduría" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="assets/fotos-web/TOSTADURIA.jpg"/>
+<img alt="Bastidores y posteras con lona PVC para Tostaduría" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="assets/fotos-web/TOSTADURIA.jpg"/>
 <span class="absolute top-4 left-4 px-2.5 py-1 bg-black/80 text-white font-mono text-[9px] uppercase tracking-widest backdrop-blur-sm">OBRA 03 // TALCA</span>
 </div>
 <div class="p-6 lg:p-8 flex flex-col justify-between flex-1">
 <div>
-<div class="flex items-center justify-between text-secondary font-mono text-[11px] pb-2"><span>CORPÓREOS &amp; FACHADA</span><span>CLIENTE: TOSTADURÍA</span></div>
-<h3 class="text-2xl font-normal tracking-tight text-primary">Identidad de Fachada para Local Gastronómico</h3>
-<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Composición tipográfica corpórea con acabado cálido para local de barrio. Diseño, fabricación e instalación integral por el taller.</p>
-</div>
-<div class="mt-6 pt-6 border-t border-outline grid grid-cols-3 gap-2 font-mono text-[10px]">
-<div><span class="text-secondary block uppercase">Material</span><span class="text-primary font-medium">Acrílico / PVC</span></div>
-<div><span class="text-secondary block uppercase">Montaje</span><span class="text-primary font-medium">Fachada Terreno</span></div>
-<div><span class="text-secondary block uppercase">Garantía</span><span class="text-primary font-medium">Intemperie 5 Años</span></div>
+<div class="flex items-center text-secondary font-mono text-[11px] pb-2"><span>Bastidores y posteras</span></div>
+<h3 class="text-2xl font-normal tracking-tight text-primary">Bastidores y posteras con lona PVC</h3>
+<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Bastidores y posteras con lona PVC, instalados en la fachada del local.</p>
 </div>
 </div>
 </article>
@@ -501,33 +434,23 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 </div>
 <div class="p-6 lg:p-8 flex flex-col justify-between flex-1">
 <div>
-<div class="flex items-center justify-between text-secondary font-mono text-[11px] pb-2"><span>LETRERO LUMINOSO</span><span>CLIENTE: PEDRAGÓN</span></div>
-<h3 class="text-2xl font-normal tracking-tight text-primary">Letrero Comercial Iluminado de Alta Visibilidad</h3>
-<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Solución luminosa para comercio con exposición vehicular. Óptica LED homogénea y estructura preparada para intemperie del Maule.</p>
-</div>
-<div class="mt-6 pt-6 border-t border-outline grid grid-cols-3 gap-2 font-mono text-[10px]">
-<div><span class="text-secondary block uppercase">Óptica</span><span class="text-primary font-medium">LED Alta Luminosidad</span></div>
-<div><span class="text-secondary block uppercase">Chasis</span><span class="text-primary font-medium">Aluminio IP65</span></div>
-<div><span class="text-secondary block uppercase">Montaje</span><span class="text-primary font-medium">Fachada Terreno</span></div>
+<div class="flex items-center text-secondary font-mono text-[11px] pb-2"><span>Letrero luminoso</span></div>
+<h3 class="text-2xl font-normal tracking-tight text-primary">Letrero luminoso de fachada</h3>
+<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Letrero luminoso para comercio, con iluminación LED pareja y apto para exterior.</p>
 </div>
 </div>
 </article>
 
 <article class="obra flex flex-col border border-outline bg-[#fafafa] group" data-cat="luminosos">
 <div class="aspect-[16/10] w-full overflow-hidden bg-black relative">
-<img alt="Letrero luminoso Open Market" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="assets/fotos-web/OPEN.jpg"/>
+<img alt="Tótem luminoso Centro Odontológico Altos de Lircay" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="assets/fotos-web/TOTTEM.jpg"/>
 <span class="absolute top-4 left-4 px-2.5 py-1 bg-black/80 text-white font-mono text-[9px] uppercase tracking-widest backdrop-blur-sm">OBRA 05 // TALCA</span>
 </div>
 <div class="p-6 lg:p-8 flex flex-col justify-between flex-1">
 <div>
-<div class="flex items-center justify-between text-secondary font-mono text-[11px] pb-2"><span>LETRERO LUMINOSO</span><span>CLIENTE: OPEN MARKET</span></div>
-<h3 class="text-2xl font-normal tracking-tight text-primary">Señalética Comercial para Local de Alto Tránsito</h3>
-<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Letrero de fachada con iluminación pareja y lectura clara a distancia, pensado para minimarket de flujo continuo.</p>
-</div>
-<div class="mt-6 pt-6 border-t border-outline grid grid-cols-3 gap-2 font-mono text-[10px]">
-<div><span class="text-secondary block uppercase">Material</span><span class="text-primary font-medium">Acrílico + LED</span></div>
-<div><span class="text-secondary block uppercase">Montaje</span><span class="text-primary font-medium">Fachada Terreno</span></div>
-<div><span class="text-secondary block uppercase">Consumo</span><span class="text-primary font-medium">Bajo Voltaje</span></div>
+<div class="flex items-center text-secondary font-mono text-[11px] pb-2"><span>Letrero luminoso</span></div>
+<h3 class="text-2xl font-normal tracking-tight text-primary">Tótem luminoso</h3>
+<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Tótem luminoso de fachada con listado de servicios y datos de contacto.</p>
 </div>
 </div>
 </article>
@@ -539,14 +462,9 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 </div>
 <div class="p-6 lg:p-8 flex flex-col justify-between flex-1">
 <div>
-<div class="flex items-center justify-between text-secondary font-mono text-[11px] pb-2"><span>ROTULACIÓN &amp; GRAN FORMATO</span><span>CLIENTE: LOGÍSTICA</span></div>
-<h3 class="text-2xl font-normal tracking-tight text-primary">Rotulación Vehicular y Gráfica de Flota</h3>
-<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Aplicación de vinilo de corte y gráfica polimérica sobre vehículos corporativos, con laminado de protección UV para durabilidad en exterior.</p>
-</div>
-<div class="mt-6 pt-6 border-t border-outline grid grid-cols-3 gap-2 font-mono text-[10px]">
-<div><span class="text-secondary block uppercase">Vinilo</span><span class="text-primary font-medium">Polimérico + Laminado</span></div>
-<div><span class="text-secondary block uppercase">Aplicación</span><span class="text-primary font-medium">Total / Por Piezas</span></div>
-<div><span class="text-secondary block uppercase">Durabilidad</span><span class="text-primary font-medium">5-7 Años Sol</span></div>
+<div class="flex items-center text-secondary font-mono text-[11px] pb-2"><span>Vinil adhesivo</span></div>
+<h3 class="text-2xl font-normal tracking-tight text-primary">Vinil adhesivo y rotulación</h3>
+<p class="text-[14px] text-on-surface-variant mt-3 leading-relaxed">Rotulación de vehículos con vinil adhesivo de corte, laminado para exterior.</p>
 </div>
 </div>
 </article>
@@ -560,16 +478,16 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 <div class="max-w-7xl mx-auto px-6">
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
 <div class="lg:col-span-5 flex flex-col gap-6">
-<div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-[#e60000]"></span><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">Ingeniería Lumínica</span></div>
-<h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary">Tecnología LED que no se degrada al primer verano.</h2>
-<p class="text-[15px] text-on-surface-variant leading-relaxed">Trabajamos con módulos LED inyectados de lente gran angular, fuentes de poder certificadas y cálculo real de disipación térmica. El resultado: iluminación pareja, sin puntos oscuros, con consumo bajo y una vida útil pensada para el clima del Maule.</p>
-<a class="inline-flex items-center gap-2 self-start px-5 py-3 bg-primary text-white text-[11px] font-medium tracking-widest uppercase hover:bg-black/90 transition-all" href="https://wa.me/56977247545?text=Hola,%20quisiera%20asesor%C3%ADa%20t%C3%A9cnica%20en%20iluminaci%C3%B3n%20LED" target="_blank" rel="noopener">Asesoría técnica LED</a>
+<div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-[#e60000]"></span><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">Iluminación</span></div>
+<h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary">Usamos luces duraderas y de alta calidad.</h2>
+<p class="text-[15px] text-on-surface-variant leading-relaxed">Trabajamos con luces LED y fuentes de alimentación duraderas y de alta calidad, para interior y exterior. Así tu letrero se ve parejo, brilla bien y aguanta el paso del tiempo.</p>
+<a class="inline-flex items-center gap-2 self-start px-5 py-3 bg-primary text-white text-[11px] font-medium tracking-widest uppercase hover:bg-black/90 transition-all" href="https://wa.me/56977247545?text=Hola,%20quisiera%20consultar%20sobre%20iluminaci%C3%B3n%20para%20mi%20letrero" target="_blank" rel="noopener">Consultar por WhatsApp</a>
 </div>
 <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 border-l border-t border-outline">
-<div class="p-6 lg:p-8 border-r border-b border-outline bg-white flex flex-col gap-2"><span class="material-symbols-outlined text-[#e60000]">lightbulb</span><h3 class="font-medium text-primary text-[15px]">Módulos LED gran angular</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Lente 160° para iluminación homogénea con menor cantidad de módulos y menos calor.</p></div>
-<div class="p-6 lg:p-8 border-r border-b border-outline bg-white flex flex-col gap-2"><span class="material-symbols-outlined text-[#e60000]">bolt</span><h3 class="font-medium text-primary text-[15px]">Fuentes certificadas</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Fuentes de poder dimensionadas con margen, protegidas contra sobrecarga y humedad.</p></div>
-<div class="p-6 lg:p-8 border-r border-b border-outline bg-white flex flex-col gap-2"><span class="material-symbols-outlined text-[#e60000]">thermostat</span><h3 class="font-medium text-primary text-[15px]">Disipación térmica</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Cálculo de disipación para que el letrero no pierda brillo ni color con el tiempo.</p></div>
-<div class="p-6 lg:p-8 border-r border-b border-outline bg-white flex flex-col gap-2"><span class="material-symbols-outlined text-[#e60000]">water_drop</span><h3 class="font-medium text-primary text-[15px]">Sellado IP65 / IP67</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Componentes sellados contra polvo y lluvia para instalación exterior sin sorpresas.</p></div>
+<div class="p-6 lg:p-8 border-r border-b border-outline bg-white flex flex-col gap-3"><div class="aspect-[4/3] w-full overflow-hidden bg-white rounded"><img src="assets/fotos-web/CINTA-ZIGZAG.jpg" alt="Cinta LED zig-zag" loading="lazy" decoding="async" class="w-full h-full object-contain"/></div><h3 class="font-medium text-primary text-[15px]">Cintas LED zig-zag</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Cintas flexibles que se adaptan a curvas y círculos.</p></div>
+<div class="p-6 lg:p-8 border-r border-b border-outline bg-white flex flex-col gap-3"><div class="aspect-[4/3] w-full overflow-hidden bg-white rounded"><img src="assets/fotos-web/CINTA-LED.jpg" alt="Cinta LED encendida" loading="lazy" decoding="async" class="w-full h-full object-cover"/></div><h3 class="font-medium text-primary text-[15px]">Cintas LED 12V y 24V</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Cintas LED en 12V y 24V según el tipo de letrero.</p></div>
+<div class="p-6 lg:p-8 border-r border-b border-outline bg-white flex flex-col gap-3"><div class="aspect-[4/3] w-full overflow-hidden bg-white rounded"><img src="assets/fotos-web/CALUGAS.jpg" alt="Calugas LED (módulos)" loading="lazy" decoding="async" class="w-full h-full object-contain"/></div><h3 class="font-medium text-primary text-[15px]">Calugas LED</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Módulos LED de alto brillo para cajas y letras luminosas.</p></div>
+<div class="p-6 lg:p-8 border-r border-b border-outline bg-white flex flex-col gap-3"><div class="aspect-[4/3] w-full overflow-hidden bg-white rounded"><img src="assets/fotos-web/FUENTE.jpg" alt="Fuente de alimentación" loading="lazy" decoding="async" class="w-full h-full object-contain"/></div><h3 class="font-medium text-primary text-[15px]">Fuentes de alimentación</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Fuentes para interior y exterior, de alta calidad y larga duración.</p></div>
 </div>
 </div>
 </div>
@@ -583,10 +501,10 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 <h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary">Del terreno a la fachada, sin subcontratos.</h2>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border-l border-t border-outline mt-12">
-<div class="p-8 border-r border-b border-outline bg-[#fafafa] flex flex-col gap-3"><span class="font-mono text-[11px] text-secondary tracking-widest">FASE 01</span><h3 class="text-xl font-medium text-primary tracking-tight">Evaluación en terreno</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Visitamos tu local, medimos la fachada y evaluamos el punto de montaje y la instalación eléctrica.</p></div>
-<div class="p-8 border-r border-b border-outline bg-[#fafafa] flex flex-col gap-3"><span class="font-mono text-[11px] text-secondary tracking-widest">FASE 02</span><h3 class="text-xl font-medium text-primary tracking-tight">Diseño &amp; cálculo</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Proyectamos el letrero con diseño de autor, cálculo de cargas y especificación de materiales.</p></div>
-<div class="p-8 border-r border-b border-outline bg-[#fafafa] flex flex-col gap-3"><span class="font-mono text-[11px] text-secondary tracking-widest">FASE 03</span><h3 class="text-xl font-medium text-primary tracking-tight">Fabricación propia</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Corte CNC/láser, armado y cableado LED en nuestro taller en Talca. Control de calidad interno.</p></div>
-<div class="p-8 border-r border-b border-outline bg-[#fafafa] flex flex-col gap-3"><span class="font-mono text-[11px] text-secondary tracking-widest">FASE 04</span><h3 class="text-xl font-medium text-primary tracking-tight">Montaje en altura</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Instalación con anclaje químico y perno Hilti, garantizada estructuralmente por 5 años.</p></div>
+<div class="p-8 border-r border-b border-outline bg-[#fafafa] flex flex-col gap-3"><span class="font-mono text-[11px] text-secondary tracking-widest">FASE 01</span><h3 class="text-xl font-medium text-primary tracking-tight">Visita al local</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Vamos a tu local para evaluar la instalación y tomar medidas. El traslado fuera de Talca va desde $7.500 en adelante, según la zona y los kilómetros.</p></div>
+<div class="p-8 border-r border-b border-outline bg-[#fafafa] flex flex-col gap-3"><span class="font-mono text-[11px] text-secondary tracking-widest">FASE 02</span><h3 class="text-xl font-medium text-primary tracking-tight">Diseño del logo</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Vectorizamos y renderizamos tu logo para que veas cómo va a quedar antes de fabricarlo.</p></div>
+<div class="p-8 border-r border-b border-outline bg-[#fafafa] flex flex-col gap-3"><span class="font-mono text-[11px] text-secondary tracking-widest">FASE 03</span><h3 class="text-xl font-medium text-primary tracking-tight">Fabricación</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Corte CNC/láser, armado y cableado LED en nuestro taller.</p></div>
+<div class="p-8 border-r border-b border-outline bg-[#fafafa] flex flex-col gap-3"><span class="font-mono text-[11px] text-secondary tracking-widest">FASE 04</span><h3 class="text-xl font-medium text-primary tracking-tight">Instalación</h3><p class="text-[13px] text-on-surface-variant leading-relaxed">Instalación del letrero, tanto a menos de 3 m como a más de 3 m de altura.</p></div>
 </div>
 </div>
 </section>
@@ -597,13 +515,20 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 <div class="flex flex-col gap-6">
 <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-[#e60000]"></span><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">Agenda una Visita</span></div>
 <h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary">Vamos a tu local, medimos y te asesoramos.</h2>
-<p class="text-[15px] text-on-surface-variant leading-relaxed">Completa el formulario y se abrirá WhatsApp con tu solicitud lista para enviar. Coordinamos la visita técnica sin compromiso dentro de Talca; fuera de Talca, consúltanos.</p>
+<p class="text-[15px] text-on-surface-variant leading-relaxed">Elige cómo prefieres contactarnos —WhatsApp o correo— y completa el formulario. Si nos escribes por correo puedes adjuntar tu logo. Coordinamos la visita técnica sin compromiso dentro de Talca; fuera de Talca, consúltanos.</p>
 <div class="border border-outline bg-white overflow-hidden aspect-[16/10]">
 <iframe title="Ubicación de Birth Studio en Talca" class="w-full h-full" style="border:0" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Praderas%20de%20San%20Miguel%204383%20Talca&output=embed"></iframe>
 </div>
 </div>
 <div class="border border-outline bg-white p-6 lg:p-8">
 <form id="visita-form" novalidate class="flex flex-col gap-4">
+<div class="flex flex-col gap-1.5">
+<span class="text-[11px] font-mono uppercase tracking-wider text-secondary">¿Cómo prefieres contactarnos?</span>
+<div class="grid grid-cols-2 gap-2 p-1 border border-outline bg-[#fafafa]">
+<button type="button" id="modo-wa" aria-pressed="true" class="py-2.5 text-[12px] font-medium tracking-wide flex items-center justify-center gap-1.5 bg-primary text-white transition-colors"><span class="material-symbols-outlined text-[16px]">chat</span> WhatsApp</button>
+<button type="button" id="modo-correo" aria-pressed="false" class="py-2.5 text-[12px] font-medium tracking-wide flex items-center justify-center gap-1.5 text-primary transition-colors"><span class="material-symbols-outlined text-[16px]">mail</span> Correo</button>
+</div>
+</div>
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 <div class="flex flex-col gap-1.5">
 <label class="text-[11px] font-mono uppercase tracking-wider text-secondary" for="v-nombre">Tu nombre *</label>
@@ -612,6 +537,16 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 <div class="flex flex-col gap-1.5">
 <label class="text-[11px] font-mono uppercase tracking-wider text-secondary" for="v-fono">Tu WhatsApp *</label>
 <input class="border border-outline bg-[#fafafa] px-3 py-2.5 text-sm text-primary focus:outline-none focus:border-primary" id="v-fono" name="telefono" type="tel" required placeholder="+56 9 XXXX XXXX"/>
+</div>
+</div>
+<div id="campos-correo" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="flex flex-col gap-1.5">
+<label class="text-[11px] font-mono uppercase tracking-wider text-secondary" for="v-email">Tu correo *</label>
+<input class="border border-outline bg-[#fafafa] px-3 py-2.5 text-sm text-primary focus:outline-none focus:border-primary" id="v-email" name="email" type="email" placeholder="tucorreo@gmail.com"/>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[11px] font-mono uppercase tracking-wider text-secondary" for="v-logo">Adjuntar logo</label>
+<input class="border border-outline bg-[#fafafa] px-3 py-2 text-xs text-primary file:mr-3 file:border-0 file:bg-primary file:text-white file:px-3 file:py-1.5 file:text-[11px] file:uppercase file:tracking-wider file:cursor-pointer focus:outline-none focus:border-primary" id="v-logo" name="logo" type="file" accept="image/*,.pdf,.ai,.cdr,.eps,.svg"/>
 </div>
 </div>
 <fieldset class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-0 p-0 m-0">
@@ -642,12 +577,29 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 <label class="text-[11px] font-mono uppercase tracking-wider text-secondary" for="v-notas">Dirección o comentarios</label>
 <textarea class="border border-outline bg-[#fafafa] px-3 py-2.5 text-sm text-primary focus:outline-none focus:border-primary resize-none" id="v-notas" name="notas" rows="3" placeholder="Dirección del local, referencia de colores, medidas aproximadas…"></textarea>
 </div>
-<button class="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-white text-[11px] font-medium tracking-widest uppercase hover:bg-black/90 transition-all" type="submit">
-<span class="material-symbols-outlined text-[16px]">call</span> Confirmar visita por WhatsApp
+<button id="v-submit" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-white text-[11px] font-medium tracking-widest uppercase hover:bg-black/90 transition-all disabled:opacity-60" type="submit">
+<span class="material-symbols-outlined text-[16px]" id="v-submit-icon">call</span> <span id="v-submit-text">Confirmar visita por WhatsApp</span>
 </button>
-<p class="text-[11px] text-secondary font-mono">Abrirá WhatsApp con un mensaje listo. Solo presiona enviar.</p>
+<p class="text-[11px] text-secondary font-mono" id="v-help">Abrirá WhatsApp con un mensaje listo. Solo presiona enviar.</p>
+<p class="hidden text-[12px] text-green-700 font-medium" id="v-ok">✓ ¡Enviado! Te contactaremos pronto.</p>
 </form>
 </div>
+</div>
+</section>
+
+<!-- INSTAGRAM (muro Behold) -->
+<section class="w-full py-20 lg:py-28 bg-white border-b border-outline" id="instagram">
+<div class="max-w-7xl mx-auto px-6">
+<div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+<div>
+<div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-[#e60000]"></span><span class="font-mono text-[11px] tracking-widest uppercase text-secondary">Instagram</span></div>
+<h2 class="text-3xl lg:text-5xl font-normal tracking-tight text-primary mt-2">Síguenos en @bsp.cl</h2>
+<p class="text-[15px] text-on-surface-variant leading-relaxed mt-2">Nuestros últimos trabajos, directo desde el taller.</p>
+</div>
+<a class="inline-flex items-center gap-2 self-start px-5 py-3 border border-outline text-primary text-[11px] font-medium tracking-widest uppercase hover:border-black transition-all whitespace-nowrap" href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener"><span class="material-symbols-outlined text-[16px]">photo_camera</span> Ver perfil</a>
+</div>
+<!-- Muro Behold: reemplaza PON-AQUI-TU-FEED-ID por el Feed ID de behold.so -->
+<behold-widget feed-id="JpIlMpgUKdrs4g9jFTso"></behold-widget>
 </div>
 </section>
 
@@ -668,14 +620,45 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 
 </main>
 
+<!-- MARCAS (carrusel en movimiento) -->
+<section class="w-full bg-[#fafafa] border-t border-outline py-16 overflow-hidden" aria-label="Marcas que confían en nosotros">
+<p class="text-center text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#e60000] mb-10">Marcas que confían en nosotros</p>
+<div class="marquee">
+<div class="marquee__track">
+<img class="marquee__logo" src="assets/svg/liverpoool.svg" alt="Liverpool" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/oxxo.svg" alt="Oxxo" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/jumbito.svg" alt="Jumbo" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/pedragon.svg" alt="Pedragón" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/p19.svg" alt="P19" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/farmac.svg" alt="Farmacia" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/open.svg" alt="Open Market" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/tostaduriaa.svg" alt="Tostaduría" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/black%20sea.svg" alt="Black Sea" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/los%20garcia.svg" alt="Los García" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/lstudio.svg" alt="L Studio" loading="lazy"/>
+<!-- Copia para el bucle continuo -->
+<img class="marquee__logo" src="assets/svg/liverpoool.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/oxxo.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/jumbito.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/pedragon.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/p19.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/farmac.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/open.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/tostaduriaa.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/black%20sea.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/los%20garcia.svg" alt="" aria-hidden="true" loading="lazy"/>
+<img class="marquee__logo" src="assets/svg/lstudio.svg" alt="" aria-hidden="true" loading="lazy"/>
+</div>
+</div>
+</section>
+
 <!-- FOOTER -->
 <footer class="w-full bg-[#111113] text-[#a1a1aa] border-t border-white/10">
 <div class="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 gap-10">
 <div class="md:col-span-2 flex flex-col gap-4">
-<div class="flex items-center gap-3">
-<div class="w-8 h-8 border border-white/15 bg-black flex items-center justify-center text-white font-bold text-xs tracking-tighter">B<span class="text-[#e60000]">S</span></div>
-<div class="flex flex-col"><span class="font-medium tracking-tight text-[15px] leading-tight text-white uppercase">Birth Studio</span><span class="text-[9px] tracking-widest uppercase text-secondary font-mono">Publicidad &amp; Arquitectura</span></div>
-</div>
+<a href="#" aria-label="Birth Studio — inicio" class="inline-flex">
+<img src="assets/logo-birth.png" alt="Birth Studio — Publicidad" width="3947" height="2065" style="height:48px;width:auto;max-width:none"/>
+</a>
 <p class="text-[13px] leading-relaxed max-w-sm">Estudio de publicidad y señalética en Talca. Fabricación propia de letras corpóreas, cajetines LED, bastidores, vinilos e impresión gran formato para la Región del Maule.</p>
 <div class="flex items-center gap-4 pt-2">
 <a class="text-white/70 hover:text-white transition-colors flex items-center gap-1.5 text-[13px]" href="https://www.instagram.com/bsp.cl/" target="_blank" rel="noopener"><span class="material-symbols-outlined text-[16px]">photo_camera</span> @bsp.cl</a>
@@ -698,7 +681,10 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
 <div class="border-t border-white/10">
 <div class="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-[11px] text-white/40">
 <span>© 2026 Birth Studio Publicidad SpA · RUT 77.990.344-3</span>
+<div class="flex items-center gap-4">
 <span>Talca, Región del Maule, Chile</span>
+<a class="hover:text-white transition-colors flex items-center gap-1" href="/cotizador/" target="_blank" rel="noopener"><span class="material-symbols-outlined text-[13px]">lock</span> Cotizador</a>
+</div>
 </div>
 </div>
 </footer>
@@ -724,10 +710,10 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
       tab.addEventListener('click', function () {
         var filter = tab.getAttribute('data-filter');
         tabs.forEach(function (t) {
-          t.classList.remove('active');
+          t.classList.remove('active', 'bg-primary', 'text-white', 'border-primary');
           t.classList.add('text-secondary');
         });
-        tab.classList.add('active');
+        tab.classList.add('active', 'bg-primary', 'text-white', 'border-primary');
         tab.classList.remove('text-secondary');
         obras.forEach(function (obra) {
           var show = filter === 'todas' || obra.getAttribute('data-cat') === filter;
@@ -737,31 +723,174 @@ Diseño de autor, cálculo estructural y manufactura propia de letreros corpóre
     });
   })();
 
-  // Formulario de visita → WhatsApp
+  // Menú móvil (hamburguesa)
+  (function () {
+    var btn = document.getElementById('menu-btn');
+    var menu = document.getElementById('mobile-menu');
+    var icon = document.getElementById('menu-icon');
+    if (!btn || !menu) return;
+    function close() {
+      menu.classList.add('hidden');
+      btn.setAttribute('aria-expanded', 'false');
+      if (icon) icon.textContent = 'menu';
+    }
+    btn.addEventListener('click', function () {
+      var abierto = !menu.classList.contains('hidden');
+      if (abierto) { close(); }
+      else {
+        menu.classList.remove('hidden');
+        btn.setAttribute('aria-expanded', 'true');
+        if (icon) icon.textContent = 'close';
+      }
+    });
+    menu.querySelectorAll('.mobile-link').forEach(function (a) {
+      a.addEventListener('click', close);
+    });
+  })();
+
+  // Mosaico del hero: cambia una foto al azar cada segundo (crossfade)
+  (function () {
+    var mosaic = document.querySelector('.hero-mosaic');
+    if (!mosaic) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var pool = ['LIVERPOOL.jpg','LETRACORPOREA.jpg','CAJETIN-LUMINOSO.jpg','2DEAZUCAR.jpg','BARBERIA.jpg','TOTTEM.jpg','PEDRAGON.jpg','PANAS.jpg','TOSTADURIA.jpg','OPEN.jpg','CIRCULO-LUMINOSO.jpg','ADHESIVO.jpg','BASTIDOR-KUMHO.jpg','LIVER.jpg','DRAGON.jpg','FYWACRILICO.jpg','LACUMBRE.jpg','SOS.jpg'];
+    var imgs = Array.prototype.slice.call(mosaic.querySelectorAll('img'));
+    if (!imgs.length) return;
+    setInterval(function () {
+      var cell = imgs[Math.floor(Math.random() * imgs.length)];
+      var next = 'assets/fotos-web/' + pool[Math.floor(Math.random() * pool.length)];
+      if (cell.getAttribute('src') && cell.getAttribute('src').indexOf(next) !== -1) return;
+      cell.style.opacity = '0';
+      setTimeout(function () {
+        cell.setAttribute('src', next);
+        cell.style.opacity = '';
+      }, 800);
+    }, 1000);
+  })();
+
+  // Formulario de visita → WhatsApp o Correo (Web3Forms)
   (function () {
     var WA = '56977247545';
+    // Clave de Web3Forms (gratis en https://web3forms.com). Pega aquí la tuya:
+    var W3KEY = '4bb2fbb5-7e27-4c35-aedb-9db84db411ec';
     var form = document.getElementById('visita-form');
     if (!form) return;
+
+    var modo = 'wa';
+    var btnWa = document.getElementById('modo-wa');
+    var btnCorreo = document.getElementById('modo-correo');
+    var camposCorreo = document.getElementById('campos-correo');
+    var submitText = document.getElementById('v-submit-text');
+    var submitIcon = document.getElementById('v-submit-icon');
+    var help = document.getElementById('v-help');
+    var okMsg = document.getElementById('v-ok');
+    var emailInput = document.getElementById('v-email');
+
+    function setModo(m) {
+      modo = m;
+      var esCorreo = (m === 'correo');
+      camposCorreo.classList.toggle('hidden', !esCorreo);
+      if (emailInput) emailInput.required = esCorreo;
+      btnWa.classList.toggle('bg-primary', !esCorreo);
+      btnWa.classList.toggle('text-white', !esCorreo);
+      btnWa.classList.toggle('text-primary', esCorreo);
+      btnCorreo.classList.toggle('bg-primary', esCorreo);
+      btnCorreo.classList.toggle('text-white', esCorreo);
+      btnCorreo.classList.toggle('text-primary', !esCorreo);
+      btnWa.setAttribute('aria-pressed', String(!esCorreo));
+      btnCorreo.setAttribute('aria-pressed', String(esCorreo));
+      submitText.textContent = esCorreo ? 'Enviar por correo' : 'Confirmar visita por WhatsApp';
+      submitIcon.textContent = esCorreo ? 'mail' : 'call';
+      help.textContent = esCorreo
+        ? 'Enviaremos tu solicitud (y tu logo) a Birth Studio.'
+        : 'Abrirá WhatsApp con un mensaje listo. Solo presiona enviar.';
+      okMsg.classList.add('hidden');
+    }
+    btnWa.addEventListener('click', function () { setModo('wa'); });
+    btnCorreo.addEventListener('click', function () { setModo('correo'); });
+
+    var val = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+
+    // Convierte el teléfono escrito por el cliente a un link wa.me válido,
+    // para que Birth pueda escribirle por WhatsApp con un clic desde el correo.
+    function waLink(fono) {
+      var d = (fono || '').replace(/\D/g, '');
+      if (d.indexOf('56') !== 0) {
+        if (d.length === 9 && d.charAt(0) === '9') d = '56' + d;
+        else if (d.length === 8) d = '569' + d;
+        else d = '56' + d;
+      }
+      return 'https://wa.me/' + d;
+    }
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var val = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
       var nombre = val('v-nombre');
       var fono = val('v-fono');
-      if (!nombre || !fono) {
-        alert('Por favor completa tu nombre y tu WhatsApp.');
+      if (!nombre || !fono) { alert('Por favor completa tu nombre y tu WhatsApp.'); return; }
+
+      if (modo === 'wa') {
+        var msg = 'Hola Birth Studio, quiero agendar una visita en terreno.\n\n' +
+          'Nombre: ' + nombre + '\n' +
+          'WhatsApp: ' + fono + '\n' +
+          'Tipo de proyecto: ' + val('v-tipo') + '\n';
+        var fecha = val('v-fecha');
+        var hora = val('v-hora');
+        if (fecha) msg += 'Fecha preferida: ' + fecha + '\n';
+        if (hora) msg += 'Hora preferida: ' + hora + '\n';
+        var notas = val('v-notas');
+        if (notas) msg += 'Comentarios: ' + notas + '\n';
+        window.open('https://wa.me/' + WA + '?text=' + encodeURIComponent(msg), '_blank');
         return;
       }
-      var msg = 'Hola Birth Studio, quiero agendar una visita en terreno.\n\n' +
-        'Nombre: ' + nombre + '\n' +
-        'WhatsApp: ' + fono + '\n' +
-        'Tipo de proyecto: ' + val('v-tipo') + '\n';
-      var fecha = val('v-fecha');
-      var hora = val('v-hora');
-      if (fecha) msg += 'Fecha preferida: ' + fecha + '\n';
-      if (hora) msg += 'Hora preferida: ' + hora + '\n';
-      var notas = val('v-notas');
-      if (notas) msg += 'Comentarios: ' + notas + '\n';
-      window.open('https://wa.me/' + WA + '?text=' + encodeURIComponent(msg), '_blank');
+
+      // modo correo → Web3Forms
+      var email = val('v-email');
+      if (!email) { alert('Por favor escribe tu correo.'); return; }
+      if (!W3KEY || W3KEY.indexOf('PON-AQUI') === 0) {
+        alert('El envío por correo aún no está configurado. Por ahora contáctanos por WhatsApp.');
+        return;
+      }
+
+      var fd = new FormData();
+      fd.append('access_key', W3KEY);
+      fd.append('subject', 'Nueva solicitud web — ' + nombre + ' (' + val('v-tipo') + ')');
+      fd.append('from_name', 'Web Birth Studio');
+      fd.append('Nombre', nombre);
+      fd.append('WhatsApp', fono);
+      fd.append('Contactar por WhatsApp (1 clic)', waLink(fono));
+      fd.append('Correo del cliente', email);
+      fd.append('Tipo de proyecto', val('v-tipo'));
+      if (val('v-fecha')) fd.append('Fecha preferida', val('v-fecha'));
+      if (val('v-hora')) fd.append('Hora preferida', val('v-hora'));
+      if (val('v-notas')) fd.append('Comentarios', val('v-notas'));
+      fd.append('replyto', email);
+      var logo = document.getElementById('v-logo');
+      if (logo && logo.files && logo.files[0]) fd.append('logo', logo.files[0]);
+
+      var btn = document.getElementById('v-submit');
+      var prev = submitText.textContent;
+      submitText.textContent = 'Enviando…';
+      btn.disabled = true;
+
+      fetch('https://api.web3forms.com/submit', { method: 'POST', body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          btn.disabled = false;
+          if (data && data.success) {
+            form.reset();
+            submitText.textContent = 'Enviar por correo';
+            okMsg.classList.remove('hidden');
+          } else {
+            submitText.textContent = prev;
+            alert('No se pudo enviar. Intenta de nuevo o escríbenos por WhatsApp.');
+          }
+        })
+        .catch(function () {
+          btn.disabled = false;
+          submitText.textContent = prev;
+          alert('No se pudo enviar. Revisa tu conexión o escríbenos por WhatsApp.');
+        });
     });
   })();
 
