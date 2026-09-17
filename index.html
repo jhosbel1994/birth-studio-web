@@ -146,6 +146,26 @@
 .whatsapp-float:focus-visible{outline:4px solid #e60000;outline-offset:3px}
 .whatsapp-float img{width:2.65rem;height:2.65rem;display:block}
 @media (min-width:640px){.whatsapp-float{right:1.5rem;bottom:1.5rem}}
+/* Accesos directos a WhatsApp */
+a[href*="wa.me"]:not(.whatsapp-float){
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.45rem;
+  padding:.5rem .8rem;
+  color:#fff!important;
+  background:#e60000;
+  border:1px solid #e60000;
+  box-shadow:0 5px 14px rgba(230,0,0,.2);
+  animation:whatsapp-link-pulse 2.4s ease-in-out infinite;
+}
+a[href*="wa.me"]:not(.whatsapp-float):hover{background:#b90000;border-color:#b90000;color:#fff!important;animation-play-state:paused;transform:translateY(-1px)}
+@keyframes whatsapp-link-pulse{0%,100%{box-shadow:0 5px 14px rgba(230,0,0,.2)}50%{box-shadow:0 7px 20px rgba(230,0,0,.45)}}
+.whatsapp-float{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.whatsapp-float.is-dragging{cursor:grabbing;transition:none;transform:scale(1.08)}
+.whatsapp-float__icon{width:2.65rem;height:2.65rem;color:#fff;display:block;pointer-events:none}
+.whatsapp-float__icon svg{width:100%;height:100%;display:block}
+@media (prefers-reduced-motion:reduce){a[href*="wa.me"]:not(.whatsapp-float){animation:none}}
 /* Ajustes de composición para pantallas pequeñas */
 @media (max-width:767px){
   html,body{overflow-x:hidden}
@@ -161,6 +181,7 @@
   .service-web-action a{text-align:center}
   .whatsapp-float{right:1rem;bottom:1rem;width:3.5rem;height:3.5rem;outline-width:3px}
   .whatsapp-float img{width:2.3rem;height:2.3rem}
+  .whatsapp-float__icon{width:2.3rem;height:2.3rem}
 }
 @media (max-width:374px){
   .hero-content h1{font-size:2.1rem}
@@ -722,8 +743,8 @@ Diseños, cálculo estructural y fabricación propia de letreros corpóreos, caj
 </div>
 </footer>
 
-<a class="whatsapp-float" href="https://wa.me/56977247545?text=Hola%2C%20les%20escribo%20a%20trav%C3%A9s%20de%20la%20p%C3%A1gina%20web%20de%20Birth%20Studio.%20Quiero%20cotizar%20un%20letrero%20para%20mi%20empresa%20y%20recibir%20asesor%C3%ADa%20para%20mi%20proyecto." target="_blank" rel="noopener" aria-label="Cotizar por WhatsApp">
-<img src="assets/svg/whatsapp.svg" alt="" aria-hidden="true"/>
+<a class="whatsapp-float" id="whatsapp-float" href="https://wa.me/56977247545?text=Hola%2C%20les%20escribo%20a%20trav%C3%A9s%20de%20la%20p%C3%A1gina%20web%20de%20Birth%20Studio.%20Quiero%20cotizar%20un%20letrero%20para%20mi%20empresa%20y%20recibir%20asesor%C3%ADa%20para%20mi%20proyecto." target="_blank" rel="noopener" aria-label="Cotizar por WhatsApp. Arrastra para mover el botón.">
+<span class="whatsapp-float__icon" aria-hidden="true"><svg viewBox="0 0 176 176" focusable="false"><path fill="currentColor" d="M126.8 49.2a54.57 54.57 0 0 0-87.42 63.13l-5.79 28.11a2.08 2.08 0 0 0 .33 1.63 2.11 2.11 0 0 0 2.24.87l27.55-6.53a54.56 54.56 0 0 0 63.09-87.21zm-8.59 68.56a42.74 42.74 0 0 1-49.22 8l-3.84-1.9-16.89 4 .05-.21 3.5-17-1.88-3.71a42.72 42.72 0 0 1 7.86-49.59 42.73 42.73 0 0 1 60.42 0 2.28 2.28 0 0 0 .22.22 42.72 42.72 0 0 1-.22 60.19z"/><path fill="currentColor" d="M116.71 105.29c-2.07 3.26-5.34 7.25-9.45 8.24-7.2 1.74-18.25.06-32-12.76l-.17-.15c-12.09-11.21-15.23-20.54-14.47-27.94.42-4.2 3.92-8 6.87-10.48a3.93 3.93 0 0 1 6.15 1.41l4.45 10a3.91 3.91 0 0 1-.49 4l-2.25 2.92a3.87 3.87 0 0 0-.35 4.32c1.26 2.21 4.28 5.46 7.63 8.47 3.76 3.4 7.93 6.51 10.57 7.57a3.82 3.82 0 0 0 4.19-.88l2.61-2.63a4 4 0 0 1 3.9-1l10.57 3a4 4 0 0 1 2.24 5.91z"/></svg></span>
 </a>
 
 <!-- SCRIPTS -->
@@ -782,6 +803,69 @@ Diseños, cálculo estructural y fabricación propia de letreros corpóreos, caj
     });
     menu.querySelectorAll('.mobile-link').forEach(function (a) {
       a.addEventListener('click', close);
+    });
+  })();
+
+  // Esfera flotante de WhatsApp: toque abre el chat y arrastre la reubica.
+  (function () {
+    var button = document.getElementById('whatsapp-float');
+    if (!button) return;
+
+    var active = false;
+    var moved = false;
+    var suppressClick = false;
+    var startX = 0;
+    var startY = 0;
+    var originX = 0;
+    var originY = 0;
+
+    function finish() {
+      if (!active) return;
+      active = false;
+      button.classList.remove('is-dragging');
+      if (moved) {
+        suppressClick = true;
+        window.setTimeout(function () { suppressClick = false; }, 0);
+      }
+    }
+
+    button.addEventListener('pointerdown', function (event) {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      var rect = button.getBoundingClientRect();
+      active = true;
+      moved = false;
+      startX = event.clientX;
+      startY = event.clientY;
+      originX = rect.left;
+      originY = rect.top;
+      button.setPointerCapture(event.pointerId);
+      button.classList.add('is-dragging');
+    });
+
+    button.addEventListener('pointermove', function (event) {
+      if (!active) return;
+      var deltaX = event.clientX - startX;
+      var deltaY = event.clientY - startY;
+      if (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6) moved = true;
+      if (!moved) return;
+
+      var margin = 8;
+      var maxX = window.innerWidth - button.offsetWidth - margin;
+      var maxY = window.innerHeight - button.offsetHeight - margin;
+      var nextX = Math.min(Math.max(margin, originX + deltaX), maxX);
+      var nextY = Math.min(Math.max(margin, originY + deltaY), maxY);
+      button.style.left = nextX + 'px';
+      button.style.top = nextY + 'px';
+      button.style.right = 'auto';
+      button.style.bottom = 'auto';
+    });
+
+    button.addEventListener('pointerup', finish);
+    button.addEventListener('pointercancel', finish);
+    button.addEventListener('click', function (event) {
+      if (!suppressClick) return;
+      event.preventDefault();
+      event.stopPropagation();
     });
   })();
 
