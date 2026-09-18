@@ -1667,9 +1667,9 @@ const MODES = [
   { id: "both", label: "Las dos", desc: "Cara y halo" },
 ];
 const SCENES = [
-  { id: "fachada", label: "Fachada externa", a: 3, b: 1 },
-  { id: "totem", label: "Totem", a: 0.9, b: 2.4 },
-  { id: "interior", label: "Interior de pared", a: 0.8, b: 0.4 },
+  { id: "fachada", label: "Fachada externa" },
+  { id: "totem", label: "Totem" },
+  { id: "interior", label: "Interior de pared" },
   { id: "foto", label: "Foto de la fachada" }, // sin a/b: la medida real la da la calibracion, no un preset
 ];
 const PLACEMENT_SURFACES = [
@@ -1726,21 +1726,19 @@ function kelvinToHex(kelvin) {
   return "#" + [r, g, b].map((v) => clamp(v).toString(16).padStart(2, "0")).join("");
 }
 const TOOLS = [
-  { id: "producto", icon: "product", label: "Producto" },
-  { id: "texto", icon: "text", label: "Texto" },
-  { id: "medidas", icon: "size", label: "Medidas" },
-  { id: "fachada", icon: "wall", label: "Fachada" },
-  { id: "luz", icon: "light", label: "Luz" },
-  { id: "volumen", icon: "depth", label: "Volumen" },
-  { id: "ajustes", icon: "tune", label: "Ajustes" },
+  { id: "texto", icon: "text", label: "Arte y texto" },
+  { id: "producto", icon: "product", label: "Producto y materiales" },
+  { id: "medidas", icon: "size", label: "Medidas y volumen" },
+  { id: "fachada", icon: "wall", label: "Fachada y montaje" },
+  { id: "luz", icon: "light", label: "Iluminación" },
+  { id: "ajustes", icon: "tune", label: "Ajustes de detección" },
 ];
 const TOOL_DESCRIPTIONS = {
   producto: "Tipo de letrero, cara, canto y material",
-  texto: "Texto, fuente, grosor y proporción",
-  medidas: "Tamaño real, escala y fachada",
-  fachada: "Foto, muro, material y ambientación",
+  texto: "Logos, capas, texto y fuentes",
+  medidas: "Dimensiones, canto y separación",
+  fachada: "Ambiente, superficie y foto",
   luz: "Día, noche, LED y temperatura",
-  volumen: "Canto, separación y profundidad",
   ajustes: "Detección y limpieza del logo",
 };
 
@@ -2239,7 +2237,7 @@ export default function Prototipo() {
 
   /* -- Construccion de la escena -- */
   const build = useCallback(() => {
-    const { rig, envGroup, spill, wallWash, keyLight, fillLight, rimLight, ambient, sc, camera, imageData, srcCanvas } = S.current;
+    const { rig, envGroup, photoGroup, spill, wallWash, keyLight, fillLight, rimLight, ambient, sc, camera, imageData, srcCanvas } = S.current;
     // Antes se abortaba todo el armado si no había logo principal
     // (imageData). Eso dejaba el lienzo en negro al subir una foto de
     // fachada o al colocar logos como capas sin un logo principal. Ahora
@@ -3084,7 +3082,7 @@ export default function Prototipo() {
         c.width = cw; c.height = ch;
         c.getContext("2d").drawImage(img, 0, 0, cw, ch);
         cargarFotoCanvas(c, 0.86);
-        setTool("medidas");
+        setTool("fachada");
         setErr(null);
         S.current.bridgePhotoName = name;
       } catch {
@@ -3434,7 +3432,6 @@ export default function Prototipo() {
 
   const pickScene = (x) => {
     setScene(x.id);
-    if (x.a != null) { setAnchoM(x.a); setAltoM(x.b); } // "foto" no trae preset: la medida real la da la calibracion
     if (x.id === "interior") { setMaterial("lisa"); setFinish("blanco"); setWallColor("#eceef1"); }
     if (x.id === "foto") setTool("fachada");
     if (x.id === "totem") { setMaterial("acm"); setFinish("negro"); setWallColor("#191a1d"); }
@@ -3518,24 +3515,7 @@ export default function Prototipo() {
 
   const mismatch = suggested && suggested.product !== product;
 
-  const panels = {
-    producto: (
-      <>
-        <div style={s.pTitle}>{placedLogos.length ? "Capas de logos" : "Producto"}</div>
-        {placedLogos.length > 0 ? (
-          <div style={s.note}>
-            Selecciona un logo de la lista y ajusta su ubicación, orientación, tipo, forma, tamaño y capa por separado.
-          </div>
-        ) : (
-          <Stack items={PRODUCTS} value={product} onPick={(p) => setProduct(p.id)} />
-        )}
-        {placedLogos.length === 0 && mismatch && (
-          <div style={s.note}>
-            {suggested.product === "lightbox"
-              ? "Tu logo parece una placa entera. Como corporea se cortaria en muchas piezas."
-              : "Tu logo tiene piezas separadas. Como caja se imprime todo sobre una placa."}
-          </div>
-        )}
+  const artControls = (<>
         {logoQueue.length > 0 && (
           <>
             <div style={s.pLabel}>Logos cargados ({logoQueue.length})</div>
@@ -3574,36 +3554,12 @@ export default function Prototipo() {
               })}
             </div>
             <div style={s.pHint}>Arrastra cada logo directamente sobre la escena para ubicarlo.</div>
-            {(() => {
-              const active = placedLogos.find((item) => item.id === activePlacementId);
-              if (!active) return null;
-              return (
-                <>
-                  <div style={s.pLabel}>Ubicación del logo seleccionado</div>
-                  <Seg items={PLACEMENT_SURFACES} value={active.surface || "wall"}
-                    onPick={(surface) => setPlacementSurface(active.id, surface.id)} cols={1} />
-                  <div style={s.pLabel}>Orientación</div>
-                  <Seg items={PLACEMENT_ORIENTATIONS} value={active.orientation || "front"}
-                    onPick={(orientation) => setPlacementOrientation(active.id, orientation.id)} cols={1} />
-                  <div style={s.pLabel}>Tipo del logo seleccionado</div>
-                  <Seg items={PLACEMENT_TYPES} value={active.kind || "original"}
-                    onPick={(kind) => setPlacedLogos((items) => items.map((item) => (
-                      item.id === active.id ? { ...item, kind: kind.id } : item
-                    )))} cols={1} />
-                  {(active.kind || "original") === "lightbox" && (
-                    <>
-                      <div style={s.pLabel}>Forma de caja</div>
-                      <Seg items={PLACEMENT_BOX_FORMS} value={active.boxForm || "rect"}
-                        onPick={(form) => setPlacedLogos((items) => items.map((item) => (
-                          item.id === active.id ? { ...item, boxForm: form.id } : item
-                        )))} />
-                    </>
-                  )}
-                  <Slider label="Tamaño" value={Math.round((active.w || 0.4) * 100)} unit=" cm"
-                    min={10} max={220} step={5}
-                    onChange={(v) => setPlacedLogos((items) => items.map((item) => (
-                      item.id === active.id ? { ...item, w: v / 100 } : item
-                    )))} />
+          </>
+        )}
+{(() => {
+      const active = placedLogos.find((item) => item.id === activePlacementId);
+      if (!active) return null;
+      return (<>
                   <div style={s.pLabel}>Capas</div>
                   <div style={s.layerBtns}>
                     <button type="button" onClick={() => movePlacementLayer(active.id, "back")} style={s.logoPlace}>Fondo</button>
@@ -3611,25 +3567,8 @@ export default function Prototipo() {
                     <button type="button" onClick={() => movePlacementLayer(active.id, "up")} style={s.logoPlace}>Adelante</button>
                     <button type="button" onClick={() => movePlacementLayer(active.id, "front")} style={s.logoPlace}>Frente</button>
                   </div>
-                </>
-              );
-            })()}
-          </>
-        )}
-        {placedLogos.length === 0 && product === "lightbox" && (
-          <>
-            <div style={s.pLabel}>Forma</div>
-            <Seg items={FORMS} value={form} onPick={(f) => setForm(f.id)} />
-            <div style={s.pLabel}>Tamano del logo dentro</div>
-            <Slider label="Ocupacion" value={Math.round(artScale * 100)} unit=" %"
-              min={30} max={100} step={5} onChange={(v) => setArtScale(v / 100)} />
-            <div style={s.pHint}>
-              {form === "circle"
-                ? "Al 100% el logo llena el disco de borde a borde."
-                : "Al 100% el logo llega al borde de la placa."}
-            </div>
-          </>
-        )}
+      </>);
+    })()}
         {placedLogos.length === 0 && sourceType === "logo" && (
           <>
             <div style={s.pLabel}>Voltear el logo</div>
@@ -3652,6 +3591,26 @@ export default function Prototipo() {
               min={-100} max={100} step={5} onChange={(v) => setOffsetY(v / 100)} />
           </>
         )}
+  </>);
+  const mountingControls = (<>
+    <div style={s.pLabel}>Ambiente / escenario</div>
+    <Seg items={SCENES} value={scene} onPick={pickScene} cols={1} />
+    <div style={s.pLabel}>Superficie de montaje</div>
+    {(() => {
+      const active = placedLogos.find((item) => item.id === activePlacementId);
+      if (!active) return null;
+      return (<>
+                  <div style={s.pHint}>{active.name}</div>
+                  <Seg items={PLACEMENT_SURFACES} value={active.surface || "wall"}
+                    onPick={(surface) => setPlacementSurface(active.id, surface.id)} cols={1} />
+                  <div style={s.pLabel}>Orientación</div>
+                  <Seg items={PLACEMENT_ORIENTATIONS} value={active.orientation || "front"}
+                    onPick={(orientation) => setPlacementOrientation(active.id, orientation.id)} cols={1} />
+      </>);
+    })()}
+    {!placedLogos.some((item) => item.id === activePlacementId) && (
+      <div style={s.note}>Sin logo colocado seleccionado.</div>
+    )}
         {placedLogos.length === 0 && (
           <>
             <div style={s.pLabel}>Posición del letrero{scene === "foto" ? " sobre la foto" : " en la fachada"}</div>
@@ -3675,59 +3634,20 @@ export default function Prototipo() {
             </button>
           </>
         )}
-        {placedLogos.length === 0 && (product !== "lightbox") && (
-          <>
-            <div style={s.pLabel}>Color de la cara</div>
-            <div style={s.swatches}>
-              {FACE_COLORS.map((c) => (
-                <button key={c.hex} title={c.name} onClick={() => setFaceColor(c.hex)}
-                  style={{ ...s.swatch, background: c.hex,
-                    outline: faceColor.toLowerCase() === c.hex.toLowerCase() ? `2px solid ${RED}` : "1px solid #2E2E32",
-                    outlineOffset: 2 }} />
-              ))}
-            </div>
-            <label style={s.colorRow}>
-              <span style={s.fieldLabel}>Color libre</span>
-              <input type="color" value={faceColor} style={s.colorInput}
-                onChange={(e) => setFaceColor(e.target.value)} />
-              <span style={s.fieldUnit}>{faceColor}</span>
-            </label>
-          </>
-        )}
-        {(placedLogos.length === 0 || placedLogos.some((it) => (it.kind || "original") === "letters")) && (
-          <>
-            <div style={s.pLabel}>Color del canto</div>
-            <div style={s.swatches}>
-              {EDGE_COLORS.map((c) => (
-                <button key={c.hex} title={c.name} onClick={() => setEdgeColor(c.hex)}
-                  style={{ ...s.swatch, background: c.hex,
-                    outline: edgeColor.toLowerCase() === c.hex.toLowerCase() ? `2px solid ${RED}` : "1px solid #2E2E32",
-                    outlineOffset: 2 }} />
-              ))}
-            </div>
-            <label style={s.colorRow}>
-              <span style={s.fieldLabel}>Color libre</span>
-              <input type="color" value={edgeColor} style={s.colorInput}
-                onChange={(e) => setEdgeColor(e.target.value)} />
-              <span style={s.fieldUnit}>{edgeColor}</span>
-            </label>
-            <Seg items={[{ id: "mate", label: "Mate" }, { id: "metal", label: "Metalico" }]}
-              value={edgeMetal ? "metal" : "mate"} onPick={(o) => setEdgeMetal(o.id === "metal")} />
-            {placedLogos.length > 0 && (
-              <div style={s.pHint}>El color y acabado del canto se aplican a todas las letras corpóreas colocadas.</div>
-            )}
-          </>
-        )}
-        {placedLogos.length === 0 && sourceType !== "texto" && product !== "lightbox" && (
-          <>
-            <div style={s.pLabel}>Color del logo</div>
-            <Seg items={[{ id: "si", label: "Con color" }, { id: "no", label: "Acrilico liso" }]}
-              value={useArt ? "si" : "no"} onPick={(o) => setUseArt(o.id === "si")} />
-          </>
-        )}
-      </>
-    ),
-    texto: (() => {
+  </>);
+  const placementSizeControls = (<>{(() => {
+      const active = placedLogos.find((item) => item.id === activePlacementId);
+      if (!active) return null;
+      return (<>
+                  <Slider label="Tamaño" value={Math.round((active.w || 0.4) * 100)} unit=" cm"
+                    min={10} max={220} step={5}
+                    onChange={(v) => setPlacedLogos((items) => items.map((item) => (
+                      item.id === active.id ? { ...item, w: v / 100 } : item
+                    )))} />
+      </>);
+    })()}</>);
+
+  const textPanels = (() => {
       const nLines = Math.max(1, texto.split("\n").filter((l) => l.trim()).length);
       const resSel = resolverFuente(weightStep, fontStyle, customFont);
       const pctUsed = STROKE_PCT[resSel.usedStep] || STROKE_PCT[weightStep];
@@ -3749,7 +3669,7 @@ export default function Prototipo() {
       // impreso (mismo canvas, via panelCanvas en vez del trazador).
       const letterHcm = letterHmm / 10;
       const demasiadoChica = letterHcm < 10;
-      return (
+      return { arte: (
         <>
           <div style={s.pTitle}>Texto</div>
           <textarea
@@ -3762,6 +3682,72 @@ export default function Prototipo() {
           />
           <div style={s.pHint}>Hasta 40 caracteres por línea, 3 líneas (Enter para separar).</div>
 
+          <div style={s.pLabel}>Alineación</div>
+          <Seg items={[{ id: "left", label: "Izq." }, { id: "center", label: "Centro" }, { id: "right", label: "Der." }]}
+            value={textAlign} onPick={(o) => setTextAlign(o.id)} />
+          <Seg items={[{ id: "si", label: "MAYÚSCULAS" }, { id: "no", label: "Normal" }]}
+            value={upper ? "si" : "no"} onPick={(o) => setUpper(o.id === "si")} />
+          <Slider label="Interlineado" value={lineHeightTx} unit="" min={0.8} max={1.6} step={0.05} onChange={setLineHeightTx} />
+          <Slider label="Espaciado" value={Math.round(letterSpacing * 100)} unit=" %" min={-5} max={25} step={1}
+            onChange={(v) => setLetterSpacing(v / 100)} />
+
+          <div style={s.pLabel}>Grosor de la letra</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 3 }}>
+            {[1, 2, 3, 4, 5].map((st) => {
+              const r = resolverFuente(st, fontStyle, null);
+              const on = weightStep === st && !customFont;
+              return (
+                <button key={st} onClick={() => { setCustomFont(null); setWeightStep(st); }}
+                  title={GROSOR_LABEL[st]}
+                  style={{ ...s.segBtn, ...(on ? s.segOn : {}), flexDirection: "column", padding: "5px 2px", gap: 2 }}>
+                  <span style={{ fontFamily: `"${r.family}", sans-serif`, fontWeight: r.weight, fontSize: 20, lineHeight: 1 }}>A</span>
+                  <span style={{ fontSize: 6.5, letterSpacing: 0 }}>{GROSOR_LABEL[st].split(" ")[0]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={s.pLabel}>Estilo</div>
+          <Seg items={ESTILOS} value={fontStyle} onPick={(o) => { setCustomFont(null); setFontStyle(o.id); }} />
+
+          {resSel.fell && !customFont && (
+            <div style={s.note}>
+              No hay ese grosor en {ESTILOS.find((e) => e.id === fontStyle)?.label}; se usó el más
+              cercano ({GROSOR_LABEL[resSel.usedStep]}).
+            </div>
+          )}
+
+          <div style={{ ...s.readout, marginTop: 10 }}>
+            <div style={s.readLine}>
+              <span>Trazo real</span>
+              <b style={{ color: trazoColor }}>{trazoMm} mm</b>
+            </div>
+          </div>
+          {trazoMm < 20 ? (
+            <div style={{ ...s.note, ...s.dangerNote }}>
+              Trazo menor a 20 mm: no es fabricable como letra corpórea a esta medida.
+              Sube el grosor o agranda el letrero.
+            </div>
+          ) : trazoMm < 30 ? (
+            <div style={{ ...s.note, ...s.warnNote }}>
+              Trazo bajo 30 mm: fabricable, pero encarece el armado.
+            </div>
+          ) : null}
+
+          <div style={s.pLabel}>Fuente propia</div>
+          <label style={{ ...s.segBtn, cursor: "pointer", justifyContent: "center", gap: 6 }}>
+            <Icon name="upload" size={13} /> Cargar .ttf / .otf / .woff2
+            <input type="file" accept=".ttf,.otf,.woff2,font/*" style={{ display: "none" }}
+              onChange={(e) => cargarFuentePropia(e.target.files?.[0])} />
+          </label>
+          {customFont && (
+            <button onClick={() => setCustomFont(null)} style={{ ...s.flatBtn, marginTop: 6, width: "100%" }}>
+              Quitar fuente propia
+            </button>
+          )}
+          {fontMsg && <div style={s.pHint}>{fontMsg}</div>}
+        </>
+      ), medidas: (<>
           <div style={s.pLabel}>Tamaño del letrero</div>
           <div style={s.fields}>
             <NumField {...fieldCtx} id="texto-ancho" label="Ancho" value={anchoM}
@@ -3826,126 +3812,186 @@ export default function Prototipo() {
             </div>
           )}
 
-          <div style={s.pLabel}>Alineación</div>
-          <Seg items={[{ id: "left", label: "Izq." }, { id: "center", label: "Centro" }, { id: "right", label: "Der." }]}
-            value={textAlign} onPick={(o) => setTextAlign(o.id)} />
-          <Seg items={[{ id: "si", label: "MAYÚSCULAS" }, { id: "no", label: "Normal" }]}
-            value={upper ? "si" : "no"} onPick={(o) => setUpper(o.id === "si")} />
-          <Slider label="Interlineado" value={lineHeightTx} unit="" min={0.8} max={1.6} step={0.05} onChange={setLineHeightTx} />
-          <Slider label="Espaciado" value={Math.round(letterSpacing * 100)} unit=" %" min={-5} max={25} step={1}
-            onChange={(v) => setLetterSpacing(v / 100)} />
-
-          <div style={s.pLabel}>Grosor de la letra</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 3 }}>
-            {[1, 2, 3, 4, 5].map((st) => {
-              const r = resolverFuente(st, fontStyle, null);
-              const on = weightStep === st && !customFont;
-              return (
-                <button key={st} onClick={() => { setCustomFont(null); setWeightStep(st); }}
-                  title={GROSOR_LABEL[st]}
-                  style={{ ...s.segBtn, ...(on ? s.segOn : {}), flexDirection: "column", padding: "5px 2px", gap: 2 }}>
-                  <span style={{ fontFamily: `"${r.family}", sans-serif`, fontWeight: r.weight, fontSize: 20, lineHeight: 1 }}>A</span>
-                  <span style={{ fontSize: 6.5, letterSpacing: 0 }}>{GROSOR_LABEL[st].split(" ")[0]}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div style={s.pLabel}>Estilo</div>
-          <Seg items={ESTILOS} value={fontStyle} onPick={(o) => { setCustomFont(null); setFontStyle(o.id); }} />
-
           <div style={s.pLabel}>Canto de la letra (volumen)</div>
           <Slider label="Canto" value={textDepthCm} unit=" cm" min={4} max={12} step={1} onChange={setTextDepthCm} />
-          <div style={s.pHint}>Profundidad 3D solo del texto, independiente del canto de los logos (Volumen → Canto).</div>
+          <div style={s.pHint}>Profundidad 3D solo del texto, independiente del canto de los logos.</div>
 
-          {resSel.fell && !customFont && (
-            <div style={s.note}>
-              No hay ese grosor en {ESTILOS.find((e) => e.id === fontStyle)?.label}; se usó el más
-              cercano ({GROSOR_LABEL[resSel.usedStep]}).
-            </div>
-          )}
+      </>) };
+    })();
 
-          <div style={{ ...s.readout, marginTop: 10 }}>
-            <div style={s.readLine}>
-              <span>Trazo real</span>
-              <b style={{ color: trazoColor }}>{trazoMm} mm</b>
-            </div>
+
+  const panels = {
+    producto: (
+      <>
+        <div style={s.pTitle}>Producto y materiales</div>
+        {placedLogos.length > 0 ? (
+          <div style={s.note}>
+            Logo seleccionado: {placedLogos.find((item) => item.id === activePlacementId)?.name || "Ninguno"}
           </div>
-          {trazoMm < 20 ? (
-            <div style={{ ...s.note, ...s.dangerNote }}>
-              Trazo menor a 20 mm: no es fabricable como letra corpórea a esta medida.
-              Sube el grosor o agranda el letrero.
+        ) : (
+          <Stack items={PRODUCTS} value={product} onPick={(p) => setProduct(p.id)} />
+        )}
+        {placedLogos.length === 0 && mismatch && (
+          <div style={s.note}>
+            {suggested.product === "lightbox"
+              ? "Tu logo parece una placa entera. Como corporea se cortaria en muchas piezas."
+              : "Tu logo tiene piezas separadas. Como caja se imprime todo sobre una placa."}
+          </div>
+        )}
+        {placedLogos.length > 0 && (
+          <>
+            {(() => {
+              const active = placedLogos.find((item) => item.id === activePlacementId);
+              if (!active) return null;
+              return (
+                <>
+                  <div style={s.pLabel}>Tipo del logo seleccionado</div>
+                  <Seg items={PLACEMENT_TYPES} value={active.kind || "original"}
+                    onPick={(kind) => setPlacedLogos((items) => items.map((item) => (
+                      item.id === active.id ? { ...item, kind: kind.id } : item
+                    )))} cols={1} />
+                  {(active.kind || "original") === "lightbox" && (
+                    <>
+                      <div style={s.pLabel}>Forma de caja</div>
+                      <Seg items={PLACEMENT_BOX_FORMS} value={active.boxForm || "rect"}
+                        onPick={(form) => setPlacedLogos((items) => items.map((item) => (
+                          item.id === active.id ? { ...item, boxForm: form.id } : item
+                        )))} />
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </>
+        )}
+        {placedLogos.length === 0 && product === "lightbox" && (
+          <>
+            <div style={s.pLabel}>Forma</div>
+            <Seg items={FORMS} value={form} onPick={(f) => setForm(f.id)} />
+            <div style={s.pLabel}>Tamano del logo dentro</div>
+            <Slider label="Ocupacion" value={Math.round(artScale * 100)} unit=" %"
+              min={30} max={100} step={5} onChange={(v) => setArtScale(v / 100)} />
+            <div style={s.pHint}>
+              {form === "circle"
+                ? "Al 100% el logo llena el disco de borde a borde."
+                : "Al 100% el logo llega al borde de la placa."}
             </div>
-          ) : trazoMm < 30 ? (
-            <div style={{ ...s.note, ...s.warnNote }}>
-              Trazo bajo 30 mm: fabricable, pero encarece el armado.
+          </>
+        )}
+        {placedLogos.length === 0 && (product !== "lightbox") && (
+          <>
+            <div style={s.pLabel}>Color de la cara</div>
+            <div style={s.swatches}>
+              {FACE_COLORS.map((c) => (
+                <button key={c.hex} title={c.name} onClick={() => setFaceColor(c.hex)}
+                  style={{ ...s.swatch, background: c.hex,
+                    outline: faceColor.toLowerCase() === c.hex.toLowerCase() ? `2px solid ${RED}` : "1px solid #2E2E32",
+                    outlineOffset: 2 }} />
+              ))}
             </div>
-          ) : null}
-
-          <div style={s.pLabel}>Fuente propia</div>
-          <label style={{ ...s.segBtn, cursor: "pointer", justifyContent: "center", gap: 6 }}>
-            <Icon name="upload" size={13} /> Cargar .ttf / .otf / .woff2
-            <input type="file" accept=".ttf,.otf,.woff2,font/*" style={{ display: "none" }}
-              onChange={(e) => cargarFuentePropia(e.target.files?.[0])} />
-          </label>
-          {customFont && (
-            <button onClick={() => setCustomFont(null)} style={{ ...s.flatBtn, marginTop: 6, width: "100%" }}>
-              Quitar fuente propia
-            </button>
-          )}
-          {fontMsg && <div style={s.pHint}>{fontMsg}</div>}
-        </>
-      );
-    })(),
+            <label style={s.colorRow}>
+              <span style={s.fieldLabel}>Color libre</span>
+              <input type="color" value={faceColor} style={s.colorInput}
+                onChange={(e) => setFaceColor(e.target.value)} />
+              <span style={s.fieldUnit}>{faceColor}</span>
+            </label>
+          </>
+        )}
+        {(placedLogos.length === 0 || placedLogos.some((it) => (it.kind || "original") === "letters")) && (
+          <>
+            <div style={s.pLabel}>Color del canto</div>
+            <div style={s.swatches}>
+              {EDGE_COLORS.map((c) => (
+                <button key={c.hex} title={c.name} onClick={() => setEdgeColor(c.hex)}
+                  style={{ ...s.swatch, background: c.hex,
+                    outline: edgeColor.toLowerCase() === c.hex.toLowerCase() ? `2px solid ${RED}` : "1px solid #2E2E32",
+                    outlineOffset: 2 }} />
+              ))}
+            </div>
+            <label style={s.colorRow}>
+              <span style={s.fieldLabel}>Color libre</span>
+              <input type="color" value={edgeColor} style={s.colorInput}
+                onChange={(e) => setEdgeColor(e.target.value)} />
+              <span style={s.fieldUnit}>{edgeColor}</span>
+            </label>
+            <Seg items={[{ id: "mate", label: "Mate" }, { id: "metal", label: "Metalico" }]}
+              value={edgeMetal ? "metal" : "mate"} onPick={(o) => setEdgeMetal(o.id === "metal")} />
+            {placedLogos.length > 0 && (
+              <div style={s.pHint}>El color y acabado del canto se aplican a todas las letras corpóreas colocadas.</div>
+            )}
+          </>
+        )}
+        {placedLogos.length === 0 && sourceType !== "texto" && product !== "lightbox" && (
+          <>
+            <div style={s.pLabel}>Color del logo</div>
+            <Seg items={[{ id: "si", label: "Con color" }, { id: "no", label: "Acrilico liso" }]}
+              value={useArt ? "si" : "no"} onPick={(o) => setUseArt(o.id === "si")} />
+          </>
+        )}
+      </>
+    ),
+    texto: textPanels.arte,
     medidas: (
       <>
-        <div style={s.pTitle}>Medidas</div>
-        <div style={s.pLabel}>Donde va</div>
-        <Seg items={SCENES} value={scene} onPick={pickScene} cols={1} />
+        <div style={s.pTitle}>Medidas y volumen</div>
+        {placementSizeControls}
         <div style={s.pLabel}>Unidad</div>
         <Seg items={[{ id: "cm", label: "Centimetros" }, { id: "m", label: "Metros" }]}
           value={unit} onPick={(u) => setUnit(u.id)} />
+        {sourceType === "texto" ? textPanels.medidas : (<>
         <div style={s.pLabel}>Dimensiones</div>
         <div style={s.fields}>
           <NumField {...fieldCtx} id="logo-ancho" label="Ancho" value={anchoM} onChange={setAnchoM} />
           <NumField {...fieldCtx} id="logo-alto" label="Alto" value={altoM} onChange={setAltoM} />
         </div>
+        </>)}
         <div style={s.actionGrid}>
           <button type="button" onClick={() => ajustarLetreroAFachada(FACADE_FIT_RATIO)}
             style={{ ...s.flatBtn, width: "100%" }}>
             Ajustar al 50% de fachada
           </button>
-          <label style={{ ...s.flatBtn, ...s.labelBtn, width: "100%" }}>
-            <Icon name="upload" size={13} /> {scene === "foto" ? "Subir foto de fachada" : "Subir fachada"}
-            <input type="file" accept="image/*" style={{ display: "none" }}
-              onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
-          </label>
         </div>
         {(() => {
           const m = panelMetrics(anchoM, altoM);
           return (
             <div style={s.readout}>
-              <div style={s.readLine}><span>Real</span><b>{Math.round(anchoM * 100)} x {Math.round(altoM * 100)} cm</b></div>
+              <div style={s.readLine}><span>Medidas ingresadas</span><b>{Math.round(anchoM * 100)} x {Math.round(altoM * 100)} cm</b></div>
               <div style={s.readLine}><span>Escala de dibujo</span><b>1:{m.escala}</b></div>
               <div style={s.readLine}><span>Lienzo de arte</span><b>{m.pxW} x {m.pxH} px</b></div>
               <div style={s.readLine}><span>Densidad</span><b>{m.pxPorCm.toFixed(1)} px/cm</b></div>
             </div>
           );
         })()}
+        {info && fileName && !(placedLogos.length > 0 && sourceType !== "texto") && (
+          <div style={s.readout}>
+            <div style={s.readLine}><span>Dimensión efectiva del letrero principal</span><b>{((sourceType === "texto" && !whLocked ? anchoM : info.realW) * 100).toFixed(1)} × {((sourceType === "texto" && !whLocked ? altoM : info.realH) * 100).toFixed(1)} cm</b></div>
+          </div>
+        )}
+        <Slider label="Canto" value={depthCm} unit=" cm" min={4} max={12} step={1} onChange={setDepthCm} />
+        <div style={s.pHint}>
+          {product === "lightbox"
+            ? "Perfil de la caja, de 4 a 12 cm."
+            : "Profundidad de la letra, de 4 a 12 cm."}
+        </div>
+        <div style={s.pLabel}>Montaje</div>
+        <Slider label="Separacion del muro" value={standoffCm} unit=" cm" min={1} max={30} step={1} onChange={setStandoffCm} />
+        <div style={s.pHint}>Mas separacion, halo mas ancho y difuso.</div>
         <div style={s.pHint}>
           Sobre {LIMITE_1A1_CM} cm se dibuja a escala 1:10. El ajuste recomendado deja el letrero
           en torno al 50% de la fachada para que no se vea desproporcionado.
         </div>
       </>
     ),
-    fachada: scene === "foto" ? (
+    fachada: (<>
+      {mountingControls}
+      <label style={{ ...s.flatBtn, ...s.labelBtn, width: "100%" }}>
+        <Icon name="upload" size={13} /> {photoImg ? "Cambiar foto de fachada" : "Subir foto de fachada"}
+        <input type="file" accept="image/*" style={{ display: "none" }}
+          onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
+      </label>
+      {scene === "foto" ? (
       <>
         <div style={s.pTitle}>Foto de la fachada</div>
-        <label style={{ ...s.segBtn, cursor: "pointer", justifyContent: "center", gap: 6, display: "flex" }}>
-          <Icon name="upload" size={13} /> {photoImg ? "Cambiar foto" : "Subir foto"}
-          <input type="file" accept="image/*" style={{ display: "none" }}
-            onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
-        </label>
         {!photoImg && <div style={s.pHint}>Sube una foto de la fachada real (galería o cámara) para montar el letrero encima.</div>}
 
         {photoImg && (
@@ -4096,7 +4142,8 @@ export default function Prototipo() {
           </>
         )}
       </>
-    ),
+    )}
+    </>),
     luz: (
       <>
         <div style={s.pTitle}>Luz</div>
@@ -4117,20 +4164,6 @@ export default function Prototipo() {
                 outline: ledColor === c.hex ? `2px solid ${RED}` : "1px solid rgba(80,50,70,0.18)", outlineOffset: 2 }} />
           ))}
         </div>
-      </>
-    ),
-    volumen: (
-      <>
-        <div style={s.pTitle}>Volumen</div>
-        <Slider label="Canto" value={depthCm} unit=" cm" min={4} max={12} step={1} onChange={setDepthCm} />
-        <div style={s.pHint}>
-          {product === "lightbox"
-            ? "Perfil de la caja, de 4 a 12 cm."
-            : "Profundidad de la letra, de 4 a 12 cm."}
-        </div>
-        <div style={s.pLabel}>Montaje</div>
-        <Slider label="Separacion del muro" value={standoffCm} unit=" cm" min={1} max={30} step={1} onChange={setStandoffCm} />
-        <div style={s.pHint}>Mas separacion, halo mas ancho y difuso.</div>
       </>
     ),
     ajustes: (
@@ -4218,7 +4251,7 @@ export default function Prototipo() {
                         {active ? "−" : "+"}
                       </span>
                     </button>
-                    {active && <div style={s.toolDrawer}>{panels[t.id]}</div>}
+                    {active && <div style={s.toolDrawer}>{t.id === "texto" && artControls}{panels[t.id]}</div>}
                   </section>
                 );
               })}
@@ -4239,11 +4272,9 @@ export default function Prototipo() {
               <div style={{ ...s.overlay, ...(narrow ? { height: 360 } : {}) }}>
                 <div style={s.emptyTitle}>Sube una foto de fachada</div>
                 <div style={s.emptyText}>La foto será el fondo real del mockup</div>
-                <label style={s.emptyUpload}>
-                  <Icon name="upload" size={15} /> Subir foto
-                  <input type="file" accept="image/*" style={{ display: "none" }}
-                    onChange={(e) => { handlePhotoFile(e.target.files?.[0]); e.target.value = ""; }} />
-                </label>
+                <button type="button" style={s.emptyUpload} onClick={() => setTool("fachada")}>
+                  <Icon name="wall" size={15} /> Fachada y montaje
+                </button>
               </div>
             )}
             {err && <div style={s.errBar}>{err}</div>}

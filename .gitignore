@@ -8,3 +8,6 @@ assets/fotos/
 
 # Logs de dev / temporales (no deben commitearse)
 *.log
+
+# Capturas y scripts de QA del prototipo (material temporal, no va al sitio)
+output/
