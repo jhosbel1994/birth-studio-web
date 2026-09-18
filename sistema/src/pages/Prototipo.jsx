@@ -2778,21 +2778,14 @@ export default function Prototipo() {
       );
     }
 
-    // Luz que bana la fachada de FRENTE y pareja (no rasante). Antes venia
-    // desde arriba-derecha y creaba un "charco" de luz descentrado sobre el
-    // muro, ajeno al logo; ahora es frontal, lejana y amplia -> lavado
-    // uniforme sin punto caliente. El resplandor con forma lo aporta el
-    // halo del propio logo (mas abajo), no esta luz.
-    if (showFacade) {
-      wallWash.color.set(night ? 0xfff0d8 : 0xffffff);
-      wallWash.intensity = night ? 1.5 : 0.7;
-      wallWash.distance = span * 24;
-      wallWash.position.set(0, span * 1.2, span * 2.2);
-      wallWash.target.position.set(0, 0, -standoff);
-      wallWash.target.updateMatrixWorld();
-    } else {
-      wallWash.intensity = 0;
-    }
+    // Sin foco "wall wash": un spotlight SIEMPRE deja un charco de luz en
+    // el muro y, como esta fijo en el mundo (no gira con el letrero), al
+    // rotar la escena queda separado del logo. La fachada se ilumina
+    // pareja con la key/fill/ambient (direccionales, sin charco) y el
+    // resplandor con forma lo da el halo del propio logo (dentro del sign,
+    // lo sigue al girar). Se sube un poco el ambiente cuando hay fachada
+    // para compensar la luz que aportaba el wall wash.
+    wallWash.intensity = 0;
 
     keyLight.position.set(span * 1.2, span * 1.4, span * 1.8);
     fillLight.position.set(-span, -span * 0.3, span * 1.2);
@@ -2926,10 +2919,10 @@ export default function Prototipo() {
     // luces a lo ancho del letrero.
     spill.intensity = 0;
     if (mode === "front") {
-      spill.color = new THREE.Color(ledColor);
-      spill.intensity = 0.4;
-      spill.distance = span * 4;
-      spill.position.set(0, sign.position.y, -standoff * 0.6);
+      // En "Al frente" el resplandor lo da el halo con forma del logo (va
+      // dentro del sign y lo sigue al girar). No se enciende una luz
+      // puntual suelta: creaba un charco blanco fijo que, al rotar la
+      // escena, se separaba del logo (justo lo que se veia mal).
     } else {
       const total = mode === "back" ? 2.2 : 1.4;
       const N = 5;
