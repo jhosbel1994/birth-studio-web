@@ -2150,7 +2150,15 @@ export default function Prototipo() {
         const h = mount.clientHeight || 1;
         const worldPerPxY = (2 * Math.tan(vFov / 2) * dist) / (h * (camera.zoom || 1));
         const worldPerPxX = worldPerPxY * (camera.aspect || 1);
-        target.position.x += (p.clientX - lx) * worldPerPxX;
+        // El objeto es hijo del rig (girado en Y). El arrastre viene en
+        // pantalla; si se suma tal cual al eje local, con la escena rotada
+        // el logo se va en diagonal ("se mueve solo"). Se divide el
+        // horizontal por cos(giro) para que SIGA al cursor a lo largo del
+        // muro; el vertical no depende del giro en Y. cos se acota para no
+        // dispararse cuando el muro se ve casi de canto.
+        const cosT = Math.cos(rig.rotation.y);
+        const denom = Math.abs(cosT) < 0.25 ? (cosT < 0 ? -0.25 : 0.25) : cosT;
+        target.position.x += ((p.clientX - lx) * worldPerPxX) / denom;
         target.position.y -= (p.clientY - ly) * worldPerPxY;
       } else {
         const dy = (p.clientX - lx) * 0.009;
@@ -2665,8 +2673,11 @@ export default function Prototipo() {
       extraTargets.push(plane);
     });
     S.current.extraTargets = extraTargets;
-    // Encuadre y calculos con rotacion 0 (el giro lo repone el loop).
-    rig.rotation.set(0, 0, 0); envGroup.rotation.set(0, 0, 0);
+    // Vista inicial en 3/4 (no de frente): un letrero de frente se ve plano
+    // y hace que el canto y la separacion del muro (que son profundidad)
+    // parezcan "no funcionar". Un leve giro deja ver el volumen de entrada,
+    // como un render de producto. El usuario puede seguir girando a mano.
+    rig.rotation.set(0, -0.32, 0); envGroup.rotation.set(0, -0.32, 0);
 
     const span = Math.max(realW, realH);
 
