@@ -2049,6 +2049,10 @@ export default function Prototipo() {
     renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = !isMobile;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // touch-action: none -> en el telefono el gesto de un dedo gira/mueve el
+    // letrero en vez de hacer scroll de la pagina (antes se peleaban y por
+    // eso era muy dificil de manejar en movil).
+    renderer.domElement.style.touchAction = "none";
     mount.appendChild(renderer.domElement);
 
     const onLost = (e) => { e.preventDefault(); setErr("La vista 3D se suspendio. Recarga la pagina."); };
@@ -4488,16 +4492,16 @@ export default function Prototipo() {
 
           {/* Visor */}
           <main style={s.viewport}>
-            <div ref={mountRef} style={{ ...s.canvasHost, ...(narrow ? { height: 360 } : {}) }} />
+            <div ref={mountRef} style={{ ...s.canvasHost, ...(narrow ? { height: 440 } : {}) }} />
 
             {!fileName && !busy && (
-              <div style={{ ...s.overlay, ...(narrow ? { height: 360 } : {}) }}>
+              <div style={{ ...s.overlay, ...(narrow ? { height: 440 } : {}) }}>
                 <div style={s.emptyTitle}>Sube tu logo</div>
                 <div style={s.emptyText}>Arrastralo aqui o usa el boton de arriba</div>
               </div>
             )}
             {fileName && scene === "foto" && !photoImg && !busy && (
-              <div style={{ ...s.overlay, ...(narrow ? { height: 360 } : {}) }}>
+              <div style={{ ...s.overlay, ...(narrow ? { height: 440 } : {}) }}>
                 <div style={s.emptyTitle}>Sube una foto de fachada</div>
                 <div style={s.emptyText}>La foto será el fondo real del mockup</div>
                 <button type="button" style={s.emptyUpload} onClick={() => setTool("fachada")}>
@@ -4523,6 +4527,11 @@ export default function Prototipo() {
                 <div style={s.spec}><b style={s.specVal}>{info.faceArea.toFixed(2)}</b><span style={s.specKey}>m2 de cara</span></div>
                 <div style={s.spec}><b style={s.specVal}>{info.perim.toFixed(1)}</b><span style={s.specKey}>{info.product === "letters" ? "m de canto" : "m de perfil"}</span></div>
                 <div style={s.spec}><b style={s.specVal}>{info.count}</b><span style={s.specKey}>{info.product === "letters" ? "piezas" : "placa"}</span></div>
+              </div>
+            )}
+            {narrow && (
+              <div style={{ textAlign: "center", fontSize: 11, color: "#8a8f98", padding: "7px 10px", lineHeight: 1.35 }}>
+                Un dedo: girar o mover el letrero · Dos dedos: acercar · Botones ⟳ para encuadrar y giro automático
               </div>
             )}
           </main>
@@ -4625,7 +4634,7 @@ const s = {
   expandMarkOn: { color: BLUE, background: "rgba(47,139,239,0.10)", borderColor: "rgba(47,139,239,0.24)" },
   toolDrawer: { padding: "0 10px 12px" },
   viewport: { flex: "1 1 auto", position: "relative", minWidth: 0, display: "flex", flexDirection: "column" },
-  canvasHost: { width: "100%", height: 560, background: "linear-gradient(135deg, #f7f9ff 0%, #fff4f8 100%)" },
+  canvasHost: { width: "100%", height: 560, background: "linear-gradient(135deg, #f7f9ff 0%, #fff4f8 100%)", touchAction: "none" },
   overlay: {
     position: "absolute", top: 0, left: 0, right: 0, height: 560, display: "flex",
     flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5,
