@@ -1940,6 +1940,7 @@ export default function Prototipo() {
   const [mode, setMode] = useState("front");
   const [night, setNight] = useState(true);
   const [ledColor, setLedColor] = useState("#ffffff");
+  const [ledLevel, setLedLevel] = useState(6); // intensidad de iluminacion 1..10
   const [useArt, setUseArt] = useState(true);
   const [faceColor, setFaceColor] = useState("#F1F2F4");
   const [edgeColor, setEdgeColor] = useState("#202024");
@@ -2411,6 +2412,9 @@ export default function Prototipo() {
     const signDepth = sourceType === "texto" ? textDepth : depth;
     const standoff = standoffCm / 100;
     const litFront = mode === "front" || mode === "both";
+    // Nivel de intensidad 1..10 -> factor que escala emision, halo y luz.
+    // 1 = tenue (0.4x), ~6 = normal (1x), 10 = fuerte (1.7x).
+    const litK = 0.4 + ((Math.max(1, Math.min(10, ledLevel)) - 1) / 9) * 1.3;
     let shapes, uvParams, realW, realH, perim, faceArea, tex, sil;
 
     if (!imageData) {
@@ -2481,7 +2485,7 @@ export default function Prototipo() {
         face.emissive = new THREE.Color(ledColor);
         // Mas intensidad: al frente el logo debe verse claramente ENCENDIDO
         // (antes pasaba desapercibido, sobre todo de dia).
-        face.emissiveIntensity = mode === "both" ? 1.4 : 2.3;
+        face.emissiveIntensity = (mode === "both" ? 1.4 : 2.3) * litK;
       }
     } else {
       face.color = faceCol.clone();
@@ -2489,7 +2493,7 @@ export default function Prototipo() {
         // Acrilico opal de color: la cara emite en su propio color,
         // tenido por el color del LED.
         face.emissive = faceCol.clone().multiply(new THREE.Color(ledColor));
-        face.emissiveIntensity = mode === "both" ? 1.5 : 2.4;
+        face.emissiveIntensity = (mode === "both" ? 1.5 : 2.4) * litK;
       }
     }
     if (mode === "back") { face.emissive = new THREE.Color(0x000000); face.emissiveIntensity = 0; face.color.multiplyScalar(0.45); }
@@ -2577,7 +2581,7 @@ export default function Prototipo() {
       htex.colorSpace = SRGB;
       const haloMat = new THREE.MeshBasicMaterial({
         map: htex, color: new THREE.Color(ledColor), transparent: true,
-        opacity: mode === "back" ? 1 : mode === "both" ? 0.9 : 0.78,
+        opacity: Math.min(1, (mode === "back" ? 1 : mode === "both" ? 0.9 : 0.78) * litK),
         blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
       });
       const halo = new THREE.Mesh(
@@ -2595,9 +2599,9 @@ export default function Prototipo() {
     // suelto. Es lo que hace que de verdad "alumbre" y no solo brille la cara.
     if ((litFront || mode === "back") && sil) {
       const sl = new THREE.PointLight(new THREE.Color(ledColor), 0, Math.max(realW, realH) * 5 + 1.5, 2);
-      sl.intensity = mode === "back" ? (night ? 3.4 : 2.0)
+      sl.intensity = (mode === "back" ? (night ? 3.4 : 2.0)
         : mode === "both" ? (night ? 3.0 : 1.8)
-        : (night ? 2.4 : 1.5);
+        : (night ? 2.4 : 1.5)) * litK;
       sl.position.set(sil.offX || 0, sil.offY || 0, -standoff * 0.5);
       sl.castShadow = false;
       sign.add(sl);
@@ -3079,26 +3083,11 @@ export default function Prototipo() {
       }
     }
 
-    // Retroiluminado uniforme: en vez de una sola luz puntual al centro
-    // (muro fuerte al medio, apagado en las esquinas), se reparten varias
-    // luces a lo ancho del letrero.
+    // El resplandor del retroiluminado lo da el HALO (plano emisivo detras
+    // del logo), NO luces puntuales: sobre el muro acanalado/metalico las
+    // luces puntuales repartidas dejaban una fila de puntos brillantes. Se
+    // desactiva el spill de escena (los puntos que el usuario pidio quitar).
     spill.intensity = 0;
-    if (mode === "front") {
-      // En "Al frente" el resplandor lo da el halo con forma del logo (va
-      // dentro del sign y lo sigue al girar). No se enciende una luz
-      // puntual suelta: creaba un charco blanco fijo que, al rotar la
-      // escena, se separaba del logo (justo lo que se veia mal).
-    } else {
-      const total = mode === "back" ? 2.2 : 1.4;
-      const N = 5;
-      const wallZ = -standoff * 0.6;
-      for (let i = 0; i < N; i++) {
-        const wl = new THREE.PointLight(new THREE.Color(ledColor), total / N, span * 3.5, 2);
-        const fx = (i / (N - 1) - 0.5) * realW * 1.05;
-        wl.position.set(fx, sign.position.y, wallZ);
-        rig.add(wl);
-      }
-    }
 
     // En fachada hay que abrir el encuadre: el local es mucho mas grande que el letrero
     const isGalponScene = showFacade && facadeStyle === "galpon";
@@ -3160,7 +3149,7 @@ export default function Prototipo() {
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
-  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, deskStyle, floorColor, acrylicBase, acrylicColor, mode, night, ledColor,
+  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, deskStyle, floorColor, acrylicBase, acrylicColor, mode, night, ledColor, ledLevel,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, placedLogos, activePlacementId, edgeColor, edgeMetal,
       anchoM, altoM, whLocked, depthCm, textDepthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoRoll, photoLightDir, photoAmbient, calibPts]);
@@ -4446,6 +4435,9 @@ export default function Prototipo() {
       <>
         <div style={s.pTitle}>Luz</div>
         <Stack items={MODES} value={mode} onPick={(m) => setMode(m.id)} />
+        <div style={s.pLabel}>Intensidad de la luz</div>
+        <Slider label="Nivel" value={ledLevel} unit=" / 10" min={1} max={10} step={1} onChange={setLedLevel} />
+        <div style={s.pHint}>1 = tenue · 6 = normal · 10 = muy encendido.</div>
         <div style={s.pLabel}>Temperatura (LED blanco)</div>
         <Seg items={LIGHT_TEMPS.map((t) => ({ id: String(t.k), label: t.label }))}
           value={String(LIGHT_TEMPS.find((t) => kelvinToHex(t.k) === ledColor)?.k || "")}
