@@ -746,14 +746,67 @@ function glowTexture() {
 }
 
 function glassMat(night) {
+  // Vidrio real: transparente con reflejo, no espejo negro. Baja opacidad
+  // para dejar ver el interior de la tienda que va detras; algo mas de
+  // cuerpo de noche (el interior iluminado se lee igual a traves).
   return new THREE.MeshStandardMaterial({
-    color: night ? 0x0d1418 : 0x1d2b33,
-    roughness: 0.12, metalness: 0.5, envMapIntensity: 1.5,
-    transparent: true, opacity: 0.92,
+    color: night ? 0x1b2b31 : 0x8fb0c0,
+    roughness: 0.08, metalness: 0.25, envMapIntensity: 1.3,
+    transparent: true, opacity: night ? 0.4 : 0.34,
   });
 }
 const frameMat = () => new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.45, metalness: 0.6 });
 const concreteMat = () => new THREE.MeshStandardMaterial({ color: 0x55575c, roughness: 0.8 });
+
+/* Interior de tienda visto tras la vitrina: pared de fondo, luces de
+   cielo, estanteria con productos y piso. Se hornea para dia o noche (de
+   noche pared calida y luces encendidas). Es un backdrop plano detras del
+   vidrio -> el local se ve "vivo" y abierto, como las tiendas de
+   referencia, en vez de un vidrio negro tipo local cerrado. */
+function storeInteriorTexture(night) {
+  const W = 512, H = 512;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const wall = g.createLinearGradient(0, 0, 0, H);
+  // De noche la tienda se ve ENCENDIDA por dentro (pared calida clara), no
+  // apagada: es el default del prototipo y lo que hace lucir el logo.
+  if (night) { wall.addColorStop(0, "#7a6340"); wall.addColorStop(1, "#523f24"); }
+  else { wall.addColorStop(0, "#efece6"); wall.addColorStop(1, "#d2ccc1"); }
+  g.fillStyle = wall; g.fillRect(0, 0, W, H);
+  // Luces de cielo (calidas)
+  for (let i = 0; i < 4; i++) {
+    const lx = (W / 4) * (i + 0.5);
+    const grd = g.createRadialGradient(lx, 44, 2, lx, 44, 110);
+    const a = night ? 1 : 0.5;
+    grd.addColorStop(0, `rgba(255,242,214,${a})`);
+    grd.addColorStop(1, "rgba(255,242,214,0)");
+    g.fillStyle = grd; g.fillRect(lx - 110, 0, 220, 190);
+  }
+  // Estanterias con productos
+  const cols = night
+    ? ["#c29a5e", "#93a6bb", "#a3ba86", "#c68a6c", "#a493bd"]
+    : ["#c2a678", "#9fb0c0", "#aec0a0", "#cf9a86", "#a99cc0"];
+  for (let s = 0; s < 3; s++) {
+    const sy = 165 + s * 96;
+    g.fillStyle = night ? "#4a3a22" : "#c6bdae";
+    g.fillRect(28, sy + 58, W - 56, 9);
+    for (let x = 40; x < W - 46; x += 33) {
+      const h = 28 + rnd() * 28;
+      g.fillStyle = shade(cols[Math.floor(rnd() * cols.length)], (rnd() - 0.5) * 0.18);
+      g.fillRect(x, sy + 58 - h, 23, h);
+    }
+  }
+  // Piso
+  g.fillStyle = night ? "#5a4a30" : "#cac4b8";
+  g.fillRect(0, H - 62, W, 62);
+  return c;
+}
+const interiorMat = (night) => {
+  const t = new THREE.CanvasTexture(storeInteriorTexture(night));
+  t.colorSpace = SRGB; t.anisotropy = 8;
+  return new THREE.MeshBasicMaterial({ map: t });
+};
 
 /* Linea oscura fina sobre cada arista dura del volumen — el efecto que
    mas cambia la percepcion de "juego" a "render arquitectonico" (tipo
@@ -819,7 +872,6 @@ function buildStorefront(style, o) {
   const floorH = 3.0;
   let yGroundOut = floors > 0 ? yGround - floors * floorH : yGround;
 
-  const shutter = texMat(shutterTexture(), 1, Math.max(2, shopH * 1.6), { roughness: 0.42, metalness: 0.65 });
   const pave = texMat(pavementTexture(), 8, 8, { roughness: 0.82, metalness: 0 });
   const glass = glassMat(night);
   const frame = frameMat();
@@ -857,11 +909,24 @@ function buildStorefront(style, o) {
 
   const shopY = yBandBot - shopH / 2;
 
+  // Interior de tienda tras la vitrina (todas menos el galpon industrial):
+  // backdrop plano con estanteria/luz detras del vidrio -> el local se ve
+  // "vivo" y abierto en vez de vidrio negro. El vidrio semitransparente de
+  // cada estilo lo deja ver.
+  if (!isGalpon) {
+    const inside = new THREE.Mesh(new THREE.PlaneGeometry(facW - 0.3, shopH * 0.98), interiorMat(night));
+    inside.position.set(0, shopY, zWall - 0.14);
+    g.add(inside);
+  }
+
   if (style === "calle") {
-    // Cortina metalica y acceso lateral, como el local de referencia
-    const curtW = facW * 0.56, doorW = facW * 0.26;
-    addBox(curtW, shopH, 0.07, shutter, -facW / 2 + curtW / 2 + 0.12, shopY, zWall, g);
-    addBox(curtW + 0.1, 0.12, 0.16, frame, -facW / 2 + curtW / 2 + 0.12, yBandBot - 0.06, zWall + 0.04, g);
+    // Vitrina de vidrio + puerta lateral (antes era cortina metalica y se
+    // veia como local cerrado). El interior detras se ve a traves.
+    const winW = facW * 0.56, doorW = facW * 0.26;
+    const winX = -facW / 2 + winW / 2 + 0.12;
+    addBox(winW + 0.12, shopH * 0.94 + 0.12, 0.06, frame, winX, shopY - shopH * 0.03, zWall + 0.03, g);
+    addBox(winW, shopH * 0.94, 0.04, glass, winX, shopY - shopH * 0.03, zWall + 0.06, g);
+    addBox(winW + 0.14, 0.14, 0.16, frame, winX, yBandBot - 0.07, zWall + 0.06, g);
     addBox(doorW + 0.1, shopH * 0.94 + 0.1, 0.06, frame, facW / 2 - doorW / 2 - 0.25, shopY - shopH * 0.03, zWall + 0.02, g);
     addBox(doorW, shopH * 0.94, 0.04, glass, facW / 2 - doorW / 2 - 0.25, shopY - shopH * 0.03, zWall + 0.05, g);
     addBox(facW * 0.14, shopH, 0.14, conc, facW / 2 - 0.07, shopY, zWall, g);
@@ -1823,7 +1888,7 @@ export default function Prototipo() {
   const [form, setForm] = useState("rect");
   const [suggested, setSuggested] = useState(null);
   const [scene, setScene] = useState("fachada");
-  const [facadeStyle, setFacadeStyle] = useState("calle");
+  const [facadeStyle, setFacadeStyle] = useState("vitrina");
   const [buildingFloors, setBuildingFloors] = useState(0); // pisos extra bajo el local, solo estilo "esquina"
   const [facadeAuto, setFacadeAuto] = useState(true); // false = medidas de fachada manuales, no derivadas del letrero
   const [facadeWidthM, setFacadeWidthM] = useState(6);
@@ -1986,7 +2051,7 @@ export default function Prototipo() {
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.28); sc.add(fillLight);
     const rimLight = new THREE.DirectionalLight(0x8899cc, 0.45); sc.add(rimLight);
     const spill = new THREE.PointLight(0xffffff, 0, 5, 2); sc.add(spill);
-    const wallWash = new THREE.SpotLight(0xffffff, 0, 40, Math.PI / 3.2, 0.8, 1.4);
+    const wallWash = new THREE.SpotLight(0xffffff, 0, 40, Math.PI / 2.4, 1.0, 1.1);
     sc.add(wallWash); sc.add(wallWash.target);
 
     /* Giro con arrastre */
@@ -2364,7 +2429,11 @@ export default function Prototipo() {
     });
     if (!built && imageData) { setErr("Ninguna pieza pudo generarse."); setBusy(false); return; }
 
-    if ((mode === "back" || mode === "both") && sil) {
+    // Resplandor con la FORMA del logo sobre el muro. Antes solo en los
+    // modos con luz por detras (back/both); ahora tambien "Al frente" con
+    // menos intensidad, para que la luz siga la figura del logo (circulo,
+    // rectangulo o lo que se suba) en vez de aparecer un charco suelto.
+    if ((litFront || mode === "back") && sil) {
       const mPerPxSil = sil.wM / sil.canvas.width;
       const radiusPx = Math.max(2, (standoff * 0.9) / mPerPxSil);
       const { canvas: hc, pad } = haloCanvas(sil.canvas, radiusPx);
@@ -2372,7 +2441,7 @@ export default function Prototipo() {
       htex.colorSpace = SRGB;
       const haloMat = new THREE.MeshBasicMaterial({
         map: htex, color: new THREE.Color(ledColor), transparent: true,
-        opacity: mode === "back" ? 0.95 : 0.6,
+        opacity: mode === "back" ? 0.95 : mode === "both" ? 0.6 : 0.4,
         blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
       });
       const halo = new THREE.Mesh(
@@ -2709,12 +2778,16 @@ export default function Prototipo() {
       );
     }
 
-    // Luz que bana la fachada (uniforme, se ajusta en cada armado)
+    // Luz que bana la fachada de FRENTE y pareja (no rasante). Antes venia
+    // desde arriba-derecha y creaba un "charco" de luz descentrado sobre el
+    // muro, ajeno al logo; ahora es frontal, lejana y amplia -> lavado
+    // uniforme sin punto caliente. El resplandor con forma lo aporta el
+    // halo del propio logo (mas abajo), no esta luz.
     if (showFacade) {
       wallWash.color.set(night ? 0xfff0d8 : 0xffffff);
-      wallWash.intensity = night ? 2.6 : 1.4;
-      wallWash.distance = span * 18;
-      wallWash.position.set(span * 0.5, span * 1.5, -standoff + span * 0.35);
+      wallWash.intensity = night ? 1.5 : 0.7;
+      wallWash.distance = span * 24;
+      wallWash.position.set(0, span * 1.2, span * 2.2);
       wallWash.target.position.set(0, 0, -standoff);
       wallWash.target.updateMatrixWorld();
     } else {
