@@ -2478,7 +2478,9 @@ export default function Prototipo() {
       if (litFront) {
         face.emissiveMap = tex;
         face.emissive = new THREE.Color(ledColor);
-        face.emissiveIntensity = mode === "both" ? 0.75 : 1.0;
+        // Mas intensidad: al frente el logo debe verse claramente ENCENDIDO
+        // (antes pasaba desapercibido, sobre todo de dia).
+        face.emissiveIntensity = mode === "both" ? 1.4 : 2.3;
       }
     } else {
       face.color = faceCol.clone();
@@ -2486,7 +2488,7 @@ export default function Prototipo() {
         // Acrilico opal de color: la cara emite en su propio color,
         // tenido por el color del LED.
         face.emissive = faceCol.clone().multiply(new THREE.Color(ledColor));
-        face.emissiveIntensity = mode === "both" ? 0.85 : 1.15;
+        face.emissiveIntensity = mode === "both" ? 1.5 : 2.4;
       }
     }
     if (mode === "back") { face.emissive = new THREE.Color(0x000000); face.emissiveIntensity = 0; face.color.multiplyScalar(0.45); }
@@ -2565,13 +2567,16 @@ export default function Prototipo() {
     // rectangulo o lo que se suba) en vez de aparecer un charco suelto.
     if ((litFront || mode === "back") && sil) {
       const mPerPxSil = sil.wM / sil.canvas.width;
-      const radiusPx = Math.max(2, (standoff * 0.9) / mPerPxSil);
+      // Aura mas grande (mas visible): la difuminacion crece con la
+      // separacion del muro pero tiene un minimo generoso para que se note
+      // incluso pegado a la pared.
+      const radiusPx = Math.max(2, (standoff * 1.3 + 0.06) / mPerPxSil);
       const { canvas: hc, pad } = haloCanvas(sil.canvas, radiusPx);
       const htex = new THREE.CanvasTexture(hc);
       htex.colorSpace = SRGB;
       const haloMat = new THREE.MeshBasicMaterial({
         map: htex, color: new THREE.Color(ledColor), transparent: true,
-        opacity: mode === "back" ? 0.95 : mode === "both" ? 0.6 : 0.4,
+        opacity: mode === "back" ? 1 : mode === "both" ? 0.9 : 0.78,
         blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
       });
       const halo = new THREE.Mesh(
@@ -2582,6 +2587,19 @@ export default function Prototipo() {
       sign.add(halo);
       S.current.haloMat = haloMat;
       S.current.haloBase = haloMat.opacity;
+    }
+
+    // Luz REAL que emana del letrero encendido hacia el muro. Va como hijo
+    // del letrero (sign), asi lo sigue al girar/mover y no deja un charco
+    // suelto. Es lo que hace que de verdad "alumbre" y no solo brille la cara.
+    if ((litFront || mode === "back") && sil) {
+      const sl = new THREE.PointLight(new THREE.Color(ledColor), 0, Math.max(realW, realH) * 5 + 1.5, 2);
+      sl.intensity = mode === "back" ? (night ? 3.4 : 2.0)
+        : mode === "both" ? (night ? 3.0 : 1.8)
+        : (night ? 2.4 : 1.5);
+      sl.position.set(sil.offX || 0, sil.offY || 0, -standoff * 0.5);
+      sl.castShadow = false;
+      sign.add(sl);
     }
 
     // Sombra de contacto contra el muro — SIEMPRE presente (no solo en
