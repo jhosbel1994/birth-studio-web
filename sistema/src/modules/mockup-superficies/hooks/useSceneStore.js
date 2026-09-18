@@ -278,6 +278,57 @@ export default function useSceneStore() {
     })
   }, [])
 
+  // Gira las 4 esquinas de la capa alrededor de su centro (deg grados).
+  const rotarCapa = useCallback((capaId, deg) => {
+    const rad = (deg * Math.PI) / 180
+    const cos = Math.cos(rad), sin = Math.sin(rad)
+    setEscena(prev => ({
+      ...prev,
+      capas: prev.capas.map(c => {
+        if (c.id !== capaId || !c.puntos?.length) return c
+        const cx = c.puntos.reduce((s, p) => s + p.x, 0) / c.puntos.length
+        const cy = c.puntos.reduce((s, p) => s + p.y, 0) / c.puntos.length
+        return {
+          ...c,
+          puntos: c.puntos.map(p => {
+            const dx = p.x - cx, dy = p.y - cy
+            return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos }
+          }),
+        }
+      }),
+    }))
+  }, [])
+
+  // Duplica una capa (copia desplazada, mismo diseño/props), justo encima.
+  const duplicarCapa = useCallback((capaId) => {
+    const nuevoId = crypto.randomUUID()
+    setEscena(prev => {
+      const capa = prev.capas.find(c => c.id === capaId)
+      if (!capa) return prev
+      const copia = { ...capa, id: nuevoId, puntos: capa.puntos.map(p => ({ x: p.x + 24, y: p.y + 24 })) }
+      const idx = prev.capas.findIndex(c => c.id === capaId)
+      const capas = [...prev.capas]
+      capas.splice(idx + 1, 0, copia)
+      return { ...prev, capas }
+    })
+    setCapasBlobPendientes(prev => (prev[capaId] ? { ...prev, [nuevoId]: prev[capaId] } : prev))
+    return nuevoId
+  }, [])
+
+  // Cambia el orden de dibujo: dir +1 = adelante (encima), -1 = atras.
+  const moverCapaOrden = useCallback((capaId, dir) => {
+    setEscena(prev => {
+      const idx = prev.capas.findIndex(c => c.id === capaId)
+      if (idx < 0) return prev
+      const destino = idx + dir
+      if (destino < 0 || destino >= prev.capas.length) return prev
+      const capas = [...prev.capas]
+      const [mov] = capas.splice(idx, 1)
+      capas.splice(destino, 0, mov)
+      return { ...prev, capas }
+    })
+  }, [])
+
   // ─── PERSISTENCIA ───────────────────────────────────────────────────────────
   const guardar = useCallback(async () => {
     if (!escena.fotoUrl) { setError('Sube una foto primero.'); return false }
@@ -359,5 +410,6 @@ export default function useSceneStore() {
     subirFoto, setNombre, setEsPlantilla, guardar, cargarEscena, cargarComoPlantilla, nuevaEscena,
     addZona, updateZonaPunto, setZonaNombre, setZonaMedidas, removeZona,
     addCapa, addCapaMaterial, updateCapaPunto, ajustarCapaAZona, updateCapaProps, removeCapa,
+    rotarCapa, duplicarCapa, moverCapaOrden,
   }
 }

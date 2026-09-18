@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Upload, Wand2 } from 'lucide-react'
+import { Plus, Trash2, Upload, Wand2, RotateCcw, RotateCw, Copy, ArrowUp, ArrowDown } from 'lucide-react'
 
 const ACABADOS = [
   { value: 'impreso-opaco', label: 'Vinil impreso' },
@@ -22,6 +22,7 @@ function propsAcabado(value) {
 export default function DesignLayer({
   zonas, capas, capaActivaId, onSelectCapa, onAddCapa, onAddCapaMaterial,
   onAjustarAZona, onUpdateCapaProps, onRemoveCapa,
+  onRotarCapa, onDuplicarCapa, onMoverOrden,
 }) {
   const fileInputRef = useRef(null)
   const [zonaDestino, setZonaDestino] = useState(zonas[0]?.id || '')
@@ -185,6 +186,33 @@ export default function DesignLayer({
               onChange={e => onUpdateCapaProps(capaActiva.id, { textura: Number(e.target.value) })}
               className="w-full accent-secondary"
             />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-dm font-semibold uppercase tracking-wide text-on-surface-variant">Capa</label>
+            <div className="mt-1 grid grid-cols-5 gap-1.5">
+              <button onClick={() => onRotarCapa?.(capaActiva.id, -15)} title="Girar a la izquierda 15°"
+                className="flex items-center justify-center bg-white/50 border border-white/60 rounded-lg py-2 text-on-surface-variant hover:bg-white/80 transition-colors">
+                <RotateCcw size={15} />
+              </button>
+              <button onClick={() => onRotarCapa?.(capaActiva.id, 15)} title="Girar a la derecha 15°"
+                className="flex items-center justify-center bg-white/50 border border-white/60 rounded-lg py-2 text-on-surface-variant hover:bg-white/80 transition-colors">
+                <RotateCw size={15} />
+              </button>
+              <button onClick={() => onDuplicarCapa?.(capaActiva.id)} title="Duplicar capa"
+                className="flex items-center justify-center bg-white/50 border border-white/60 rounded-lg py-2 text-on-surface-variant hover:bg-white/80 transition-colors">
+                <Copy size={15} />
+              </button>
+              <button onClick={() => onMoverOrden?.(capaActiva.id, 1)} title="Subir (adelante)"
+                className="flex items-center justify-center bg-white/50 border border-white/60 rounded-lg py-2 text-on-surface-variant hover:bg-white/80 transition-colors">
+                <ArrowUp size={15} />
+              </button>
+              <button onClick={() => onMoverOrden?.(capaActiva.id, -1)} title="Bajar (atrás)"
+                className="flex items-center justify-center bg-white/50 border border-white/60 rounded-lg py-2 text-on-surface-variant hover:bg-white/80 transition-colors">
+                <ArrowDown size={15} />
+              </button>
+            </div>
+            <p className="mt-1 text-[10px] font-dm text-on-surface-variant/60">Girar · Duplicar · Subir/Bajar orden</p>
           </div>
 
           <p className="text-[11px] font-dm text-on-surface-variant/70">

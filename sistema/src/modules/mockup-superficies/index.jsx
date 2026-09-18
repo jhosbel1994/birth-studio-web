@@ -181,6 +181,7 @@ export default function MockupVitrina() {
     subirFoto, setNombre, setEsPlantilla, guardar, cargarEscena, cargarComoPlantilla, nuevaEscena,
     addZona, updateZonaPunto, setZonaNombre, setZonaMedidas, removeZona,
     addCapa, addCapaMaterial, updateCapaPunto, ajustarCapaAZona, updateCapaProps, removeCapa,
+    rotarCapa, duplicarCapa, moverCapaOrden,
   } = useSceneStore()
 
   const refrescarEscenas = useCallback(async () => {
@@ -561,6 +562,9 @@ export default function MockupVitrina() {
               onAddCapaMaterial={handleAddCapaMaterial}
               onAjustarAZona={ajustarCapaAZona}
               onUpdateCapaProps={updateCapaProps}
+              onRotarCapa={rotarCapa}
+              onDuplicarCapa={(id) => { const nuevo = duplicarCapa(id); if (nuevo) setCapaActivaId(nuevo) }}
+              onMoverOrden={moverCapaOrden}
               onRemoveCapa={(id) => { removeCapa(id); if (capaActivaId === id) setCapaActivaId(null) }}
             />
           )}
