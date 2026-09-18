@@ -1372,7 +1372,7 @@ function buildMallEnv(envGroup, m) {
 }
 
 function buildReceptionInterior(envGroup, opts) {
-  const { wallW, wallH, floorY, standoff, night, signW, signH } = opts;
+  const { wallW, wallH, floorY, standoff, night, signW, signH, deskColor = "#f4f6f7" } = opts;
   const wallZ = -standoff + 0.045;
   const addBox = (w, h, d, mat, x, y, z) => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -1390,7 +1390,8 @@ function buildReceptionInterior(envGroup, opts) {
     return mesh;
   };
 
-  const white = new THREE.MeshStandardMaterial({ color: 0xf8f9f9, roughness: 0.32, metalness: 0.02 });
+  // El mostrador toma el color elegido para el "escritorio" (menu por area).
+  const white = new THREE.MeshStandardMaterial({ color: new THREE.Color(deskColor), roughness: 0.32, metalness: 0.02 });
   const softGrey = new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.58, metalness: 0.02 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x17191d, roughness: 0.46, metalness: 0.08 });
   const glass = new THREE.MeshStandardMaterial({
@@ -1423,7 +1424,7 @@ function buildReceptionInterior(envGroup, opts) {
   addBox(counterW, counterH, counterD, white, 0, floorY + counterH / 2, counterZ);
   addBox(counterW * 0.98, 0.06, counterD + 0.04, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.18, metalness: 0.02 }),
     0, floorY + counterH + 0.03, counterZ);
-  addBox(counterW * 0.96, counterH * 0.78, 0.024, new THREE.MeshStandardMaterial({ color: 0xf1f3f4, roughness: 0.28, metalness: 0.02 }),
+  addBox(counterW * 0.96, counterH * 0.78, 0.024, new THREE.MeshStandardMaterial({ color: new THREE.Color(shade(deskColor, 0.1)), roughness: 0.28, metalness: 0.02 }),
     0, floorY + counterH * 0.42, counterZ + counterD / 2 + 0.024);
   const lightPanel = addBox(counterW * 0.38, 0.13, 0.018, new THREE.MeshStandardMaterial({
     color: 0xffffff, emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 0.9 : 0.28,
@@ -1898,6 +1899,11 @@ export default function Prototipo() {
   const [wallPanelSize, setWallPanelSize] = useState(22); // ancho real de cada tabla, en cm
   const [finish, setFinish] = useState("negro");
   const [wallColor, setWallColor] = useState("#191a1d");
+  // Interior por areas: cada zona (pared/escritorio/piso) con su color, y
+  // un selector de "que editar" para no confundir los controles.
+  const [interiorArea, setInteriorArea] = useState("pared");
+  const [deskColor, setDeskColor] = useState("#f4f6f7");
+  const [floorColor, setFloorColor] = useState("#ffffff");
   const [mode, setMode] = useState("front");
   const [night, setNight] = useState(true);
   const [ledColor, setLedColor] = useState("#ffffff");
@@ -2690,7 +2696,7 @@ export default function Prototipo() {
     // aseguramos de que envGroup quede vacio si se viene de otra escena.
     const envSig = scene === "foto" ? "foto" : !showFacade ? "none" : [
       scene, facadeStyle, material, wallPanelDir, wallPanelSize, finish, wallColor, night,
-      scene === "interior" ? "reception-v2" : "",
+      scene === "interior" ? `reception-v2|${deskColor}|${floorColor}` : "",
       facadeStyle === "esquina" ? buildingFloors : 0,
       facadeAuto ? "auto" : `${Math.round(facadeWidthM * 20)}x${Math.round(facadeHeightM * 20)}`,
       Math.round(realW * 4), Math.round(realH * 4), Math.round(standoff * 50),
@@ -2736,7 +2742,7 @@ export default function Prototipo() {
           ftex.colorSpace = SRGB;
           ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(6, 6);
           const floor = new THREE.Mesh(new THREE.PlaneGeometry(wallW, wallW),
-            new THREE.MeshStandardMaterial({ map: ftex, roughness: 0.55, metalness: 0.05 }));
+            new THREE.MeshStandardMaterial({ map: ftex, color: new THREE.Color(floorColor), roughness: 0.55, metalness: 0.05 }));
           floor.rotation.x = -Math.PI / 2;
           floor.position.set(0, floorY, wallW / 2 - standoff);
           floor.receiveShadow = true;
@@ -2746,7 +2752,7 @@ export default function Prototipo() {
           skirt.position.set(0, floorY + 0.055, -standoff + 0.005);
           skirt.receiveShadow = true;
           envGroup.add(skirt);
-          buildReceptionInterior(envGroup, { wallW, wallH, floorY, standoff, night, signW: realW, signH: realH });
+          buildReceptionInterior(envGroup, { wallW, wallH, floorY, standoff, night, signW: realW, signH: realH, deskColor });
           S.current.envMeta = { type: "interior", wallH };
         } else {
           // Fachada externa: local completo + su entorno — calle
@@ -3005,7 +3011,7 @@ export default function Prototipo() {
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
-  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, mode, night, ledColor,
+  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, floorColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, placedLogos, activePlacementId, edgeColor, edgeMetal,
       anchoM, altoM, whLocked, depthCm, textDepthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
@@ -4196,25 +4202,60 @@ export default function Prototipo() {
                 )}
               </>
             )}
-            <div style={s.pLabel}>{scene === "interior" ? "Material de la pared" : "Material de la banda"}</div>
-            <Seg items={MATERIALS} value={material} onPick={(m) => pickMaterial(m.id)} cols={2} />
-            {material === "wallpanel" && (
+            {scene === "interior" && (
               <>
-                <div style={s.pLabel}>Orientación del panel</div>
-                <Seg items={[{ id: "h", label: "Horizontal" }, { id: "v", label: "Vertical" }]}
-                  value={wallPanelDir} onPick={(o) => setWallPanelDir(o.id)} />
-                <Slider label="Ancho de tabla" value={wallPanelSize} unit=" cm" min={10} max={40} step={1}
-                  onChange={setWallPanelSize} />
+                <div style={s.pLabel}>¿Qué quieres editar?</div>
+                <Seg items={[{ id: "pared", label: "Pared" }, { id: "escritorio", label: "Escritorio" }, { id: "piso", label: "Piso" }]}
+                  value={interiorArea} onPick={(a) => setInteriorArea(a.id)} cols={3} />
               </>
             )}
-            <div style={s.pLabel}>{scene === "interior" ? "Pintura de pared" : "Acabado"}</div>
-            <Seg items={FINISHES.map((f) => ({ ...f, dot: f.hex }))} value={finish} onPick={pickFinish} cols={2} />
-            <label style={s.colorRow}>
-              <span style={s.fieldLabel}>{scene === "interior" ? "Color de pared" : "Color libre"}</span>
-              <input type="color" value={wallColor} style={s.colorInput}
-                onChange={(e) => setWallColor(e.target.value)} />
-              <span style={s.fieldUnit}>{wallColor}</span>
-            </label>
+            {(scene !== "interior" || interiorArea === "pared") && (
+              <>
+                <div style={s.pLabel}>{scene === "interior" ? "Material de la pared" : "Material de la banda"}</div>
+                <Seg items={MATERIALS} value={material} onPick={(m) => pickMaterial(m.id)} cols={2} />
+                {material === "wallpanel" && (
+                  <>
+                    <div style={s.pLabel}>Orientación del panel</div>
+                    <Seg items={[{ id: "h", label: "Horizontal" }, { id: "v", label: "Vertical" }]}
+                      value={wallPanelDir} onPick={(o) => setWallPanelDir(o.id)} />
+                    <Slider label="Ancho de tabla" value={wallPanelSize} unit=" cm" min={10} max={40} step={1}
+                      onChange={setWallPanelSize} />
+                  </>
+                )}
+                <div style={s.pLabel}>{scene === "interior" ? "Pintura de pared" : "Acabado"}</div>
+                <Seg items={FINISHES.map((f) => ({ ...f, dot: f.hex }))} value={finish} onPick={pickFinish} cols={2} />
+                <label style={s.colorRow}>
+                  <span style={s.fieldLabel}>{scene === "interior" ? "Color de pared" : "Color libre"}</span>
+                  <input type="color" value={wallColor} style={s.colorInput}
+                    onChange={(e) => setWallColor(e.target.value)} />
+                  <span style={s.fieldUnit}>{wallColor}</span>
+                </label>
+              </>
+            )}
+            {scene === "interior" && interiorArea === "escritorio" && (
+              <>
+                <div style={s.pLabel}>Color del escritorio</div>
+                <label style={s.colorRow}>
+                  <span style={s.fieldLabel}>Color</span>
+                  <input type="color" value={deskColor} style={s.colorInput}
+                    onChange={(e) => setDeskColor(e.target.value)} />
+                  <span style={s.fieldUnit}>{deskColor}</span>
+                </label>
+                <div style={s.pHint}>Cambia el color del mostrador / escritorio.</div>
+              </>
+            )}
+            {scene === "interior" && interiorArea === "piso" && (
+              <>
+                <div style={s.pLabel}>Color del piso</div>
+                <label style={s.colorRow}>
+                  <span style={s.fieldLabel}>Color</span>
+                  <input type="color" value={floorColor} style={s.colorInput}
+                    onChange={(e) => setFloorColor(e.target.value)} />
+                  <span style={s.fieldUnit}>{floorColor}</span>
+                </label>
+                <div style={s.pHint}>Tiñe el piso del local.</div>
+              </>
+            )}
           </>
         )}
       </>
