@@ -1740,7 +1740,7 @@ const SCENES = [
 const PLACEMENT_SURFACES = [
   { id: "wall", label: "Pared fondo", x: 0, y: 0.08, z: 0.065, ry: 0 },
   { id: "side", label: "Lateral", x: -1.35, y: 0.1, z: 0.42, ry: -Math.PI / 2 },
-  { id: "desk", label: "Frente escritorio", x: 0, y: -1.02, z: 1.2, ry: 0 },
+  { id: "desk", label: "Frente escritorio", x: 0, y: -0.98, z: 1.85, ry: 0 },
 ];
 const PLACEMENT_ORIENTATIONS = [
   { id: "front", label: "Frontal", ry: 0 },
