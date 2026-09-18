@@ -1724,6 +1724,7 @@ function Icon({ name, size = 16 }) {
 const PRODUCTS = [
   { id: "letters", label: "Letras corporeas", desc: "Cada letra se corta aparte" },
   { id: "lightbox", label: "Caja de luz", desc: "Una placa con el arte impreso" },
+  { id: "acrilico", label: "Base acrilica", desc: "Logo sobre acrilico, sin canto" },
 ];
 const FORMS = [{ id: "rect", label: "Rectangular" }, { id: "circle", label: "Circular" }];
 const MODES = [
@@ -1904,6 +1905,11 @@ export default function Prototipo() {
   const [interiorArea, setInteriorArea] = useState("pared");
   const [deskColor, setDeskColor] = useState("#f4f6f7");
   const [floorColor, setFloorColor] = useState("#ffffff");
+  // Base acrilica (funcion extra, aislada): el logo va plano sobre un disco/
+  // placa de acrilico transparente o de color, SIN canto. No toca letras ni
+  // caja de luz.
+  const [acrylicBase, setAcrylicBase] = useState("clear"); // "clear" | "color"
+  const [acrylicColor, setAcrylicColor] = useState("#dfeafc");
   const [mode, setMode] = useState("front");
   const [night, setNight] = useState(true);
   const [ledColor, setLedColor] = useState("#ffffff");
@@ -2358,6 +2364,21 @@ export default function Prototipo() {
       faceArea = realW * realH;
       shapes = [];
       sil = null;
+    } else if (product === "acrilico") {
+      // Base acrilica (funcion extra, aislada): la placa (disco/rect) define
+      // la forma; el arte del logo va plano encima, SIN canto. Reutiliza la
+      // forma de buildLightbox pero NO su render (eso se hace mas abajo).
+      const box = buildLightbox({ form, anchoM, altoM });
+      shapes = [box.shape];
+      ({ realW, realH, perim, faceArea } = box);
+      uvParams = { w: realW, h: realH };
+      // Arte con transparencia: logo original (con alpha) o el texto.
+      if (sourceType === "texto" && srcCanvas) {
+        tex = new THREE.CanvasTexture(srcCanvas); tex.colorSpace = SRGB; tex.anisotropy = 8;
+      } else {
+        tex = S.current.logoTex || null;
+      }
+      sil = { canvas: shapeSilhouetteCanvas(form, realW, realH), wM: realW, hM: realH };
     } else if (product === "lightbox") {
       const box = buildLightbox({ form, anchoM, altoM });
       shapes = [box.shape];
@@ -2420,26 +2441,63 @@ export default function Prototipo() {
 
     const sign = new THREE.Group();
     let built = 0;
-    shapes.forEach((shape) => {
-      try {
-        const geo = new THREE.ExtrudeGeometry(shape, {
-          depth: signDepth, bevelEnabled: true, bevelThickness: signDepth * 0.08, bevelSize: signDepth * 0.05,
-          bevelSegments: 2, curveSegments: product === "lightbox" ? 64 : 14,
-        });
-        applyUV(geo, product, uvParams);
-        geo.computeVertexNormals();
-        const m = new THREE.Mesh(geo, [face, edge]);
-        m.castShadow = true; m.receiveShadow = true;
-        // Umbral alto (20°) para no dibujar cada faceta del bisel — solo
-        // las aristas realmente duras, como en un render de SketchUp.
-        applyPolygonOffset(face); applyPolygonOffset(edge);
-        m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 20), edgeLineMat));
-        sign.add(m);
-        built++;
-      } catch {
-        /* forma degenerada, se omite */
+    if (product === "acrilico") {
+      // Placa de acrilico fina (SIN canto): transparente o de color, con el
+      // arte del logo plano encima. Rama propia — no toca letras/caja de luz.
+      const thick = 0.014;
+      const plateMat = acrylicBase === "clear"
+        ? new THREE.MeshStandardMaterial({ color: 0xeaf3fc, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.32, envMapIntensity: 1.5, side: THREE.DoubleSide })
+        : new THREE.MeshStandardMaterial({ color: new THREE.Color(acrylicColor), roughness: 0.16, metalness: 0.03, transparent: true, opacity: 0.92, envMapIntensity: 0.7, side: THREE.DoubleSide });
+      shapes.forEach((shape) => {
+        try {
+          // Sin bisel: borde de acrilico limpio, y asi el arte de adelante no
+          // queda tapado por un bisel que sobresale en Z.
+          const geo = new THREE.ExtrudeGeometry(shape, {
+            depth: thick, bevelEnabled: false, curveSegments: 72,
+          });
+          geo.computeVertexNormals();
+          const m = new THREE.Mesh(geo, plateMat);
+          m.castShadow = true; m.receiveShadow = true;
+          m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), edgeLineMat));
+          sign.add(m);
+          built++;
+        } catch { /* forma degenerada */ }
+      });
+      if (tex) {
+        const la = imageData ? imageData.width / Math.max(1, imageData.height)
+          : (srcCanvas ? srcCanvas.width / Math.max(1, srcCanvas.height) : 1);
+        let aw = realW * 0.8, ah = aw / la;
+        if (ah > realH * 0.8) { ah = realH * 0.8; aw = ah * la; }
+        const artMat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.42, metalness: 0, side: THREE.DoubleSide, depthWrite: false });
+        if (litFront) { artMat.emissiveMap = tex; artMat.emissive = new THREE.Color(ledColor); artMat.emissiveIntensity = mode === "both" ? 0.5 : 0.8; }
+        const art = new THREE.Mesh(new THREE.PlaneGeometry(aw, ah), artMat);
+        art.position.set(0, 0, thick + 0.006);
+        art.renderOrder = 3;
+        art.raycast = () => {};
+        sign.add(art);
       }
-    });
+    } else {
+      shapes.forEach((shape) => {
+        try {
+          const geo = new THREE.ExtrudeGeometry(shape, {
+            depth: signDepth, bevelEnabled: true, bevelThickness: signDepth * 0.08, bevelSize: signDepth * 0.05,
+            bevelSegments: 2, curveSegments: product === "lightbox" ? 64 : 14,
+          });
+          applyUV(geo, product, uvParams);
+          geo.computeVertexNormals();
+          const m = new THREE.Mesh(geo, [face, edge]);
+          m.castShadow = true; m.receiveShadow = true;
+          // Umbral alto (20°) para no dibujar cada faceta del bisel — solo
+          // las aristas realmente duras, como en un render de SketchUp.
+          applyPolygonOffset(face); applyPolygonOffset(edge);
+          m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 20), edgeLineMat));
+          sign.add(m);
+          built++;
+        } catch {
+          /* forma degenerada, se omite */
+        }
+      });
+    }
     if (!built && imageData) { setErr("Ninguna pieza pudo generarse."); setBusy(false); return; }
 
     // Resplandor con la FORMA del logo sobre el muro. Antes solo en los
@@ -3011,7 +3069,7 @@ export default function Prototipo() {
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
-  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, floorColor, mode, night, ledColor,
+  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, floorColor, acrylicBase, acrylicColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, placedLogos, activePlacementId, edgeColor, edgeMetal,
       anchoM, altoM, whLocked, depthCm, textDepthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
@@ -3960,7 +4018,25 @@ export default function Prototipo() {
             </div>
           </>
         )}
-        {placedLogos.length === 0 && (product !== "lightbox") && (
+        {placedLogos.length === 0 && product === "acrilico" && (
+          <>
+            <div style={s.pLabel}>Forma de la base</div>
+            <Seg items={FORMS} value={form} onPick={(f) => setForm(f.id)} />
+            <div style={s.pLabel}>Tipo de acrilico</div>
+            <Seg items={[{ id: "clear", label: "Transparente" }, { id: "color", label: "De color" }]}
+              value={acrylicBase} onPick={(o) => setAcrylicBase(o.id)} />
+            {acrylicBase === "color" && (
+              <label style={s.colorRow}>
+                <span style={s.fieldLabel}>Color del acrilico</span>
+                <input type="color" value={acrylicColor} style={s.colorInput}
+                  onChange={(e) => setAcrylicColor(e.target.value)} />
+                <span style={s.fieldUnit}>{acrylicColor}</span>
+              </label>
+            )}
+            <div style={s.pHint}>El logo va plano sobre la base, sin canto.</div>
+          </>
+        )}
+        {placedLogos.length === 0 && product === "letters" && (
           <>
             <div style={s.pLabel}>Color de la cara</div>
             <div style={s.swatches}>
@@ -3979,7 +4055,7 @@ export default function Prototipo() {
             </label>
           </>
         )}
-        {(placedLogos.length === 0 || placedLogos.some((it) => (it.kind || "original") === "letters")) && (
+        {((placedLogos.length === 0 && product !== "acrilico") || placedLogos.some((it) => (it.kind || "original") === "letters")) && (
           <>
             <div style={s.pLabel}>Color del canto</div>
             <div style={s.swatches}>
@@ -4003,7 +4079,7 @@ export default function Prototipo() {
             )}
           </>
         )}
-        {placedLogos.length === 0 && sourceType !== "texto" && product !== "lightbox" && (
+        {placedLogos.length === 0 && sourceType !== "texto" && product === "letters" && (
           <>
             <div style={s.pLabel}>Color del logo</div>
             <Seg items={[{ id: "si", label: "Con color" }, { id: "no", label: "Acrilico liso" }]}
@@ -4410,8 +4486,8 @@ export default function Prototipo() {
               <div style={s.specs}>
                 <div style={s.spec}><b style={s.specVal}>{info.realW.toFixed(2)} x {info.realH.toFixed(2)}</b><span style={s.specKey}>metros</span></div>
                 <div style={s.spec}><b style={s.specVal}>{info.faceArea.toFixed(2)}</b><span style={s.specKey}>m2 de cara</span></div>
-                <div style={s.spec}><b style={s.specVal}>{info.perim.toFixed(1)}</b><span style={s.specKey}>{info.product === "lightbox" ? "m de perfil" : "m de canto"}</span></div>
-                <div style={s.spec}><b style={s.specVal}>{info.count}</b><span style={s.specKey}>{info.product === "lightbox" ? "placa" : "piezas"}</span></div>
+                <div style={s.spec}><b style={s.specVal}>{info.perim.toFixed(1)}</b><span style={s.specKey}>{info.product === "letters" ? "m de canto" : "m de perfil"}</span></div>
+                <div style={s.spec}><b style={s.specVal}>{info.count}</b><span style={s.specKey}>{info.product === "letters" ? "piezas" : "placa"}</span></div>
               </div>
             )}
           </main>
