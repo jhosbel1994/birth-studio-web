@@ -1372,7 +1372,7 @@ function buildMallEnv(envGroup, m) {
 }
 
 function buildReceptionInterior(envGroup, opts) {
-  const { wallW, wallH, floorY, standoff, night, signW, signH, deskColor = "#f4f6f7" } = opts;
+  const { wallW, wallH, floorY, standoff, night, signW, signH, deskColor = "#f4f6f7", deskStyle = "moderno" } = opts;
   const wallZ = -standoff + 0.045;
   const addBox = (w, h, d, mat, x, y, z) => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -1390,8 +1390,28 @@ function buildReceptionInterior(envGroup, opts) {
     return mesh;
   };
 
-  // El mostrador toma el color elegido para el "escritorio" (menu por area).
-  const white = new THREE.MeshStandardMaterial({ color: new THREE.Color(deskColor), roughness: 0.32, metalness: 0.02 });
+  // Estilo del escritorio (modelos): el material del mostrador cambia segun
+  // el modelo elegido. El color solo aplica a los modelos que lo usan.
+  let deskBodyMat, deskTopMat, deskFrontMat;
+  if (deskStyle === "madera") {
+    deskBodyMat = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.55, metalness: 0.02 });
+    deskTopMat = new THREE.MeshStandardMaterial({ color: 0x6f4622, roughness: 0.45, metalness: 0.02 });
+    deskFrontMat = new THREE.MeshStandardMaterial({ color: 0x9a6a40, roughness: 0.5, metalness: 0.02 });
+  } else if (deskStyle === "oscuro") {
+    deskBodyMat = new THREE.MeshStandardMaterial({ color: 0x24262c, roughness: 0.5, metalness: 0.12 });
+    deskTopMat = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.4, metalness: 0.12 });
+    deskFrontMat = new THREE.MeshStandardMaterial({ color: 0x2c2f36, roughness: 0.45, metalness: 0.12 });
+  } else if (deskStyle === "vidrio") {
+    const cd = new THREE.Color(deskColor);
+    deskBodyMat = new THREE.MeshStandardMaterial({ color: cd, roughness: 0.12, metalness: 0.2, envMapIntensity: 1.2 });
+    deskTopMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.2, envMapIntensity: 1.2 });
+    deskFrontMat = new THREE.MeshStandardMaterial({ color: cd, roughness: 0.06, metalness: 0.25, transparent: true, opacity: 0.8, envMapIntensity: 1.5 });
+  } else { // moderno
+    deskBodyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(deskColor), roughness: 0.32, metalness: 0.02 });
+    deskTopMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.18, metalness: 0.02 });
+    deskFrontMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(shade(deskColor, 0.1)), roughness: 0.28, metalness: 0.02 });
+  }
+  const white = deskBodyMat;
   const softGrey = new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.58, metalness: 0.02 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x17191d, roughness: 0.46, metalness: 0.08 });
   const glass = new THREE.MeshStandardMaterial({
@@ -1422,9 +1442,9 @@ function buildReceptionInterior(envGroup, opts) {
   const counterD = 0.86;
   const counterZ = Math.min(wallW * 0.34, 1.62) - standoff;
   addBox(counterW, counterH, counterD, white, 0, floorY + counterH / 2, counterZ);
-  addBox(counterW * 0.98, 0.06, counterD + 0.04, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.18, metalness: 0.02 }),
+  addBox(counterW * 0.98, 0.06, counterD + 0.04, deskTopMat,
     0, floorY + counterH + 0.03, counterZ);
-  addBox(counterW * 0.96, counterH * 0.78, 0.024, new THREE.MeshStandardMaterial({ color: new THREE.Color(shade(deskColor, 0.1)), roughness: 0.28, metalness: 0.02 }),
+  addBox(counterW * 0.96, counterH * 0.78, 0.024, deskFrontMat,
     0, floorY + counterH * 0.42, counterZ + counterD / 2 + 0.024);
   const lightPanel = addBox(counterW * 0.38, 0.13, 0.018, new THREE.MeshStandardMaterial({
     color: 0xffffff, emissive: new THREE.Color(0xffffff), emissiveIntensity: night ? 0.9 : 0.28,
@@ -1727,6 +1747,12 @@ const PRODUCTS = [
   { id: "acrilico", label: "Base acrilica", desc: "Logo sobre acrilico, sin canto" },
 ];
 const FORMS = [{ id: "rect", label: "Rectangular" }, { id: "circle", label: "Circular" }];
+const DESK_STYLES = [
+  { id: "moderno", label: "Moderno" },
+  { id: "madera", label: "Madera" },
+  { id: "oscuro", label: "Oscuro" },
+  { id: "vidrio", label: "Vidrio" },
+];
 const MODES = [
   { id: "front", label: "Al frente", desc: "La cara se enciende" },
   { id: "back", label: "Retroiluminado", desc: "Halo sobre el muro" },
@@ -1904,6 +1930,7 @@ export default function Prototipo() {
   // un selector de "que editar" para no confundir los controles.
   const [interiorArea, setInteriorArea] = useState("pared");
   const [deskColor, setDeskColor] = useState("#f4f6f7");
+  const [deskStyle, setDeskStyle] = useState("moderno");
   const [floorColor, setFloorColor] = useState("#ffffff");
   // Base acrilica (funcion extra, aislada): el logo va plano sobre un disco/
   // placa de acrilico transparente o de color, SIN canto. No toca letras ni
@@ -2754,7 +2781,7 @@ export default function Prototipo() {
     // aseguramos de que envGroup quede vacio si se viene de otra escena.
     const envSig = scene === "foto" ? "foto" : !showFacade ? "none" : [
       scene, facadeStyle, material, wallPanelDir, wallPanelSize, finish, wallColor, night,
-      scene === "interior" ? `reception-v2|${deskColor}|${floorColor}` : "",
+      scene === "interior" ? `reception-v2|${deskColor}|${deskStyle}|${floorColor}` : "",
       facadeStyle === "esquina" ? buildingFloors : 0,
       facadeAuto ? "auto" : `${Math.round(facadeWidthM * 20)}x${Math.round(facadeHeightM * 20)}`,
       Math.round(realW * 4), Math.round(realH * 4), Math.round(standoff * 50),
@@ -2810,7 +2837,7 @@ export default function Prototipo() {
           skirt.position.set(0, floorY + 0.055, -standoff + 0.005);
           skirt.receiveShadow = true;
           envGroup.add(skirt);
-          buildReceptionInterior(envGroup, { wallW, wallH, floorY, standoff, night, signW: realW, signH: realH, deskColor });
+          buildReceptionInterior(envGroup, { wallW, wallH, floorY, standoff, night, signW: realW, signH: realH, deskColor, deskStyle });
           S.current.envMeta = { type: "interior", wallH };
         } else {
           // Fachada externa: local completo + su entorno — calle
@@ -3069,7 +3096,7 @@ export default function Prototipo() {
 
     setInfo({ realW, realH, perim, faceArea, count: built, product });
     setBusy(false);
-  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, floorColor, acrylicBase, acrylicColor, mode, night, ledColor,
+  }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, deskStyle, floorColor, acrylicBase, acrylicColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, placedLogos, activePlacementId, edgeColor, edgeMetal,
       anchoM, altoM, whLocked, depthCm, textDepthCm, standoffCm, threshold, invert, detect,
       photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
@@ -4310,14 +4337,22 @@ export default function Prototipo() {
             )}
             {scene === "interior" && interiorArea === "escritorio" && (
               <>
-                <div style={s.pLabel}>Color del escritorio</div>
-                <label style={s.colorRow}>
-                  <span style={s.fieldLabel}>Color</span>
-                  <input type="color" value={deskColor} style={s.colorInput}
-                    onChange={(e) => setDeskColor(e.target.value)} />
-                  <span style={s.fieldUnit}>{deskColor}</span>
-                </label>
-                <div style={s.pHint}>Cambia el color del mostrador / escritorio.</div>
+                <div style={s.pLabel}>Modelo de escritorio</div>
+                <Seg items={DESK_STYLES} value={deskStyle} onPick={(m) => setDeskStyle(m.id)} cols={2} />
+                {(deskStyle === "moderno" || deskStyle === "vidrio") && (
+                  <label style={s.colorRow}>
+                    <span style={s.fieldLabel}>Color</span>
+                    <input type="color" value={deskColor} style={s.colorInput}
+                      onChange={(e) => setDeskColor(e.target.value)} />
+                    <span style={s.fieldUnit}>{deskColor}</span>
+                  </label>
+                )}
+                <div style={s.pHint}>
+                  {deskStyle === "madera" ? "Acabado madera."
+                    : deskStyle === "oscuro" ? "Acabado oscuro mate."
+                    : deskStyle === "vidrio" ? "Frente tipo vidrio/acrilico brillante."
+                    : "Mostrador liso; elige el color."}
+                </div>
               </>
             )}
             {scene === "interior" && interiorArea === "piso" && (
