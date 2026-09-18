@@ -2577,13 +2577,17 @@ export default function Prototipo() {
       // Aura mas grande (mas visible): la difuminacion crece con la
       // separacion del muro pero tiene un minimo generoso para que se note
       // incluso pegado a la pared.
-      const radiusPx = Math.max(2, (standoff * 1.3 + 0.06) / mPerPxSil);
+      // El aura crece con la intensidad -> a mayor nivel, glow mas grande.
+      const radiusPx = Math.max(2, ((standoff * 1.3 + 0.06) * (0.8 + litK * 0.25)) / mPerPxSil);
       const { canvas: hc, pad } = haloCanvas(sil.canvas, radiusPx);
       const htex = new THREE.CanvasTexture(hc);
       htex.colorSpace = SRGB;
+      // A niveles altos el halo se pone mas blanco/caliente (se ve mas
+      // "encendido" aunque la opacidad ya este al tope).
+      const haloColor = new THREE.Color(ledColor).lerp(new THREE.Color(0xffffff), Math.min(0.55, Math.max(0, (litK - 1) / 6)));
       const haloMat = new THREE.MeshBasicMaterial({
-        map: htex, color: new THREE.Color(ledColor), transparent: true,
-        opacity: Math.min(1, (mode === "back" ? 1 : mode === "both" ? 0.9 : 0.78) * litK),
+        map: htex, color: haloColor, transparent: true,
+        opacity: Math.min(1, (mode === "back" ? 0.5 : mode === "both" ? 0.45 : 0.4) * litK),
         blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
       });
       const halo = new THREE.Mesh(
