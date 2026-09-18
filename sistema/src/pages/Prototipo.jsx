@@ -2413,8 +2413,10 @@ export default function Prototipo() {
     const standoff = standoffCm / 100;
     const litFront = mode === "front" || mode === "both";
     // Nivel de intensidad 1..10 -> factor que escala emision, halo y luz.
-    // 1 = tenue (0.4x), ~6 = normal (1x), 10 = fuerte (1.7x).
-    const litK = 0.4 + ((Math.max(1, Math.min(10, ledLevel)) - 1) / 9) * 1.3;
+    // Curva que sube fuerte al final para que el 10 "ilumine mucho":
+    // 1 = tenue (0.35x), ~5 = medio (1.4x), 10 = muy fuerte (~4.8x).
+    const _lvl = Math.max(1, Math.min(10, ledLevel));
+    const litK = 0.35 + Math.pow((_lvl - 1) / 9, 1.5) * 4.45;
     let shapes, uvParams, realW, realH, perim, faceArea, tex, sil;
 
     if (!imageData) {
