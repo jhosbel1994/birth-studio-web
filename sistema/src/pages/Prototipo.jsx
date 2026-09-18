@@ -1973,6 +1973,7 @@ export default function Prototipo() {
   const [photoImg, setPhotoImg] = useState(null); // { url: dataURL, w, h } — w/h en px de la foto YA reducida/orientada
   const [photoTiltY, setPhotoTiltY] = useState(0); // giro horizontal del letrero, -40..40 grados
   const [photoTiltX, setPhotoTiltX] = useState(0); // giro vertical, -25..25 grados
+  const [photoRoll, setPhotoRoll] = useState(0);   // giro en el plano (roll), -45..45 grados
   const [photoLightDir, setPhotoLightDir] = useState(45); // 0-360, rueda de direccion de luz
   const [photoAmbient, setPhotoAmbient] = useState(0.6); // 0-1, intensidad ambiente
   const [photoCalib, setPhotoCalib] = useState(null); // { metersPerPx } una vez calibrado
@@ -2938,7 +2939,7 @@ export default function Prototipo() {
       sign.rotation.set(
         THREE.MathUtils.degToRad(photoTiltX),
         THREE.MathUtils.degToRad(photoTiltY),
-        0
+        THREE.MathUtils.degToRad(photoRoll)
       );
     }
 
@@ -3162,7 +3163,7 @@ export default function Prototipo() {
   }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, deskStyle, floorColor, acrylicBase, acrylicColor, mode, night, ledColor,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, placedLogos, activePlacementId, edgeColor, edgeMetal,
       anchoM, altoM, whLocked, depthCm, textDepthCm, standoffCm, threshold, invert, detect,
-      photoImg, photoCalib, photoTiltX, photoTiltY, photoLightDir, photoAmbient, calibPts]);
+      photoImg, photoCalib, photoTiltX, photoTiltY, photoRoll, photoLightDir, photoAmbient, calibPts]);
 
   // Micro-retardo: al arrastrar un slider no se reconstruye la escena en
   // cada tick, solo cuando el valor se estabiliza. Evita que se congele.
@@ -4247,7 +4248,13 @@ export default function Prototipo() {
             <div style={s.pLabel}>Inclinación del letrero</div>
             <Slider label="Horizontal" value={photoTiltY} unit="°" min={-40} max={40} step={1} onChange={setPhotoTiltY} />
             <Slider label="Vertical" value={photoTiltX} unit="°" min={-25} max={25} step={1} onChange={setPhotoTiltX} />
-            <div style={s.pHint}>Alinea el letrero al plano del muro de la foto, a ojo — no hay detección automática de perspectiva.</div>
+            <Slider label="Rotación" value={photoRoll} unit="°" min={-45} max={45} step={1} onChange={setPhotoRoll} />
+            <div style={s.pHint}>Inclina (perspectiva) y gira (rotación) el letrero para calzarlo con la banda o el muro de la foto, a ojo.</div>
+
+            <div style={s.pLabel}>Tamaño y posición</div>
+            <Slider label="Tamaño" value={Math.round(anchoM * 100)} unit=" cm" min={20} max={600} step={5}
+              onChange={(v) => { const asp = anchoM / Math.max(0.1, altoM); const w = v / 100; setAnchoM(w); setAltoM(w / asp); }} />
+            <div style={s.pHint}>Arrástralo con el dedo o el mouse para moverlo al lugar donde irá.</div>
 
             <div style={s.pLabel}>Escala real</div>
             {photoCalib ? (
