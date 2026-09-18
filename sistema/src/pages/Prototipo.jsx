@@ -1767,7 +1767,7 @@ const SCENES = [
 const PLACEMENT_SURFACES = [
   { id: "wall", label: "Pared fondo", x: 0, y: 0.08, z: 0.065, ry: 0 },
   { id: "side", label: "Lateral", x: -1.35, y: 0.1, z: 0.42, ry: -Math.PI / 2 },
-  { id: "desk", label: "Frente escritorio", x: 0, y: -0.98, z: 1.85, ry: 0 },
+  { id: "desk", label: "Frente escritorio", x: 0, y: null, z: 1.85, ry: 0 },
 ];
 const PLACEMENT_ORIENTATIONS = [
   { id: "front", label: "Frontal", ry: 0 },
@@ -2015,6 +2015,8 @@ export default function Prototipo() {
   const resetView = useCallback(() => {
     const st = S.current;
     setViewerZoom(1);
+    // Reponer el "pan" (arrastre de toda la escena con la tecla H).
+    [st.rig, st.envGroup, st.photoGroup].forEach((g) => { if (g) { g.position.x = 0; g.position.y = 0; } });
     if (!st.camera || !st.frameTarget) return;
     const f = frameObject(st.camera, st.frameTarget, st.fill || 0.6);
     if (!f) return;
@@ -2146,6 +2148,9 @@ export default function Prototipo() {
       }
       dragging = true; dragVel = 0;
       const p = gp(e); lx = p.clientX; ly = p.clientY;
+      // Tecla H mantenida: "mano" -> arrastra TODA la escena (pan), sin
+      // importar que haya debajo.
+      if (S.current.panKey) { S.current.dragMode = "pan"; return; }
       const picked = pickMovable(e);
       if (picked?.type === "extra") {
         S.current.dragMode = "extra";
@@ -2202,6 +2207,16 @@ export default function Prototipo() {
         const denom = Math.abs(cosT) < 0.25 ? (cosT < 0 ? -0.25 : 0.25) : cosT;
         target.position.x += ((p.clientX - lx) * worldPerPxX) / denom;
         target.position.y -= (p.clientY - ly) * worldPerPxY;
+      } else if (S.current.dragMode === "pan") {
+        // Mano (tecla H): traslada TODA la escena en el plano de pantalla.
+        const dist = camera.position.distanceTo(S.current.center || camera.position);
+        const vFov = THREE.MathUtils.degToRad(camera.fov);
+        const h = mount.clientHeight || 1;
+        const wppY = (2 * Math.tan(vFov / 2) * dist) / (h * (camera.zoom || 1));
+        const wppX = wppY * (camera.aspect || 1);
+        const dx = (p.clientX - lx) * wppX;
+        const dy2 = -(p.clientY - ly) * wppY;
+        [rig, envGroup, photoGroup].forEach((g) => { if (g) { g.position.x += dx; g.position.y += dy2; } });
       } else {
         const dy = (p.clientX - lx) * 0.009;
         rig.rotation.y += dy; envGroup.rotation.y += dy;
@@ -2212,6 +2227,17 @@ export default function Prototipo() {
     renderer.domElement.addEventListener("pointerdown", down);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointermove", move);
+
+    // Tecla H = "mano": mantenerla presionada y arrastrar mueve toda la
+    // escena (pan). Se ignora si se esta escribiendo en un campo.
+    const onKeyDown = (e) => {
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "h" || e.key === "H") S.current.panKey = true;
+    };
+    const onKeyUp = (e) => { if (e.key === "h" || e.key === "H") S.current.panKey = false; };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
 
     /* Zoom con rueda — escuchado en "mount" (el div contenedor), no en
        renderer.domElement (el canvas). El canvas es un nodo que Three.js
@@ -2294,6 +2320,8 @@ export default function Prototipo() {
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointermove", move);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
       renderer.domElement.removeEventListener("pointerdown", down);
       mount.removeEventListener("wheel", onWheel);
       mount.removeEventListener("touchstart", tStart);
@@ -2711,7 +2739,20 @@ export default function Prototipo() {
       const wTarget = Math.max(0.12, item.w || Math.min(anchoM * 0.42, 1.1));
       const hTarget = wTarget / Math.max(0.12, item.aspect || 1.8);
       const plane = new THREE.Group();
-      plane.position.set(item.x || 0, item.y || 0, (item.z ?? 0.065) + layerZ);
+      // "Frente escritorio" (interior): la profundidad y el alto se calculan
+      // al FRENTE real del mostrador (varia con el tamano del local), asi el
+      // logo queda pegado al frente y no dentro/detras del mueble. X sigue
+      // arrastrable; Y arrastrable una vez que se movio (deja de ser "auto").
+      let py = item.y != null ? item.y : 0;
+      let pz = (item.z ?? 0.065) + layerZ;
+      if (item.surface === "desk" && scene === "interior") {
+        const wW = Math.max(4.2, realW * 3.4);
+        const wH = Math.max(2.7, realH * 3.2);
+        const cZ = Math.min(wW * 0.34, 1.62) - standoff;
+        pz = cZ + 0.86 / 2 + 0.07 + layerZ;         // counterD = 0.86
+        if (item.y == null) py = -wH / 2 + 0.9 * 0.42 + 0.04; // counterH = 0.9
+      }
+      plane.position.set(item.x || 0, py, pz);
       plane.rotation.y = item.ry || 0;
       plane.userData.placementId = item.id;
       const cached = S.current.placedCache?.get(item.dataUrl) || null;
