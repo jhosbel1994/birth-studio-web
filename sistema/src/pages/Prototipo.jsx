@@ -1433,9 +1433,8 @@ function buildReceptionInterior(envGroup, opts) {
   addBox(0.44, 0.28, 0.035, dark, -counterW * 0.06, floorY + counterH + 0.2, counterZ + 0.04);
   addBox(0.16, 0.035, 0.16, dark, -counterW * 0.06, floorY + counterH + 0.035, counterZ + 0.04);
 
-  const panelW = Math.max(signW * 1.45, 1.0);
-  const panelH = Math.max(signH * 1.9, 0.48);
-  addBox(panelW, panelH, 0.028, plaque, 0, wallH * 0.12, wallZ + 0.004);
+  // (Se quito la placa translucida de fondo detras del logo: no aportaba
+  // y el usuario prefiere el logo pegado directo a la pared.)
 
   const potGeo = new THREE.CylinderGeometry(0.12, 0.16, 0.26, 18);
   const leafGeo = new THREE.SphereGeometry(0.16, 14, 10);
@@ -4197,7 +4196,7 @@ export default function Prototipo() {
                 )}
               </>
             )}
-            <div style={s.pLabel}>Material de la banda</div>
+            <div style={s.pLabel}>{scene === "interior" ? "Material de la pared" : "Material de la banda"}</div>
             <Seg items={MATERIALS} value={material} onPick={(m) => pickMaterial(m.id)} cols={2} />
             {material === "wallpanel" && (
               <>
@@ -4208,10 +4207,10 @@ export default function Prototipo() {
                   onChange={setWallPanelSize} />
               </>
             )}
-            <div style={s.pLabel}>Acabado</div>
+            <div style={s.pLabel}>{scene === "interior" ? "Pintura de pared" : "Acabado"}</div>
             <Seg items={FINISHES.map((f) => ({ ...f, dot: f.hex }))} value={finish} onPick={pickFinish} cols={2} />
             <label style={s.colorRow}>
-              <span style={s.fieldLabel}>Color libre</span>
+              <span style={s.fieldLabel}>{scene === "interior" ? "Color de pared" : "Color libre"}</span>
               <input type="color" value={wallColor} style={s.colorInput}
                 onChange={(e) => setWallColor(e.target.value)} />
               <span style={s.fieldUnit}>{wallColor}</span>
