@@ -2413,10 +2413,10 @@ export default function Prototipo() {
     const standoff = standoffCm / 100;
     const litFront = mode === "front" || mode === "both";
     // Nivel de intensidad 1..10 -> factor que escala emision, halo y luz.
-    // Curva que sube fuerte al final para que el 10 "ilumine mucho":
-    // 1 = tenue (0.35x), ~5 = medio (1.4x), 10 = muy fuerte (~4.8x).
+    // Rango AMPLIO para que se note mucho: 1 = casi apagado (0.06x),
+    // ~5 = medio, 10 = a full (~6x).
     const _lvl = Math.max(1, Math.min(10, ledLevel));
-    const litK = 0.35 + Math.pow((_lvl - 1) / 9, 1.5) * 4.45;
+    const litK = 0.06 + Math.pow((_lvl - 1) / 9, 1.35) * 5.9;
     let shapes, uvParams, realW, realH, perim, faceArea, tex, sil;
 
     if (!imageData) {
@@ -2578,7 +2578,7 @@ export default function Prototipo() {
       // separacion del muro pero tiene un minimo generoso para que se note
       // incluso pegado a la pared.
       // El aura crece con la intensidad -> a mayor nivel, glow mas grande.
-      const radiusPx = Math.max(2, ((standoff * 1.3 + 0.06) * (0.8 + litK * 0.25)) / mPerPxSil);
+      const radiusPx = Math.max(2, ((standoff * 1.3 + 0.06) * (0.5 + litK * 0.55)) / mPerPxSil);
       const { canvas: hc, pad } = haloCanvas(sil.canvas, radiusPx);
       const htex = new THREE.CanvasTexture(hc);
       htex.colorSpace = SRGB;
