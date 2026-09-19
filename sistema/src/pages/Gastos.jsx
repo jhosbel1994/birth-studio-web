@@ -1,8 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { saveGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos, subscribeCotizaciones } from '../utils/storage'
+import {
+  saveGasto, deleteGastoConReversa, savePago, deletePago,
+  subscribeGastos, subscribePagos, subscribeCotizaciones,
+  uploadBoletaImagen, getBoletaImagenUrl, deleteBoletaImagen,
+} from '../utils/storage'
 import { clp, fechaCorta, hoy, CATEGORIAS_GASTO } from '../utils/formatters'
 import { escanearBoleta } from '../utils/scanner'
-import { Plus, Trash2, X, TrendingUp, TrendingDown, DollarSign, Camera, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import {
+  Plus, Trash2, X, TrendingUp, TrendingDown, DollarSign, Camera,
+  Loader2, AlertCircle, CheckCircle2, Upload, ExternalLink, ReceiptText,
+} from 'lucide-react'
 
 function ModalGasto({ gasto, onClose, onSave }) {
   const [form, setForm] = useState(gasto?.id ? { ...gasto } : {
@@ -13,7 +20,15 @@ function ModalGasto({ gasto, onClose, onSave }) {
   const [escaneando, setEscaneando] = useState(false)
   const [scanStatus, setScanStatus] = useState(null) // null | 'ok' | 'error'
   const [scanMsg, setScanMsg] = useState('')
-  const fileRef = useRef(null)
+  const [guardando, setGuardando] = useState(false)
+  const [boletaFile, setBoletaFile] = useState(null)
+  const [boletaPreview, setBoletaPreview] = useState(gasto?.boletaUrl || '')
+  const cameraRef = useRef(null)
+  const uploadRef = useRef(null)
+
+  useEffect(() => () => {
+    if (boletaPreview?.startsWith('blob:')) URL.revokeObjectURL(boletaPreview)
+  }, [boletaPreview])
 
   const handleScanFile = async (e) => {
     const file = e.target.files?.[0]
@@ -26,21 +41,69 @@ function ModalGasto({ gasto, onClose, onSave }) {
     setScanMsg('')
 
     try {
-      const datos = await escanearBoleta(file)
+      const { datos, archivo } = await escanearBoleta(file)
+      if (boletaPreview?.startsWith('blob:')) URL.revokeObjectURL(boletaPreview)
+      setBoletaFile(archivo)
+      setBoletaPreview(URL.createObjectURL(archivo))
 
-      // Autocompletar campos
-      if (datos.establecimiento) set('descripcion', datos.establecimiento)
-      if (datos.monto && !isNaN(datos.monto)) set('monto', Number(datos.monto))
-      if (datos.fecha) set('fecha', datos.fecha)
-      if (datos.numero_transaccion) set('notas', `Boleta #${datos.numero_transaccion}`)
+      const detalle = (datos.detalle || [])
+        .map(item => [item.descripcion, item.cantidad ? `x${item.cantidad}` : '', item.monto ? clp(item.monto) : ''].filter(Boolean).join(' '))
+        .join('; ')
+      const notas = [
+        datos.rut ? `RUT ${datos.rut}` : '',
+        datos.folio ? `Boleta ${datos.folio}` : '',
+        datos.neto != null ? `Neto ${clp(datos.neto)}` : '',
+        datos.iva != null ? `IVA ${clp(datos.iva)}` : '',
+        detalle,
+      ].filter(Boolean).join(' · ')
+
+      setForm(current => ({
+        ...current,
+        descripcion: datos.establecimiento || current.descripcion,
+        monto: datos.total ?? current.monto,
+        fecha: datos.fecha || current.fecha,
+        categoria: CATEGORIAS_GASTO.includes(datos.categoria) ? datos.categoria : current.categoria,
+        notas: notas || current.notas,
+        boletaDatos: datos,
+      }))
 
       setScanStatus('ok')
-      setScanMsg('Boleta leída — revisa y edita si es necesario')
+      setScanMsg(datos.confianza != null && datos.confianza < 0.65
+        ? 'Lectura con baja confianza. Revisa el total antes de registrar.'
+        : 'Boleta leída. Confirma los datos y registra el gasto.')
     } catch (err) {
       setScanStatus('error')
       setScanMsg(err.message || 'No se pudo leer la boleta. Ingresa los datos manualmente.')
     } finally {
       setEscaneando(false)
+    }
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (!form.descripcion || !(Number(form.monto) > 0) || guardando) return
+    setGuardando(true)
+    let uploaded = null
+    try {
+      uploaded = boletaFile ? await uploadBoletaImagen(boletaFile) : null
+      await onSave({
+        ...form,
+        ...(uploaded ? {
+          boletaUrl: null,
+          boletaPath: uploaded.path,
+          boletaNombre: uploaded.nombre,
+          boletaTipo: uploaded.tipo,
+        } : {}),
+      })
+      if (uploaded && gasto?.boletaPath && gasto.boletaPath !== uploaded.path) {
+        await deleteBoletaImagen(gasto.boletaPath)
+      }
+    } catch (error) {
+      if (uploaded?.path) await deleteBoletaImagen(uploaded.path)
+      setScanStatus('error')
+      setScanMsg(error.message || 'No se pudo registrar el gasto')
+    } finally {
+      setGuardando(false)
     }
   }
 
@@ -54,30 +117,47 @@ function ModalGasto({ gasto, onClose, onSave }) {
           <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
         </div>
 
-        <div className="px-5 md:px-6 pt-5">
-          {/* Botón escanear boleta */}
+        <div className="px-5 md:px-6 pt-5 space-y-3">
           <input
-            ref={fileRef}
+            ref={cameraRef}
             type="file"
             accept="image/*"
             capture="environment"
             className="hidden"
             onChange={handleScanFile}
           />
-          <button
-            type="button"
-            disabled={escaneando}
-            onClick={() => fileRef.current?.click()}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed text-sm font-dm font-medium transition-all ${
-              escaneando
-                ? 'border-white/50 text-on-surface-variant cursor-not-allowed'
-                : 'border-on-surface text-on-surface hover:bg-white/60 active:bg-white/70'
-            }`}>
-            {escaneando
-              ? <><Loader2 size={16} className="animate-spin" /> Analizando boleta...</>
-              : <><Camera size={16} /> Escanear boleta</>
-            }
-          </button>
+          <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={handleScanFile} />
+
+          {boletaPreview && (
+            <div className="relative h-36 md:h-40 overflow-hidden rounded-xl border border-white/60 bg-white/70">
+              <img src={boletaPreview} alt="Boleta seleccionada" className="w-full h-full object-contain" />
+              <div className="absolute left-2 top-2 rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-dm text-white">
+                Comprobante adjunto
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={escaneando || guardando}
+              onClick={() => cameraRef.current?.click()}
+              className="h-12 rounded-xl bg-on-surface text-white flex items-center justify-center gap-2 text-sm font-dm font-medium disabled:opacity-45">
+              {escaneando
+                ? <><Loader2 size={17} className="animate-spin" /> Analizando...</>
+                : <><Camera size={17} /> Tomar foto</>}
+            </button>
+            <button
+              type="button"
+              disabled={escaneando || guardando}
+              onClick={() => uploadRef.current?.click()}
+              className="h-12 rounded-xl border border-on-surface bg-white/60 text-on-surface flex items-center justify-center gap-2 text-sm font-dm font-medium disabled:opacity-45">
+              <Upload size={17} /> Subir imagen
+            </button>
+          </div>
+          <p className="text-[11px] text-on-surface-variant font-dm text-center">
+            Encuadra la boleta completa, con buena luz y sin reflejos.
+          </p>
 
           {/* Feedback del escaneo */}
           {scanStatus && (
@@ -95,7 +175,7 @@ function ModalGasto({ gasto, onClose, onSave }) {
           )}
         </div>
 
-        <form onSubmit={e => { e.preventDefault(); if (!form.descripcion || !(Number(form.monto) > 0)) return; onSave(form) }}
+        <form onSubmit={handleSubmit}
           className="p-5 md:p-6 pt-4 space-y-4">
           <div>
             <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Descripción *</label>
@@ -127,9 +207,9 @@ function ModalGasto({ gasto, onClose, onSave }) {
               className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface resize-none" />
           </div>
           <div className="flex gap-3 pt-2 pb-safe">
-            <button type="submit"
-              className="flex-1 bg-primary text-on-primary py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
-              {gasto?.id ? 'Guardar cambios' : 'Registrar gasto'}
+            <button type="submit" disabled={guardando || escaneando}
+              className="flex-1 bg-primary text-on-primary py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20 disabled:opacity-45">
+              {guardando ? 'Guardando...' : gasto?.id ? 'Guardar cambios' : 'Registrar gasto'}
             </button>
             <button type="button" onClick={onClose}
               className="px-5 border border-white/60 bg-white/40 rounded-full text-sm font-dm text-on-surface-variant hover:border-primary transition-colors">
@@ -139,6 +219,42 @@ function ModalGasto({ gasto, onClose, onSave }) {
         </form>
       </div>
     </div>
+  )
+}
+
+function BoletaLink({ gasto, compact = false }) {
+  const [abriendo, setAbriendo] = useState(false)
+  if (!gasto?.boletaPath && !gasto?.boletaUrl) return null
+
+  const handleOpen = async () => {
+    if (abriendo) return
+    if (!gasto.boletaPath) {
+      window.open(gasto.boletaUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    const popup = window.open('about:blank', '_blank')
+    if (popup) popup.opener = null
+    setAbriendo(true)
+    try {
+      const url = await getBoletaImagenUrl(gasto.boletaPath)
+      if (popup) popup.location.href = url
+      else window.open(url, '_blank', 'noopener,noreferrer')
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (error) {
+      popup?.close()
+      window.alert(error.message || 'No se pudo abrir la boleta')
+    } finally {
+      setAbriendo(false)
+    }
+  }
+
+  return (
+    <button type="button" onClick={handleOpen} disabled={abriendo}
+      className="inline-flex items-center gap-1 text-[11px] font-dm font-medium text-blue-700 hover:underline"
+      title="Abrir comprobante">
+      <ReceiptText size={13} /> {!compact && (abriendo ? 'Abriendo...' : 'Ver boleta')} <ExternalLink size={11} />
+    </button>
   )
 }
 
@@ -342,7 +458,10 @@ export default function Gastos() {
                         <div className="min-w-0">
                           <p className="font-dm font-semibold text-sm text-on-surface truncate">{g.descripcion}</p>
                           <p className="text-xs text-on-surface-variant mt-1 font-dm">{fechaCorta(g.fecha)}{cot ? ` · #${cot.numero}` : ''}</p>
-                          <span className="inline-block mt-2 bg-white/60 px-2 py-0.5 rounded text-[11px] font-dm text-on-surface-variant">{g.categoria}</span>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="inline-block bg-white/60 px-2 py-0.5 rounded text-[11px] font-dm text-on-surface-variant">{g.categoria}</span>
+                            <BoletaLink gasto={g} />
+                          </div>
                         </div>
                         <p className="font-barlow text-lg font-bold text-primary shrink-0">{clp(g.monto)}</p>
                       </div>
@@ -375,6 +494,7 @@ export default function Gastos() {
                         <td className="px-5 py-3 font-medium">
                           {g.descripcion}
                           {cot && <span className="ml-2 text-[11px] font-dm text-on-surface-variant">#{cot.numero}</span>}
+                          {(g.boletaPath || g.boletaUrl) && <span className="block mt-1"><BoletaLink gasto={g} /></span>}
                         </td>
                         <td className="px-3 py-3">
                           <span className="bg-white/60 px-2 py-0.5 rounded text-xs">{g.categoria}</span>

@@ -2,8 +2,8 @@ import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc,
   query, orderBy, where, runTransaction, writeBatch, onSnapshot,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { db, storage } from '../firebase'
+import { ref, uploadBytes, getBlob, deleteObject } from 'firebase/storage'
+import { auth, db, storage } from '../firebase'
 import { initialDepositAmount, remainingBalanceAmount } from './cotizacionesWorkflow'
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -207,8 +207,37 @@ export async function saveGasto(gasto) {
   return data
 }
 
+export async function uploadBoletaImagen(file) {
+  const uid = auth.currentUser?.uid
+  if (!uid) throw new Error('Debes iniciar sesión para guardar la boleta')
+  const safeName = String(file.name || 'boleta.jpg').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-90)
+  const path = `boletas/${uid}/${crypto.randomUUID()}-${safeName}`
+  const storageRef = ref(storage, path)
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('La carga de la boleta tardó demasiado')), 45_000))
+  await Promise.race([uploadBytes(storageRef, file, { contentType: file.type || 'image/jpeg' }), timeout])
+  return { path, nombre: file.name, tipo: file.type || 'image/jpeg' }
+}
+
+export async function getBoletaImagenUrl(storagePath) {
+  if (!storagePath) throw new Error('Este gasto no tiene una boleta adjunta')
+  const blob = await getBlob(ref(storage, storagePath), 8 * 1024 * 1024)
+  return URL.createObjectURL(blob)
+}
+
+export async function deleteBoletaImagen(storagePath) {
+  if (!storagePath) return
+  try {
+    await deleteObject(ref(storage, storagePath))
+  } catch {
+    // Un archivo ya eliminado no debe impedir editar o borrar el gasto.
+  }
+}
+
 export async function deleteGasto(id) {
+  const snap = await getDoc(doc(db, 'gastos', id))
   await deleteDoc(doc(db, 'gastos', id))
+  if (snap.exists()) await deleteBoletaImagen(snap.data().boletaPath)
 }
 
 // Borra un gasto y, si estaba vinculado a un ítem de inventario con
@@ -225,6 +254,7 @@ export async function deleteGastoConReversa(gasto) {
     }
   }
   await deleteDoc(doc(db, 'gastos', gasto.id))
+  await deleteBoletaImagen(gasto.boletaPath)
 }
 
 // ─── PAGOS ────────────────────────────────────────────────────────────────────

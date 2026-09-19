@@ -3,9 +3,9 @@ rules_version = '2';
 // ═══════════════════════════════════════════════════════════════════════════
 // Reglas de Storage — Birth Studio
 //
-// Solo se sube a `galeria/` (fotos de portafolio y mockups de vitrina).
-// Lectura pública (son imágenes de portafolio, no datos sensibles); escritura
-// solo cuentas de la allowlist. Debe coincidir con Login.jsx y firestore.rules.
+// `galeria/` contiene imágenes públicas de portafolio y `boletas/` conserva
+// comprobantes privados por usuario. La escritura queda limitada a las cuentas
+// de la allowlist. Debe coincidir con Login.jsx y firestore.rules.
 //
 // Desplegar con:  firebase deploy --only storage
 // ═══════════════════════════════════════════════════════════════════════════
@@ -29,6 +29,16 @@ service firebase.storage {
         && request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
       allow delete: if isAllowed();
+    }
+
+    // Comprobantes privados de gastos. Cada usuario autorizado solo escribe
+    // dentro de su propia carpeta; nunca tienen lectura pública.
+    match /boletas/{userId}/{fileName} {
+      allow read, delete: if isAllowed() && request.auth.uid == userId;
+      allow create, update: if isAllowed()
+        && request.auth.uid == userId
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
     }
 
     // Cualquier otra ruta: denegada por defecto.
