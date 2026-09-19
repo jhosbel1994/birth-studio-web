@@ -4712,7 +4712,7 @@ export default function Prototipo() {
                   );
                 })}
 
-                {/* Logos disponibles: colocar cada uno como una capa nueva */}
+                {/* Logos disponibles: colocar cada uno como capa nueva o quitarlo */}
                 {logoQueue.length > 0 && (
                   <>
                     <div style={s.treeSub}>Logos disponibles</div>
@@ -4720,6 +4720,9 @@ export default function Prototipo() {
                       <div key={asset.id} style={s.treeRow}>
                         <span style={s.treeName}>{asset.name}</span>
                         <button type="button" onClick={() => addLogoToMockup(asset)} style={s.treeAdd} title="Colocar como nueva capa">+ Capa</button>
+                        <button type="button" title="Quitar de disponibles"
+                          onClick={() => setLogoQueue((prev) => prev.filter((x) => x.id !== asset.id))}
+                          style={s.treeOp}><Icon name="trash" size={13} /></button>
                       </div>
                     ))}
                   </>
@@ -4730,16 +4733,16 @@ export default function Prototipo() {
                 )}
               </div>
 
-              {placedLogos.length === 0 && (sourceType === "logo" || product === "lightbox") && (
+              {(sourceType === "logo" || product === "lightbox") && (
                 <div style={s.panelCard}>
                   <div style={s.panelCardHead}>
-                    <span style={s.panelCardIcon}><Icon name="text" size={16} /></span>
+                    <span style={s.panelCardIcon}><Icon name="tune" size={16} /></span>
                     <div>
                       <div style={s.panelCardTitle}>Ajustes del logo</div>
-                      <div style={s.panelCardSub}>Voltear y posición del arte</div>
+                      <div style={s.panelCardSub}>Voltear, posición y detección</div>
                     </div>
                   </div>
-                  <div style={s.panelCardBody}>{artControls}</div>
+                  <div style={s.panelCardBody}>{artControls}{sourceType === "logo" && panels.ajustes}</div>
                 </div>
               )}
             </div>
