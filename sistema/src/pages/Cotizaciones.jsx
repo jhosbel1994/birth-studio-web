@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
-  saveCotizacion, deleteCotizacion, saveCliente, getClienteById,
+  saveCotizacion, deleteCotizaciones, saveCliente, getClienteById,
   subscribeCotizaciones, subscribeClientes, syncPublicStats,
   saveGasto, deleteGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos,
-  subscribeInventario, saveInventarioItem,
+  subscribeInventario, saveInventarioItem, updateCotizacionEstado, ensureAcceptedDeposit,
 } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
@@ -11,6 +11,9 @@ import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, formatEma
 import { CATEGORIAS, PRODUCTOS } from '../data/productos'
 import { useLocation } from 'react-router-dom'
 import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
+import {
+  markQuoteSent, shouldAutoReject, autoRejectedQuote, quoteTrackingLabel,
+} from '../utils/cotizacionesWorkflow'
 import {
   Plus, Download, Trash2, Edit2, X, Search,
   Eye, Mail, MessageCircle, FileText, MoreHorizontal, CheckCircle, AlertCircle, Loader2,
@@ -708,7 +711,9 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
 }
 
 // ─── MODAL CONFIRMAR BORRADO ──────────────────────────────────────────────────
-function ConfirmDeleteModal({ cotizacion, onConfirm, onCancel }) {
+function ConfirmDeleteModal({ cotizaciones, onConfirm, onCancel, deleting }) {
+  const items = cotizaciones || []
+  const single = items.length === 1 ? items[0] : null
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-[80] p-0 md:p-4">
       <div className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full md:max-w-sm shadow-2xl p-6 space-y-4">
@@ -717,19 +722,23 @@ function ConfirmDeleteModal({ cotizacion, onConfirm, onCancel }) {
             <Trash2 size={18} className="text-primary" />
           </div>
           <div>
-            <p className="font-barlow font-bold text-on-surface text-lg leading-tight">¿Eliminar cotización?</p>
-            <p className="text-xs text-on-surface-variant font-dm mt-0.5">#{cotizacion.numero} · {cotizacion.clienteNombre || '—'}</p>
+            <p className="font-barlow font-bold text-on-surface text-lg leading-tight">
+              ¿Eliminar {single ? 'cotización' : `${items.length} cotizaciones`}?
+            </p>
+            {single && <p className="text-xs text-on-surface-variant font-dm mt-0.5">#{single.numero} · {single.clienteNombre || '—'}</p>}
           </div>
         </div>
-        <p className="text-sm text-on-surface-variant font-dm">Esta acción no se puede deshacer. La cotización se eliminará permanentemente.</p>
+        <p className="text-sm text-on-surface-variant font-dm">
+          Esta acción no se puede deshacer. También se quitarán sus abonos automáticos; los pagos ingresados manualmente se conservarán.
+        </p>
         <div className="flex gap-3 pt-1 pb-safe">
-          <button onClick={onCancel}
+          <button onClick={onCancel} disabled={deleting}
             className="flex-1 border border-white/50 rounded py-2.5 text-sm font-dm text-on-surface-variant hover:border-on-surface transition-colors">
             Cancelar
           </button>
-          <button onClick={onConfirm}
+          <button onClick={onConfirm} disabled={deleting}
             className="flex-1 bg-primary text-white rounded py-2.5 text-sm font-dm font-medium hover:bg-red-700 transition-colors">
-            Sí, eliminar
+            {deleting ? 'Eliminando…' : 'Sí, eliminar'}
           </button>
         </div>
       </div>
@@ -1051,8 +1060,12 @@ export default function Cotizaciones() {
   const [envioEstado, setEnvioEstado] = useState(null)
   const [filtroEstado, setFiltroEstado] = useState('')
   const [busqueda, setBusqueda] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState([])
+  const [selectedIds, setSelectedIds] = useState(() => new Set())
+  const [deleting, setDeleting] = useState(false)
   const [cotizacionesCargadas, setCotizacionesCargadas] = useState(false)
+  const [expiryTick, setExpiryTick] = useState(() => Date.now())
+  const maintenanceRef = useRef(new Set())
 
   const clienteLocal = (id) => clientes.find(c => c.id === id) || null
 
@@ -1065,6 +1078,28 @@ export default function Cotizaciones() {
     return () => { u1(); u2() }
   }, [])
 
+  useEffect(() => {
+    const timer = setInterval(() => setExpiryTick(Date.now()), 5 * 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!cotizacionesCargadas) return
+    cotizaciones.forEach(cotizacion => {
+      const action = cotizacion.estado === 'aceptada'
+        ? 'deposit'
+        : shouldAutoReject(cotizacion, new Date(expiryTick)) ? 'expire' : null
+      if (!action) return
+      const key = `${action}:${cotizacion.id}:${cotizacion.total || 0}:${cotizacion.updatedAt || ''}`
+      if (maintenanceRef.current.has(key)) return
+      maintenanceRef.current.add(key)
+      const task = action === 'deposit'
+        ? ensureAcceptedDeposit(cotizacion)
+        : saveCotizacion(autoRejectedQuote(cotizacion, new Date(expiryTick)))
+      task.catch(() => maintenanceRef.current.delete(key))
+    })
+  }, [cotizacionesCargadas, cotizaciones, expiryTick])
+
   // Sincroniza el contador público en el momento exacto en que una
   // cotización pasa a "aceptada" (o cambia de estado) — no depende de que
   // alguien abra el Dashboard después.
@@ -1074,9 +1109,26 @@ export default function Cotizaciones() {
     syncPublicStats(aceptadas).catch(() => {})
   }, [cotizacionesCargadas, cotizaciones])
 
-  const handleSave = async (data) => { await saveCotizacion(data); setModal(null) }
-  const handleDelete = (cot) => { setMenuAbierto(null); setConfirmDelete(cot) }
-  const handleConfirmDelete = async () => { await deleteCotizacion(confirmDelete.id); setConfirmDelete(null) }
+  const handleSave = async (data) => {
+    const saved = await saveCotizacion(data)
+    if (saved.estado === 'aceptada') await ensureAcceptedDeposit(saved)
+    setModal(null)
+  }
+  const handleDelete = (cot) => { setMenuAbierto(null); setConfirmDelete([cot]) }
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete.length) return
+    setDeleting(true)
+    try {
+      const ids = confirmDelete.map(c => c.id)
+      await deleteCotizaciones(ids)
+      setSelectedIds(current => {
+        const next = new Set(current)
+        ids.forEach(id => next.delete(id))
+        return next
+      })
+      setConfirmDelete([])
+    } finally { setDeleting(false) }
+  }
 
   const handlePDF = async (cot, modo = 'download') => {
     const cliente = clienteLocal(cot.clienteId)
@@ -1086,7 +1138,19 @@ export default function Cotizaciones() {
     }
   }
 
-  const handleEstado = async (cot, estado) => { await saveCotizacion({ ...cot, estado }) }
+  const handleEstado = async (cot, estado) => {
+    try {
+      await updateCotizacionEstado(cot, estado)
+      if (estado === 'aceptada') {
+        setEnvioEstado({ tipo: 'ok', mensaje: `Cotización #${cot.numero} aceptada. Abono inicial del 50% registrado en ingresos.` })
+        setTimeout(() => setEnvioEstado(null), 3500)
+      }
+    } catch (error) {
+      setEnvioEstado({ tipo: 'error', mensaje: `No se pudo actualizar la cotización: ${error?.message || 'error desconocido'}` })
+    }
+  }
+
+  const registrarEnvio = async (cot) => saveCotizacion(markQuoteSent(cot))
 
   const handleEnviarEmail = async (cot) => {
     const cliente = clienteLocal(cot.clienteId)
@@ -1096,11 +1160,17 @@ export default function Cotizaciones() {
     setEnvioEstado({ tipo: 'enviando', mensaje: `Enviando cotización #${cot.numero} por correo...` })
     try {
       await enviarCotizacionEmailJS(cot, cliente, email)
-      setEnvioEstado({ tipo: 'ok', mensaje: `Correo enviado a ${email}` })
-      setTimeout(() => setEnvioEstado(null), 2500)
     } catch (err) {
       abrirGmailCompose(cot, cliente, email)
       setEnvioEstado({ tipo: 'error', mensaje: `EmailJS falló: ${formatEmailJSError(err)}. Abrí Gmail con el correo listo.` })
+      return
+    }
+    try {
+      await registrarEnvio(cot)
+      setEnvioEstado({ tipo: 'ok', mensaje: `Correo enviado a ${email}. Vigencia de ${cot.validez || 15} días iniciada.` })
+      setTimeout(() => setEnvioEstado(null), 3000)
+    } catch (err) {
+      setEnvioEstado({ tipo: 'error', mensaje: `El correo se envió, pero no se pudo registrar su vigencia: ${err?.message || 'error desconocido'}` })
     }
   }
 
@@ -1129,6 +1199,14 @@ export default function Cotizaciones() {
         // Si algo falla, fallback al link de WhatsApp normal
         window.open(buildWhatsAppUrl(cot, cliente), '_blank')
       }
+      return
+    }
+    try {
+      await registrarEnvio(cot)
+      setEnvioEstado({ tipo: 'ok', mensaje: `Envío por WhatsApp preparado. Vigencia de ${cot.validez || 15} días iniciada.` })
+      setTimeout(() => setEnvioEstado(null), 3000)
+    } catch (err) {
+      setEnvioEstado({ tipo: 'error', mensaje: `No se pudo registrar la vigencia del envío: ${err?.message || 'error desconocido'}` })
     }
   }
 
@@ -1136,6 +1214,25 @@ export default function Cotizaciones() {
     .filter(c => !filtroEstado || c.estado === filtroEstado)
     .filter(c => !busqueda || c.numero?.includes(busqueda) || c.clienteNombre?.toLowerCase().includes(busqueda.toLowerCase()))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+  const statusCounts = cotizaciones.reduce((counts, cotizacion) => {
+    counts[cotizacion.estado] = (counts[cotizacion.estado] || 0) + 1
+    return counts
+  }, {})
+  const visibleIds = filtradas.map(c => c.id)
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id))
+  const selectedQuotes = cotizaciones.filter(c => selectedIds.has(c.id))
+  const toggleSelected = (id) => setSelectedIds(current => {
+    const next = new Set(current)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+  const toggleAllVisible = () => setSelectedIds(current => {
+    const next = new Set(current)
+    if (allVisibleSelected) visibleIds.forEach(id => next.delete(id))
+    else visibleIds.forEach(id => next.add(id))
+    return next
+  })
 
   const cotMenu = menuAbierto ? cotizaciones.find(c => c.id === menuAbierto) : null
 
@@ -1176,11 +1273,12 @@ export default function Cotizaciones() {
         />
       )}
 
-      {confirmDelete && (
+      {confirmDelete.length > 0 && (
         <ConfirmDeleteModal
-          cotizacion={confirmDelete}
+          cotizaciones={confirmDelete}
           onConfirm={handleConfirmDelete}
-          onCancel={() => setConfirmDelete(null)}
+          onCancel={() => setConfirmDelete([])}
+          deleting={deleting}
         />
       )}
 
@@ -1220,14 +1318,41 @@ export default function Cotizaciones() {
             className="w-full pl-9 pr-4 py-2.5 border border-white/60 rounded-full text-sm font-dm focus:outline-none focus:border-primary bg-white/50 focus:bg-white" />
         </div>
         <div className="flex gap-1 overflow-x-auto">
-          {[{ v: '', l: 'Todas' }, { v: 'por_aceptar', l: 'Por aceptar' }, { v: 'aceptada', l: 'Aceptadas' }, { v: 'rechazada', l: 'Rechazadas' }].map(({ v, l }) => (
+          {[
+            { v: '', l: 'Todas', count: cotizaciones.length },
+            { v: 'por_aceptar', l: 'Por aceptar', count: statusCounts.por_aceptar || 0 },
+            { v: 'aceptada', l: 'Aceptadas', count: statusCounts.aceptada || 0 },
+            { v: 'rechazada', l: 'Rechazadas', count: statusCounts.rechazada || 0 },
+          ].map(({ v, l, count }) => (
             <button key={v} onClick={() => setFiltroEstado(v)}
               className={`shrink-0 px-3 py-2 rounded-full text-xs font-dm border transition-colors ${filtroEstado === v ? 'bg-primary text-on-primary border-primary' : 'bg-white/50 text-on-surface-variant border-white/60 hover:border-primary'}`}>
-              {l}
+              {l} ({count})
             </button>
           ))}
         </div>
       </div>
+
+      {filtradas.length > 0 && (
+        <div className="mb-3 md:mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/50 bg-white/40 px-3 py-2.5">
+          <label className="flex items-center gap-2 text-xs md:text-sm font-dm text-on-surface cursor-pointer">
+            <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible}
+              aria-label="Seleccionar todas las cotizaciones visibles" className="w-4 h-4 accent-primary" />
+            Seleccionar todas las visibles
+          </label>
+          {selectedQuotes.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 text-xs font-dm text-on-surface-variant hover:text-on-surface">
+                Limpiar
+              </button>
+              <button type="button" onClick={() => setConfirmDelete(selectedQuotes)}
+                className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-dm font-medium text-white hover:bg-red-700">
+                <Trash2 size={14} /> Eliminar ({selectedQuotes.length})
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {filtradas.length === 0 ? (
         <div className="glass-panel rounded-widget py-16 text-center text-on-surface-variant text-sm font-dm">Sin cotizaciones</div>
@@ -1241,10 +1366,15 @@ export default function Cotizaciones() {
                 <div key={c.id} className="glass-panel rounded-widget overflow-hidden">
                   <div className="px-3 py-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-barlow text-xl leading-none font-bold text-on-surface">#{c.numero}</p>
-                        <p className="text-xs text-on-surface-variant font-dm truncate mt-1">{c.clienteNombre || '—'}</p>
-                        <p className="text-[11px] text-on-surface-variant font-dm mt-0.5">{fechaCorta(c.createdAt)}</p>
+                      <div className="min-w-0 flex items-start gap-2.5">
+                        <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelected(c.id)}
+                          aria-label={`Seleccionar cotización ${c.numero}`} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-barlow text-xl leading-none font-bold text-on-surface">#{c.numero}</p>
+                          <p className="text-xs text-on-surface-variant font-dm truncate mt-1">{c.clienteNombre || '—'}</p>
+                          <p className="text-[11px] text-on-surface-variant font-dm mt-0.5">{fechaCorta(c.createdAt)}</p>
+                          {quoteTrackingLabel(c) && <p className="text-[10px] font-dm text-yellow-700 mt-0.5">Enviada · {quoteTrackingLabel(c)}</p>}
+                        </div>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-barlow text-xl leading-none font-bold text-primary">{clp(c.total)}</p>
@@ -1280,6 +1410,10 @@ export default function Cotizaciones() {
             <table className="w-full text-sm font-dm">
               <thead>
                 <tr className="border-b border-white/50">
+                  <th className="pl-4 pr-1 py-3 w-9">
+                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible}
+                      aria-label="Seleccionar todas las cotizaciones visibles" className="w-4 h-4 accent-primary" />
+                  </th>
                   <th className="text-left px-5 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Número</th>
                   <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Cliente</th>
                   <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Fecha</th>
@@ -1292,10 +1426,17 @@ export default function Cotizaciones() {
                 {filtradas.map(c => {
                   const est = ESTADOS[c.estado] || ESTADOS.por_aceptar
                   return (
-                    <tr key={c.id} className="border-b border-white/50 hover:bg-white/50">
+                    <tr key={c.id} className={`border-b border-white/50 hover:bg-white/50 ${selectedIds.has(c.id) ? 'bg-red-50/50' : ''}`}>
+                      <td className="pl-4 pr-1 py-3">
+                        <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelected(c.id)}
+                          aria-label={`Seleccionar cotización ${c.numero}`} className="w-4 h-4 accent-primary" />
+                      </td>
                       <td className="px-5 py-3 font-medium text-on-surface">#{c.numero}</td>
                       <td className="px-3 py-3 text-on-surface-variant">{c.clienteNombre || '—'}</td>
-                      <td className="px-3 py-3 text-on-surface-variant">{fechaCorta(c.createdAt)}</td>
+                      <td className="px-3 py-3 text-on-surface-variant">
+                        <span>{fechaCorta(c.createdAt)}</span>
+                        {quoteTrackingLabel(c) && <span className="block text-[10px] text-yellow-700 mt-0.5">Enviada · {quoteTrackingLabel(c)}</span>}
+                      </td>
                       <td className="px-3 py-3 text-right font-medium">{clp(c.total)}</td>
                       <td className="px-3 py-3 text-center">
                         <select value={c.estado} onChange={e => handleEstado(c, e.target.value)}

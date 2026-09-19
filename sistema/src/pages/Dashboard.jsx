@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { subscribeCotizaciones, subscribeGastos, subscribePagos, syncPublicStats } from '../utils/storage'
+import { subscribeCotizaciones, subscribeGastos, subscribePagos, syncPublicStats, ensureAcceptedDeposit, saveCotizacion } from '../utils/storage'
 import { clp, fechaCorta, ESTADOS } from '../utils/formatters'
+import { shouldAutoReject, autoRejectedQuote } from '../utils/cotizacionesWorkflow'
 import {
   TrendingUp, FileText, Clock, CheckCircle, XCircle, DollarSign,
   Calculator, Users, ScrollText, Wallet,
@@ -59,6 +60,9 @@ export default function Dashboard() {
   const [gastos, setGastos] = useState([])
   const [pagos, setPagos] = useState([])
   const [loaded, setLoaded] = useState(false)
+  const [expiryTick, setExpiryTick] = useState(() => Date.now())
+  const depositsChecked = useRef(new Set())
+  const expirationsChecked = useRef(new Set())
 
   useEffect(() => {
     const u1 = subscribeCotizaciones((data) => { setCotizaciones(data); setLoaded(true) })
@@ -66,6 +70,33 @@ export default function Dashboard() {
     const u3 = subscribePagos(setPagos)
     return () => { u1(); u2(); u3() }
   }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => setExpiryTick(Date.now()), 5 * 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Repara cotizaciones aceptadas antiguas que todavía no tienen el abono
+  // inicial. El ID del pago es determinista, por lo que abrir el dashboard
+  // varias veces nunca duplica el ingreso.
+  useEffect(() => {
+    if (!loaded) return
+    cotizaciones.forEach(cotizacion => {
+      if (cotizacion.estado === 'aceptada') {
+        const key = `${cotizacion.id}:${cotizacion.total || 0}`
+        if (depositsChecked.current.has(key)) return
+        depositsChecked.current.add(key)
+        ensureAcceptedDeposit(cotizacion).catch(() => depositsChecked.current.delete(key))
+        return
+      }
+      if (!shouldAutoReject(cotizacion, new Date(expiryTick))) return
+      const key = `${cotizacion.id}:${cotizacion.updatedAt || ''}`
+      if (expirationsChecked.current.has(key)) return
+      expirationsChecked.current.add(key)
+      saveCotizacion(autoRejectedQuote(cotizacion, new Date(expiryTick)))
+        .catch(() => expirationsChecked.current.delete(key))
+    })
+  }, [loaded, cotizaciones, expiryTick])
 
   const mes = new Date().getMonth()
   const año = new Date().getFullYear()
@@ -126,7 +157,7 @@ export default function Dashboard() {
         <StatCard label="Por aceptar" value={porAceptar} color="text-yellow-600" icon={Clock} blob="bg-yellow-400/10 group-hover:bg-yellow-400/20" />
         <StatCard label="Aceptadas" value={aceptadas} color="text-green-600" sub={`Aceptado mes: ${clp(aceptadoMes)}`} icon={CheckCircle} blob="bg-green-400/10 group-hover:bg-green-400/20" />
         <StatCard label="Rechazadas" value={rechazadas} color="text-primary" icon={XCircle} blob="bg-primary/5 group-hover:bg-primary/10" />
-        <StatCard label="Ingresos mes" value={clp(ingresosMes)} color="text-green-700" sub="pagos recibidos" icon={TrendingUp} blob="bg-secondary/5 group-hover:bg-secondary/10" />
+        <StatCard label="Ingresos mes" value={clp(ingresosMes)} color="text-green-700" sub="abonos y pagos recibidos" icon={TrendingUp} blob="bg-secondary/5 group-hover:bg-secondary/10" />
         <StatCard
           label="Ganancia neta"
           value={clp(gananciaNeta)}

@@ -1,9 +1,10 @@
 import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc,
-  query, orderBy, runTransaction, onSnapshot,
+  query, orderBy, where, runTransaction, writeBatch, onSnapshot,
 } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { db, storage } from '../firebase'
+import { initialDepositAmount } from './cotizacionesWorkflow'
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function snapToObj(snap) {
@@ -71,7 +72,7 @@ export async function getCotizaciones() {
 
 export async function saveCotizacion(cotizacion) {
   const id = cotizacion.id || crypto.randomUUID()
-  const data = { ...cotizacion, id }
+  const data = { ...cotizacion, id, updatedAt: new Date().toISOString() }
   if (!cotizacion.id) {
     data.createdAt = new Date().toISOString()
     const num = await nextNumeroCotizacion()
@@ -82,7 +83,60 @@ export async function saveCotizacion(cotizacion) {
 }
 
 export async function deleteCotizacion(id) {
-  await deleteDoc(doc(db, 'cotizaciones', id))
+  await deleteCotizaciones([id])
+}
+
+export function initialDepositId(cotizacionId) {
+  return `anticipo-50-${cotizacionId}`
+}
+
+export async function deleteCotizaciones(ids) {
+  const uniqueIds = [...new Set(ids)].filter(Boolean)
+  for (let offset = 0; offset < uniqueIds.length; offset += 250) {
+    const batch = writeBatch(db)
+    uniqueIds.slice(offset, offset + 250).forEach(id => {
+      batch.delete(doc(db, 'cotizaciones', id))
+      batch.delete(doc(db, 'pagos', initialDepositId(id)))
+    })
+    await batch.commit()
+  }
+}
+
+export async function ensureAcceptedDeposit(cotizacion) {
+  if (!cotizacion?.id || cotizacion.estado !== 'aceptada') return null
+  const target = initialDepositAmount(cotizacion.total)
+  if (!target) return null
+  const pagos = await getPagosByCotizacion(cotizacion.id)
+  const current = pagos.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0)
+  if (current >= target) return null
+  const id = initialDepositId(cotizacion.id)
+  const existing = pagos.find(pago => pago.id === id)
+  const amount = (Number(existing?.monto) || 0) + (target - current)
+  const acceptedDate = String(cotizacion.acceptedAt || cotizacion.createdAt || new Date().toISOString()).slice(0, 10)
+  return savePago({
+    ...existing,
+    id,
+    cotizacionId: cotizacion.id,
+    monto: amount,
+    fecha: acceptedDate,
+    tipo: 'anticipo',
+    notas: 'Abono inicial automático al aceptar la cotización (50%)',
+    automatico: true,
+    origen: 'cotizacion_aceptada',
+  })
+}
+
+export async function updateCotizacionEstado(cotizacion, estado) {
+  const now = new Date().toISOString()
+  const next = {
+    ...cotizacion,
+    estado,
+    ...(estado === 'aceptada' && !cotizacion.acceptedAt ? { acceptedAt: now } : {}),
+    ...(estado !== 'rechazada' ? { rechazoAutomaticoAt: null, rechazoMotivo: null } : {}),
+  }
+  const saved = await saveCotizacion(next)
+  const pago = estado === 'aceptada' ? await ensureAcceptedDeposit(saved) : null
+  return { cotizacion: saved, pago }
 }
 
 export async function getCotizacionById(id) {
@@ -159,8 +213,8 @@ export async function deletePago(id) {
 }
 
 export async function getPagosByCotizacion(cotizacionId) {
-  const pagos = await getPagos()
-  return pagos.filter(p => p.cotizacionId === cotizacionId)
+  const snap = await getDocs(query(collection(db, 'pagos'), where('cotizacionId', '==', cotizacionId)))
+  return snapsToArr(snap)
 }
 
 // ─── MISCELÁNEOS ──────────────────────────────────────────────────────────────
