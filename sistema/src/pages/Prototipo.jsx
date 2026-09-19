@@ -1744,6 +1744,9 @@ function Icon({ name, size = 16 }) {
     hand: <><path {...p} d="M7 11V6a1.5 1.5 0 0 1 3 0v4m0-4.5a1.5 1.5 0 0 1 3 0V10m0-3a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-12 0v-2a1.5 1.5 0 0 1 3 0" /></>,
     ruler: <><path {...p} d="M3 6h18M3 12h18M3 18h18M8 3v4M16 3v4M8 17v4M16 17v4" /></>,
     orbit: <><circle {...p} cx="12" cy="12" r="9" /><path {...p} d="M3.6 9h16.8M3.6 15h16.8" /></>,
+    chevUp: <><path {...p} d="m6 15 6-6 6 6" /></>,
+    chevDown: <><path {...p} d="m6 9 6 6 6-6" /></>,
+    trash: <><path {...p} d="M4 7h16" /><path {...p} d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /><path {...p} d="m6 7 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: "block" }}>
@@ -4653,22 +4656,58 @@ export default function Prototipo() {
               </div>
 
               <div style={s.treeCard}>
-                <span style={s.treeHead}>Árbol de Capas 3D</span>
+                <div style={s.treeHeadRow}>
+                  <span style={s.treeHead}>Árbol de Capas 3D</span>
+                  {placedLogos.length > 0 && <span style={s.treeCount}>{placedLogos.length}</span>}
+                </div>
+
                 {placedLogos.length === 0 && sourceType === "texto" && (
                   <div style={s.treeRow}><Icon name="text" size={13} /><span style={s.treeName}>Texto del letrero</span></div>
                 )}
                 {placedLogos.length === 0 && sourceType !== "texto" && !fileName && (
-                  <div style={s.treeEmpty}>Sube un logo para ver sus capas.</div>
+                  <div style={s.treeEmpty}>Sube uno o varios logos para trabajar por capas.</div>
                 )}
-                {placedLogos.map((it) => (
-                  <button key={it.id} type="button"
-                    onClick={() => setActivePlacementId(it.id)}
-                    style={{ ...s.treeRow, ...(it.id === activePlacementId ? s.treeRowOn : {}) }}>
-                    <Icon name="product" size={13} />
-                    <span style={s.treeName}>{it.name || "Capa"}</span>
-                    <span style={s.treeTag}>{(it.kind || "original") === "letters" ? "Corpórea" : (it.kind || "original") === "lightbox" ? "Caja" : "Logo"}</span>
-                  </button>
-                ))}
+
+                {/* Capas colocadas — el frente arriba, como un panel de capas */}
+                {[...placedLogos].reverse().map((item) => {
+                  const idx = placedLogos.indexOf(item);
+                  const on = item.id === activePlacementId;
+                  const kind = item.kind || "original";
+                  return (
+                    <div key={item.id} style={{ ...s.treeRow, ...(on ? s.treeRowOn : {}) }}>
+                      <button type="button" onClick={() => setActivePlacementId(item.id)} style={s.treePick}>
+                        <Icon name="product" size={13} />
+                        <span style={s.treeName}>{item.name || "Capa"}</span>
+                        <span style={s.treeTag}>{kind === "letters" ? "Corpórea" : kind === "lightbox" ? "Caja" : "Logo"}</span>
+                      </button>
+                      <div style={s.treeOps}>
+                        <button type="button" title="Traer adelante" onClick={() => movePlacementLayer(item.id, "up")}
+                          style={{ ...s.treeOp, ...(idx === placedLogos.length - 1 ? s.treeOpOff : {}) }}><Icon name="chevUp" size={13} /></button>
+                        <button type="button" title="Enviar atrás" onClick={() => movePlacementLayer(item.id, "down")}
+                          style={{ ...s.treeOp, ...(idx === 0 ? s.treeOpOff : {}) }}><Icon name="chevDown" size={13} /></button>
+                        <button type="button" title="Quitar capa" onClick={() => setPlacedLogos((items) => items.filter((x) => x.id !== item.id))}
+                          style={s.treeOp}><Icon name="trash" size={13} /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Logos disponibles: colocar cada uno como una capa nueva */}
+                {logoQueue.length > 0 && (
+                  <>
+                    <div style={s.treeSub}>Logos disponibles</div>
+                    {logoQueue.map((asset) => (
+                      <div key={asset.id} style={s.treeRow}>
+                        <span style={s.treeName}>{asset.name}</span>
+                        <button type="button" onClick={() => addLogoToMockup(asset)} style={s.treeAdd} title="Colocar como nueva capa">+ Capa</button>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {(placedLogos.length > 0 || fileName) && (
+                  <div style={s.treeHint}>Click sobre un logo = moverlo · Click fuera = girar · Tecla <b style={{ color: TXT }}>H</b> + arrastrar = desplazar la escena</div>
+                )}
               </div>
 
               {(fileName || sourceType === "texto") && (
@@ -4858,9 +4897,18 @@ const s = {
   panelCardSub: { fontSize: 10, color: DIM },
   panelCardBody: { padding: "10px 12px" },
   treeCard: { border: `1px solid ${LINE}`, borderRadius: 12, background: "rgba(255,255,255,0.02)", padding: 10, display: "flex", flexDirection: "column", gap: 3 },
-  treeHead: { fontSize: 10, fontWeight: 700, color: DIM, textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 2px 4px" },
-  treeRow: { display: "flex", alignItems: "center", gap: 8, padding: "6px 7px", borderRadius: 7, color: TXT, background: "transparent", border: "1px solid transparent", cursor: "pointer", textAlign: "left", width: "100%", fontSize: 12 },
+  treeHeadRow: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2px 4px" },
+  treeHead: { fontSize: 10, fontWeight: 700, color: DIM, textTransform: "uppercase", letterSpacing: "0.08em" },
+  treeCount: { fontSize: 9.5, color: DIM, fontFamily: "'JetBrains Mono', monospace", background: CARD2, borderRadius: 5, padding: "1px 6px" },
+  treeRow: { display: "flex", alignItems: "center", gap: 8, padding: "5px 7px", borderRadius: 7, color: TXT, background: "transparent", border: "1px solid transparent", textAlign: "left", width: "100%", fontSize: 12 },
   treeRowOn: { background: "rgba(59,130,246,0.12)", borderColor: "rgba(59,130,246,0.32)" },
+  treePick: { flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", color: "inherit", padding: 0, cursor: "pointer", textAlign: "left" },
+  treeOps: { display: "flex", alignItems: "center", gap: 1, flexShrink: 0 },
+  treeOp: { display: "flex", background: "transparent", border: "none", color: DIM, borderRadius: 5, padding: 3, cursor: "pointer" },
+  treeOpOff: { opacity: 0.25, cursor: "not-allowed" },
+  treeSub: { fontSize: 9, color: DIM, textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 2px 2px", borderTop: `1px solid ${LINE}`, marginTop: 4 },
+  treeAdd: { background: "rgba(59,130,246,0.14)", border: "1px solid rgba(59,130,246,0.34)", color: "#93c5fd", borderRadius: 6, padding: "3px 9px", fontSize: 10, fontWeight: 700, cursor: "pointer", flexShrink: 0 },
+  treeHint: { fontSize: 9.5, color: DIM, lineHeight: 1.45, padding: "8px 2px 0", borderTop: `1px solid ${LINE}`, marginTop: 6 },
   treeName: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   treeTag: { fontSize: 9.5, color: DIM, fontFamily: "'JetBrains Mono', monospace" },
   treeEmpty: { fontSize: 11, color: DIM, padding: "4px 2px" },
