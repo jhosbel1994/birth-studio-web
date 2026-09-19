@@ -1702,13 +1702,16 @@ const FACE_COLORS = [
 /* ================================================================
    MARCA E ICONOS DE INTERFAZ
    ================================================================ */
-const RED = "#C60010";
-const BLUE = "#2F8BEF";
-const BLACK = "rgba(255,255,255,0.52)";
-const PANEL = "rgba(255,255,255,0.58)";
-const LINE = "rgba(255,255,255,0.64)";
-const TXT = "#171014";
-const DIM = "#6E5861";
+// Paleta OSCURA (rediseno tipo IDE, basada en el concepto de Google Stitch).
+const RED = "#f43f5e";                 // rose: etiquetas de seccion y precio
+const BLUE = "#3b82f6";                // azul: estado activo / seleccion
+const BLACK = "#0a0a0c";               // fondo general de la app
+const PANEL = "#121316";               // paneles laterales / barras
+const CARD = "#18191d";                // tarjetas y controles internos
+const CARD2 = "#1f2027";               // inputs, hover, chips
+const LINE = "#272830";                // bordes
+const TXT = "#e6e7ea";                 // texto principal
+const DIM = "#9aa0ac";                 // texto tenue
 
 /* Iconos de trazo simple, un solo color, legibles a 20px. */
 function Icon({ name, size = 16 }) {
@@ -1735,6 +1738,12 @@ function Icon({ name, size = 16 }) {
     lock: <><rect {...p} x="5" y="11" width="14" height="9" rx="1.5" /><path {...p} d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
     unlock: <><rect {...p} x="5" y="11" width="14" height="9" rx="1.5" /><path {...p} d="M8 11V7a4 4 0 0 1 7.5-2.5" /></>,
     spin: <><path {...p} d="M4 12a8 8 0 1 0 3-6.2" /><path {...p} d="M3 4v4h4" /></>,
+    chevL: <><path {...p} d="m14 6-6 6 6 6" /></>,
+    chevR: <><path {...p} d="m10 6 6 6-6 6" /></>,
+    cursor: <><path {...p} d="m4 3 7 17 2.5-6.5L20 11z" /></>,
+    hand: <><path {...p} d="M7 11V6a1.5 1.5 0 0 1 3 0v4m0-4.5a1.5 1.5 0 0 1 3 0V10m0-3a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-12 0v-2a1.5 1.5 0 0 1 3 0" /></>,
+    ruler: <><path {...p} d="M3 6h18M3 12h18M3 18h18M8 3v4M16 3v4M8 17v4M16 17v4" /></>,
+    orbit: <><circle {...p} cx="12" cy="12" r="9" /><path {...p} d="M3.6 9h16.8M3.6 15h16.8" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: "block" }}>
@@ -2013,6 +2022,9 @@ export default function Prototipo() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Rediseno: pestana activa del panel derecho (inspector).
+  const [rightTab, setRightTab] = useState("material"); // material | medidas | luz
 
   const setViewerZoom = useCallback((next) => {
     const base = Number.isFinite(S.current.zoom) ? S.current.zoom : 1;
@@ -4562,118 +4574,215 @@ export default function Prototipo() {
   };
 
   return (
-    <div style={{ padding: 10 }}>
+    <div style={s.appWrap}>
       <div style={s.app}>
-        {/* Barra superior */}
+        {/* ===== BARRA SUPERIOR ===== */}
         <header style={s.top}>
-          <div style={s.brand}>
-            <span style={s.brandMark}>Prototipo de letrero</span>
-            <span style={s.brandSub}>Vista 3D del logo</span>
-          </div>
-          <div style={s.topActions}>
-            <label style={s.upload}
+          <div style={s.topLeft}>
+            <div style={s.projChip}>
+              <span style={s.dotLive} title="Proyecto activo" />
+              <span style={s.projName}>Prototipo de letrero</span>
+              <span style={s.projSep}>/</span>
+              <span style={s.projFile}><Icon name="product" size={12} />{fileName ? fileName.slice(0, 16) : "sin-logo"}</span>
+              <span style={s.projScale}>1:10</span>
+            </div>
+            <label style={s.uploadBtn}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}>
               <input type="file" multiple accept="image/*,.svg" style={{ display: "none" }}
                 onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
-              <Icon name="upload" size={16} />
-              <span style={s.uploadTxt}>{logoQueue.length > 1 ? `${logoQueue.length} logos` : fileName ? fileName.slice(0, 22) : "Subir logos"}</span>
+              <Icon name="upload" size={14} />
+              <span style={{ fontWeight: 600 }}>{logoQueue.length > 1 ? `${logoQueue.length} logos` : "Subir Logo"}</span>
+              <span style={s.badge}>AI/SVG</span>
             </label>
-            <button onClick={loadSample} style={s.flatBtn}>Ejemplo</button>
-            <div style={s.divider} />
-            <button onClick={() => setNight(false)} title="De dia"
-              style={{ ...s.iconBtn, ...(!night ? s.iconBtnOn : {}) }}><Icon name="sun" size={17} /></button>
-            <button onClick={() => setNight(true)} title="De noche"
-              style={{ ...s.iconBtn, ...(night ? s.iconBtnOn : {}) }}><Icon name="moon" size={17} /></button>
-            <div style={s.divider} />
+            <button onClick={loadSample} style={s.ghostBtn}>Ejemplo</button>
+          </div>
+
+          {!narrow && (
+            <nav style={s.toolsNav} aria-label="Herramientas">
+              <button style={{ ...s.toolBtn, ...s.toolBtnOn }} title="Selección (V)"><Icon name="cursor" size={14} /><span>Selección</span><kbd style={s.kbdOn}>V</kbd></button>
+              <button style={s.toolBtn} title="Mover / Panorámica (mantén H y arrastra)"><Icon name="hand" size={14} /><span>Mover</span><kbd style={s.kbd}>H</kbd></button>
+              <button style={s.toolBtn} title="Cotas (D)"><Icon name="ruler" size={14} /><span>Cotas</span><kbd style={s.kbd}>D</kbd></button>
+              <div style={s.toolSep} />
+              <button onClick={() => setAutoRotate((v) => !v)} style={{ ...s.toolIcon, ...(autoRotate ? s.toolBtnOn : {}) }} title="Órbita 3D / giro automático"><Icon name="orbit" size={14} /></button>
+              <button onClick={() => setTool("luz")} style={s.toolIcon} title="Iluminación (L)"><Icon name="light" size={14} /></button>
+            </nav>
+          )}
+
+          <div style={s.topRight}>
+            <div style={s.ambience}>
+              <button onClick={() => setNight(false)} title="Modo día" style={{ ...s.ambBtn, ...(!night ? s.ambBtnDay : {}) }}><Icon name="sun" size={15} /></button>
+              <button onClick={() => setNight(true)} title="Modo noche" style={{ ...s.ambBtn, ...(night ? s.ambBtnNight : {}) }}><Icon name="moon" size={15} /></button>
+            </div>
+            <div style={s.zoomBox}>
+              <button onClick={() => setViewerZoom((z) => z / 1.25)} style={s.zoomBtn} title="Alejar">−</button>
+              <span style={s.zoomVal}>{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setViewerZoom((z) => z * 1.25)} style={s.zoomBtn} title="Acercar">+</button>
+              <div style={s.zSep} />
+              <button onClick={resetView} style={s.zoomBtn} title="Encuadrar"><Icon name="reset" size={13} /></button>
+            </div>
             <button onClick={enviarACotizacion} disabled={!fileName}
               style={{ ...s.secondaryBtn, ...(sent ? s.secondaryBtnOk : {}), ...(!fileName ? s.btnOff : {}) }}>
-              <Icon name="send" size={15} /> {sent ? "Enviado" : "Enviar a cotización"}
+              <Icon name="send" size={14} /> {!narrow && (sent ? "Enviado" : "Cotizar")}
             </button>
             <button onClick={download} disabled={!fileName}
               style={{ ...s.primaryBtn, ...(!fileName ? s.btnOff : {}) }}>
-              <Icon name="download" size={15} /> Descargar
+              <Icon name="download" size={14} /> {!narrow && "Descargar"}
             </button>
           </div>
         </header>
 
-        <div style={{ ...s.body, ...(narrow ? s.bodyNarrow : {}) }}>
-          <aside style={{ ...s.controlDock, ...(narrow ? s.controlDockNarrow : {}) }}>
-            <div style={s.workflowHead}>
-              <span style={s.workflowEyebrow}>Configuración</span>
-              <strong style={s.workflowTitle}>Ajusta por bloques</strong>
-              <span style={s.workflowHint}>Cada botón abre solo las funciones relacionadas.</span>
+        {/* ===== ESPACIO DE TRABAJO (3 columnas) ===== */}
+        <div style={{ ...s.workspace, ...(narrow ? s.workspaceNarrow : {}) }}>
+          {/* --- PANEL IZQUIERDO: escenario y capas --- */}
+          <aside style={{ ...s.leftPanel, ...(narrow ? s.sidePanelNarrow : {}) }}>
+            <div style={s.panelHead}>
+              <span style={s.panelHeadTxt}>Escenario &amp; Superficie</span>
+              <span style={s.badgeBlue}>VISTA 3D</span>
             </div>
-            <div style={s.accordion}>
-              {TOOLS.map((t) => {
-                const active = tool === t.id;
-                return (
-                  <section key={t.id} style={{ ...s.toolSection, ...(active ? s.toolSectionOn : {}) }}>
-                    <button type="button" onClick={() => setTool(t.id)} title={t.label} style={s.toolTrigger}>
-                      <span style={{ ...s.toolGlyph, ...(active ? s.toolGlyphOn : {}) }}>
-                        <Icon name={t.icon} />
-                      </span>
-                      <span style={s.toolCopy}>
-                        <span style={s.toolName}>{t.label}</span>
-                        <span style={s.toolDesc}>{TOOL_DESCRIPTIONS[t.id]}</span>
-                      </span>
-                      <span style={{ ...s.expandMark, ...(active ? s.expandMarkOn : {}) }}>
-                        {active ? "−" : "+"}
-                      </span>
-                    </button>
-                    {active && <div style={s.toolDrawer}>{t.id === "texto" && artControls}{panels[t.id]}</div>}
-                  </section>
-                );
-              })}
+            <div style={s.panelScroll}>
+              <div style={s.panelCard}>
+                <div style={s.panelCardHead}>
+                  <span style={s.panelCardIcon}><Icon name="wall" size={16} /></span>
+                  <div>
+                    <div style={s.panelCardTitle}>Fachada y montaje</div>
+                    <div style={s.panelCardSub}>Ambiente, superficie y foto</div>
+                  </div>
+                </div>
+                <div style={s.panelCardBody}>{panels.fachada}</div>
+              </div>
+
+              <div style={s.treeCard}>
+                <span style={s.treeHead}>Árbol de Capas 3D</span>
+                {placedLogos.length === 0 && sourceType === "texto" && (
+                  <div style={s.treeRow}><Icon name="text" size={13} /><span style={s.treeName}>Texto del letrero</span></div>
+                )}
+                {placedLogos.length === 0 && sourceType !== "texto" && !fileName && (
+                  <div style={s.treeEmpty}>Sube un logo para ver sus capas.</div>
+                )}
+                {placedLogos.map((it) => (
+                  <button key={it.id} type="button"
+                    onClick={() => setActivePlacementId(it.id)}
+                    style={{ ...s.treeRow, ...(it.id === activePlacementId ? s.treeRowOn : {}) }}>
+                    <Icon name="product" size={13} />
+                    <span style={s.treeName}>{it.name || "Capa"}</span>
+                    <span style={s.treeTag}>{(it.kind || "original") === "letters" ? "Corpórea" : (it.kind || "original") === "lightbox" ? "Caja" : "Logo"}</span>
+                  </button>
+                ))}
+              </div>
+
+              {(fileName || sourceType === "texto") && (
+                <div style={s.panelCard}>
+                  <div style={s.panelCardHead}>
+                    <span style={s.panelCardIcon}><Icon name="text" size={16} /></span>
+                    <div>
+                      <div style={s.panelCardTitle}>Arte y capas</div>
+                      <div style={s.panelCardSub}>Logos, texto y fuentes</div>
+                    </div>
+                  </div>
+                  <div style={s.panelCardBody}>{artControls}</div>
+                </div>
+              )}
+            </div>
+            <div style={s.panelFoot}>
+              <span>Birth Studio SpA</span><span style={{ color: TXT }}>Talca, Chile</span>
             </div>
           </aside>
 
-          {/* Visor */}
-          <main style={s.viewport}>
-            <div ref={mountRef} style={{ ...s.canvasHost, ...(narrow ? { height: 440 } : {}) }} />
-
-            {!fileName && !busy && (
-              <div style={{ ...s.overlay, ...(narrow ? { height: 440 } : {}) }}>
-                <div style={s.emptyTitle}>Sube tu logo</div>
-                <div style={s.emptyText}>Arrastralo aqui o usa el boton de arriba</div>
+          {/* --- CENTRO: VISOR 3D --- */}
+          <main style={s.center}>
+            {!narrow && (
+              <div style={s.rulerH}>
+                {["-1.50m", "-1.00m", "-0.50m", "0.00m", "+0.50m", "+1.00m", "+1.50m"].map((m, i) => (
+                  <span key={m} style={i === 3 ? s.rulerCenter : s.rulerMark}>{m}</span>
+                ))}
               </div>
             )}
-            {fileName && scene === "foto" && !photoImg && !busy && (
-              <div style={{ ...s.overlay, ...(narrow ? { height: 440 } : {}) }}>
-                <div style={s.emptyTitle}>Sube una foto de fachada</div>
-                <div style={s.emptyText}>La foto será el fondo real del mockup</div>
-                <button type="button" style={s.emptyUpload} onClick={() => setTool("fachada")}>
-                  <Icon name="wall" size={15} /> Tipo de local
-                </button>
+            <div style={s.centerBody}>
+              {!narrow && (
+                <div style={s.rulerV}>
+                  <span style={s.rulerMark}>+1m</span>
+                  <span style={s.rulerCenter}>0m</span>
+                  <span style={s.rulerMark}>-1m</span>
+                </div>
+              )}
+              <div style={s.canvasArea}>
+                <div ref={mountRef} style={{ ...s.canvasHost, ...(narrow ? { height: 380 } : {}) }} />
+                {!fileName && !busy && (
+                  <div style={s.overlay}>
+                    <div style={s.emptyTitle}>Sube tu logo</div>
+                    <div style={s.emptyText}>Arrástralo aquí o usa "Subir Logo"</div>
+                  </div>
+                )}
+                {fileName && scene === "foto" && !photoImg && !busy && (
+                  <div style={s.overlay}>
+                    <div style={s.emptyTitle}>Sube una foto de fachada</div>
+                    <div style={s.emptyText}>La foto será el fondo real del mockup</div>
+                    <button type="button" style={s.emptyUpload} onClick={() => setTool("fachada")}>
+                      <Icon name="wall" size={15} /> Tipo de local
+                    </button>
+                  </div>
+                )}
+                {err && <div style={s.errBar}>{err}</div>}
+                <div style={s.floatCtrls}>
+                  <span style={s.camTag}><span style={s.cam3d}>3D</span>CAM 0°/0°</span>
+                  <button onClick={resetView} style={s.floatBtn} title="Encuadrar / Reset">Reset 3D</button>
+                  <button onClick={() => setAutoRotate((v) => !v)} style={{ ...s.floatBtn, ...(autoRotate ? s.floatBtnOn : {}) }} title="Giro automático"><Icon name="spin" size={13} /></button>
+                </div>
               </div>
-            )}
-            {err && <div style={s.errBar}>{err}</div>}
-
-            <div style={s.zoomBar}>
-              <button onClick={() => setViewerZoom((z) => z / 1.25)} title="Alejar" style={s.zBtn}><Icon name="minus" size={15} /></button>
-              <span style={s.zVal}>{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setViewerZoom((z) => z * 1.25)} title="Acercar" style={s.zBtn}><Icon name="plus" size={15} /></button>
-              <div style={s.zSep} />
-              <button onClick={resetView} title="Encuadrar" style={s.zBtn}><Icon name="reset" size={15} /></button>
-              <button onClick={() => setAutoRotate((v) => !v)} title="Giro automatico"
-                style={{ ...s.zBtn, ...(autoRotate ? s.zBtnOn : {}) }}><Icon name="spin" size={15} /></button>
             </div>
-
-            {info && !(placedLogos.length > 0 && sourceType !== "texto") && (
-              <div style={s.specs}>
-                <div style={s.spec}><b style={s.specVal}>{info.realW.toFixed(2)} x {info.realH.toFixed(2)}</b><span style={s.specKey}>metros efectivos · principal</span></div>
-                <div style={s.spec}><b style={s.specVal}>{info.faceArea.toFixed(2)}</b><span style={s.specKey}>m2 de cara</span></div>
-                <div style={s.spec}><b style={s.specVal}>{info.perim.toFixed(1)}</b><span style={s.specKey}>{info.product === "letters" ? "m de canto" : "m de perfil"}</span></div>
-                <div style={s.spec}><b style={s.specVal}>{info.count}</b><span style={s.specKey}>{info.product === "letters" ? "piezas" : "placa"}</span></div>
-              </div>
-            )}
+            <footer style={s.statsBar}>
+              {info ? (
+                <>
+                  <div style={s.stat}><b style={s.statVal}>{info.realW.toFixed(2)} × {info.realH.toFixed(2)}</b><span style={s.statKey}>Metros</span></div>
+                  <div style={s.stat}><b style={s.statVal}>{info.faceArea.toFixed(2)}</b><span style={s.statKey}>M² de cara</span></div>
+                  <div style={s.stat}><b style={s.statVal}>{info.perim.toFixed(1)}</b><span style={s.statKey}>{info.product === "letters" ? "m de canto" : "m de perfil"}</span></div>
+                  <div style={s.stat}><b style={s.statVal}>{info.count}</b><span style={s.statKey}>{info.product === "letters" ? "piezas" : "placa"}</span></div>
+                  <div style={{ ...s.stat, background: "rgba(59,130,246,0.07)" }}><b style={{ ...s.statVal, color: BLUE }}>{depthCm} / {standoffCm} cm</b><span style={s.statKey}>Canto / Sep. muro</span></div>
+                </>
+              ) : (
+                <div style={{ ...s.stat, flex: 1, alignItems: "flex-start" }}><span style={s.statKey}>Sube un logo para ver medidas y piezas</span></div>
+              )}
+              <button onClick={download} disabled={!fileName} style={{ ...s.fichaBtn, ...(!fileName ? s.btnOff : {}) }} title="Exportar ficha técnica / imagen">
+                <Icon name="download" size={14} /> Ficha PDF/DXF
+              </button>
+            </footer>
             {narrow && (
-              <div style={{ textAlign: "center", fontSize: 11, color: "#8a8f98", padding: "7px 10px", lineHeight: 1.35 }}>
-                Un dedo: girar o mover el letrero · Dos dedos: acercar · Botones ⟳ para encuadrar y giro automático
+              <div style={{ textAlign: "center", fontSize: 11, color: DIM, padding: "7px 10px", lineHeight: 1.35 }}>
+                Un dedo: girar o mover · Dos dedos: acercar · Reset para encuadrar
               </div>
             )}
           </main>
 
+          {/* --- PANEL DERECHO: inspector --- */}
+          <aside style={{ ...s.rightPanel, ...(narrow ? s.sidePanelNarrow : {}) }}>
+            <div style={s.tabs}>
+              {[{ id: "material", label: "Material & Canto" }, { id: "medidas", label: "Medidas" }, { id: "luz", label: "LED / Halo" }].map((tb) => (
+                <button key={tb.id} onClick={() => setRightTab(tb.id)}
+                  style={{ ...s.tab, ...(rightTab === tb.id ? s.tabOn : {}) }}>{tb.label}</button>
+              ))}
+            </div>
+            <div style={s.panelScroll}>
+              {rightTab === "material" && panels.producto}
+              {rightTab === "medidas" && panels.medidas}
+              {rightTab === "luz" && panels.luz}
+            </div>
+            <div style={s.priceFoot}>
+              {info ? (
+                <>
+                  <div style={s.priceRow}><span>Cara</span><span style={s.priceMono}>{info.faceArea.toFixed(2)} m²</span></div>
+                  <div style={s.priceRow}><span>{info.product === "letters" ? "Canto total" : "Perfil"}</span><span style={s.priceMono}>{info.perim.toFixed(1)} m</span></div>
+                  <div style={s.priceRow}><span>Piezas</span><span style={s.priceMono}>{info.count}</span></div>
+                </>
+              ) : <div style={s.priceRow}><span>Sin logo cargado</span></div>}
+              <div style={s.priceDivider} />
+              <button onClick={enviarACotizacion} disabled={!fileName}
+                style={{ ...s.cotizarBtn, ...(sent ? s.secondaryBtnOk : {}), ...(!fileName ? s.btnOff : {}) }}>
+                <Icon name="send" size={14} /> {sent ? "Enviado a cotización" : "Enviar a cotización"}
+              </button>
+              <div style={s.priceHint}>El total en CLP se calcula en el Cotizador (la etapa siguiente lo trae aquí).</div>
+            </div>
+          </aside>
         </div>
       </div>
     </div>
@@ -4681,219 +4790,160 @@ export default function Prototipo() {
 }
 
 const s = {
+  appWrap: { padding: 0 },
   app: {
-    display: "flex", flexDirection: "column", background: BLACK, borderRadius: 8,
+    display: "flex", flexDirection: "column", background: BLACK, borderRadius: 10,
     overflow: "hidden", fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
-    color: TXT, border: `1px solid ${LINE}`,
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.55), 0 18px 46px rgba(40,30,70,0.10)",
-    backdropFilter: "blur(34px)", WebkitBackdropFilter: "blur(34px)",
+    color: TXT, border: `1px solid ${LINE}`, height: "min(86vh, 860px)",
   },
+
+  /* ================= BARRA SUPERIOR ================= */
   top: {
-    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14,
-    padding: "14px 16px", borderBottom: `1px solid ${LINE}`, background: "rgba(255,255,255,0.62)", flexWrap: "wrap",
+    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+    padding: "8px 12px", borderBottom: `1px solid ${LINE}`, background: PANEL, flexWrap: "wrap", flexShrink: 0,
   },
-  brand: { display: "flex", flexDirection: "column", gap: 2 },
-  brandMark: { color: TXT, fontFamily: "'Barlow Condensed', 'DM Sans', sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 0, lineHeight: 1 },
-  brandSub: { fontSize: 11, color: DIM },
-  topActions: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  upload: {
-    display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.58)",
-    border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 10px", cursor: "pointer", color: TXT,
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.65)",
+  topLeft: { display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" },
+  projChip: { display: "flex", alignItems: "center", gap: 7, background: CARD, border: `1px solid ${LINE}`, borderRadius: 9, padding: "5px 9px" },
+  dotLive: { width: 7, height: 7, borderRadius: "50%", background: "#10b981", flexShrink: 0, boxShadow: "0 0 6px rgba(16,185,129,0.8)" },
+  projName: { fontSize: 12, fontWeight: 600, color: TXT, whiteSpace: "nowrap" },
+  projSep: { color: "#4b4d57", fontSize: 11 },
+  projFile: {
+    display: "flex", alignItems: "center", gap: 4, fontSize: 10.5, color: DIM, background: CARD2,
+    border: `1px solid ${LINE}`, borderRadius: 6, padding: "2px 7px", fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+    maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
   },
-  uploadTxt: { fontSize: 10.5, fontWeight: 500, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  flatBtn: {
-    background: "rgba(255,255,255,0.52)", border: `1px solid ${LINE}`, color: TXT,
-    borderRadius: 8, padding: "7px 10px", fontSize: 10, cursor: "pointer",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
+  projScale: { fontSize: 10, color: DIM, background: BLACK, border: `1px solid ${LINE}`, borderRadius: 5, padding: "2px 5px", fontFamily: "'JetBrains Mono', monospace" },
+  uploadBtn: {
+    display: "flex", alignItems: "center", gap: 6, background: "rgba(59,130,246,0.16)",
+    border: "1px solid rgba(59,130,246,0.42)", color: "#93c5fd", borderRadius: 9, padding: "6px 10px", cursor: "pointer", fontSize: 12,
   },
-  labelBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6 },
-  actionGrid: { display: "grid", gridTemplateColumns: "1fr", gap: 6, marginTop: 8 },
-  divider: { width: 1, height: 18, background: "rgba(80,50,70,0.14)" },
-  iconBtn: {
-    background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`, color: DIM,
-    borderRadius: 8, padding: 6, cursor: "pointer", display: "flex",
-  },
-  iconBtnOn: { borderColor: "rgba(198,0,16,0.42)", background: "rgba(198,0,16,0.08)", color: RED },
-  secondaryBtn: {
-    display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.48)",
-    border: `1px solid rgba(198,0,16,0.34)`, color: RED, borderRadius: 8, padding: "7px 10px",
-    fontSize: 10.5, fontWeight: 600, cursor: "pointer",
-  },
-  secondaryBtnOk: { background: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.35)", color: "#137333" },
-  primaryBtn: {
-    display: "flex", alignItems: "center", gap: 7, background: RED, border: "none",
-    color: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 10.5, fontWeight: 700, cursor: "pointer",
-    boxShadow: "0 8px 18px rgba(198,0,16,0.20)",
-  },
-  btnOff: { opacity: 0.45, cursor: "not-allowed" },
-  body: { display: "flex", alignItems: "stretch", minHeight: 0, background: "rgba(255,255,255,0.20)" },
-  bodyNarrow: { flexDirection: "column" },
-  controlDock: {
-    width: 330, flexShrink: 0, borderRight: `1px solid ${LINE}`, background: "rgba(255,255,255,0.48)",
-    padding: 12, overflowY: "auto", maxHeight: 610,
-  },
-  controlDockNarrow: {
-    width: "100%", borderRight: "none", borderBottom: `1px solid ${LINE}`, maxHeight: 430,
-  },
-  workflowHead: {
-    padding: "4px 4px 12px", display: "flex", flexDirection: "column", gap: 3,
-  },
-  workflowEyebrow: { fontSize: 9, color: RED, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0 },
-  workflowTitle: { fontSize: 15, color: TXT, lineHeight: 1.1 },
-  workflowHint: { fontSize: 10.5, color: DIM, lineHeight: 1.35 },
-  accordion: { display: "flex", flexDirection: "column", gap: 8 },
-  toolSection: {
-    border: `1px solid rgba(255,255,255,0.56)`, borderRadius: 8, background: "rgba(255,255,255,0.38)",
-    overflow: "hidden", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.62)",
-  },
-  toolSectionOn: {
-    background: "rgba(255,255,255,0.66)", borderColor: "rgba(47,139,239,0.28)",
-    boxShadow: "0 10px 22px rgba(38,42,80,0.08), inset 0 1px 0 rgba(255,255,255,0.72)",
-  },
-  toolTrigger: {
-    width: "100%", border: "none", background: "transparent", color: TXT, cursor: "pointer",
-    display: "grid", gridTemplateColumns: "34px 1fr 24px", alignItems: "center", gap: 8,
-    padding: "9px 9px", textAlign: "left",
-  },
-  toolGlyph: {
-    width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
-    color: DIM, background: "rgba(255,255,255,0.56)", border: `1px solid ${LINE}`,
-  },
-  toolGlyphOn: { color: "#fff", background: BLUE, borderColor: BLUE },
-  toolCopy: { minWidth: 0, display: "flex", flexDirection: "column", gap: 1 },
-  toolName: { fontSize: 12, fontWeight: 800, color: TXT, lineHeight: 1.1 },
-  toolDesc: { fontSize: 9.5, color: DIM, lineHeight: 1.25, whiteSpace: "normal" },
-  expandMark: {
-    width: 22, height: 22, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
-    color: DIM, background: "rgba(255,255,255,0.44)", border: `1px solid rgba(255,255,255,0.56)`,
-    fontSize: 16, lineHeight: 1, fontWeight: 700,
-  },
-  expandMarkOn: { color: BLUE, background: "rgba(47,139,239,0.10)", borderColor: "rgba(47,139,239,0.24)" },
-  toolDrawer: { padding: "0 10px 12px" },
-  viewport: { flex: "1 1 auto", position: "relative", minWidth: 0, display: "flex", flexDirection: "column" },
-  canvasHost: { width: "100%", height: 560, background: "linear-gradient(135deg, #f7f9ff 0%, #fff4f8 100%)", touchAction: "none" },
-  overlay: {
-    position: "absolute", top: 0, left: 0, right: 0, height: 560, display: "flex",
-    flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5,
-    pointerEvents: "none", fontSize: 13, color: "rgba(91,73,82,0.74)",
-  },
+  badge: { fontSize: 8.5, fontFamily: "'JetBrains Mono', monospace", background: "rgba(59,130,246,0.22)", color: "#bfdbfe", padding: "1px 4px", borderRadius: 4 },
+  ghostBtn: { background: CARD, border: `1px solid ${LINE}`, color: DIM, borderRadius: 9, padding: "6px 10px", fontSize: 11, cursor: "pointer" },
+  toolsNav: { display: "flex", alignItems: "center", gap: 3, background: CARD, border: `1px solid ${LINE}`, borderRadius: 9, padding: 3 },
+  toolBtn: { display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: DIM, borderRadius: 6, padding: "6px 9px", fontSize: 12, cursor: "pointer" },
+  toolBtnOn: { background: BLUE, color: "#fff" },
+  toolIcon: { display: "flex", background: "transparent", border: "none", color: DIM, borderRadius: 6, padding: "6px 7px", cursor: "pointer" },
+  toolSep: { width: 1, height: 16, background: LINE, margin: "0 3px" },
+  kbd: { fontSize: 8.5, fontFamily: "'JetBrains Mono', monospace", background: BLACK, color: DIM, padding: "1px 4px", borderRadius: 4 },
+  kbdOn: { fontSize: 8.5, fontFamily: "'JetBrains Mono', monospace", background: "rgba(0,0,0,0.3)", color: "#dbeafe", padding: "1px 4px", borderRadius: 4 },
+  topRight: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  ambience: { display: "flex", alignItems: "center", gap: 2, background: CARD, border: `1px solid ${LINE}`, borderRadius: 9, padding: 3 },
+  ambBtn: { display: "flex", background: "transparent", border: "1px solid transparent", color: DIM, borderRadius: 6, padding: 6, cursor: "pointer" },
+  ambBtnDay: { color: "#fbbf24", background: "rgba(251,191,36,0.12)", borderColor: "rgba(251,191,36,0.35)" },
+  ambBtnNight: { color: "#93c5fd", background: "rgba(59,130,246,0.14)", borderColor: "rgba(59,130,246,0.4)" },
+  zoomBox: { display: "flex", alignItems: "center", gap: 4, background: CARD, border: `1px solid ${LINE}`, borderRadius: 9, padding: "3px 6px", fontFamily: "'JetBrains Mono', monospace" },
+  zoomBtn: { background: "transparent", border: "none", color: DIM, cursor: "pointer", fontSize: 14, padding: "0 3px", display: "flex", alignItems: "center" },
+  zoomVal: { fontSize: 11, color: TXT, minWidth: 40, textAlign: "center", fontVariantNumeric: "tabular-nums" },
+  zSep: { width: 1, height: 14, background: LINE, margin: "0 1px" },
+  secondaryBtn: { display: "flex", alignItems: "center", gap: 6, background: CARD, border: `1px solid ${LINE}`, color: TXT, borderRadius: 9, padding: "7px 11px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  secondaryBtnOk: { background: "rgba(16,185,129,0.14)", borderColor: "rgba(16,185,129,0.4)", color: "#34d399" },
+  primaryBtn: { display: "flex", alignItems: "center", gap: 6, background: BLUE, border: "none", color: "#fff", borderRadius: 9, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" },
+  btnOff: { opacity: 0.4, cursor: "not-allowed" },
+
+  /* ================= ESPACIO DE TRABAJO ================= */
+  workspace: { flex: "1 1 auto", display: "flex", alignItems: "stretch", minHeight: 0, background: BLACK },
+  workspaceNarrow: { flexDirection: "column" },
+  sidePanelNarrow: { width: "100%", maxHeight: 300, borderRight: "none", borderLeft: "none", borderBottom: `1px solid ${LINE}` },
+  leftPanel: { width: 270, flexShrink: 0, background: PANEL, borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column", minHeight: 0 },
+  rightPanel: { width: 300, flexShrink: 0, background: PANEL, borderLeft: `1px solid ${LINE}`, display: "flex", flexDirection: "column", minHeight: 0 },
+  panelHead: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 12px", borderBottom: `1px solid ${LINE}` },
+  panelHeadTxt: { fontSize: 11, fontWeight: 700, color: DIM, textTransform: "uppercase", letterSpacing: "0.08em" },
+  badgeBlue: { fontSize: 9, color: "#93c5fd", background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.24)", borderRadius: 5, padding: "2px 6px", fontFamily: "'JetBrains Mono', monospace" },
+  panelScroll: { flex: "1 1 auto", overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 14, minHeight: 0 },
+  panelFoot: { display: "flex", justifyContent: "space-between", padding: "10px 12px", borderTop: `1px solid ${LINE}`, fontSize: 11, color: DIM, flexShrink: 0 },
+  panelCard: { border: `1px solid ${LINE}`, borderRadius: 12, background: CARD, overflow: "hidden" },
+  panelCardHead: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(0,0,0,0.28)", borderBottom: `1px solid ${LINE}` },
+  panelCardIcon: { display: "flex", padding: 6, borderRadius: 8, background: "rgba(59,130,246,0.14)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.28)" },
+  panelCardTitle: { fontSize: 12, fontWeight: 700, color: TXT },
+  panelCardSub: { fontSize: 10, color: DIM },
+  panelCardBody: { padding: "10px 12px" },
+  treeCard: { border: `1px solid ${LINE}`, borderRadius: 12, background: "rgba(255,255,255,0.02)", padding: 10, display: "flex", flexDirection: "column", gap: 3 },
+  treeHead: { fontSize: 10, fontWeight: 700, color: DIM, textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 2px 4px" },
+  treeRow: { display: "flex", alignItems: "center", gap: 8, padding: "6px 7px", borderRadius: 7, color: TXT, background: "transparent", border: "1px solid transparent", cursor: "pointer", textAlign: "left", width: "100%", fontSize: 12 },
+  treeRowOn: { background: "rgba(59,130,246,0.12)", borderColor: "rgba(59,130,246,0.32)" },
+  treeName: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  treeTag: { fontSize: 9.5, color: DIM, fontFamily: "'JetBrains Mono', monospace" },
+  treeEmpty: { fontSize: 11, color: DIM, padding: "4px 2px" },
+
+  /* ================= CENTRO / VISOR ================= */
+  center: { flex: "1 1 auto", display: "flex", flexDirection: "column", minWidth: 0, background: "#09090b" },
+  rulerH: { height: 22, background: "#0f1013", borderBottom: `1px solid ${LINE}`, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 26px", flexShrink: 0 },
+  rulerV: { width: 26, background: "#0f1013", borderRight: `1px solid ${LINE}`, display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "center", padding: "20px 0", flexShrink: 0 },
+  rulerMark: { fontSize: 9, color: DIM, fontFamily: "'JetBrains Mono', monospace" },
+  rulerCenter: { fontSize: 9, color: "#60a5fa", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+  centerBody: { flex: "1 1 auto", display: "flex", minHeight: 0 },
+  canvasArea: { flex: "1 1 auto", position: "relative", minWidth: 0, overflow: "hidden" },
+  canvasHost: { width: "100%", height: "100%", minHeight: 320, background: "linear-gradient(160deg, #0e1017 0%, #08090d 100%)", touchAction: "none" },
+  overlay: { position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, pointerEvents: "none", fontSize: 13, color: DIM },
   emptyTitle: { fontSize: 15, color: TXT, fontWeight: 700 },
   emptyText: { fontSize: 12, color: DIM },
-  emptyUpload: {
-    marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-    background: RED, color: "#fff", borderRadius: 8, padding: "9px 14px", fontSize: 11,
-    fontWeight: 800, cursor: "pointer", pointerEvents: "auto", boxShadow: "0 10px 22px rgba(198,0,16,0.22)",
-  },
-  errBar: {
-    position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
-    background: "rgba(255,247,247,0.92)", border: `1px solid rgba(198,0,16,0.35)`, color: RED,
-    fontSize: 11.5, padding: "7px 14px", borderRadius: 8, maxWidth: "80%",
-    boxShadow: "0 10px 24px rgba(80,30,40,0.14)",
-  },
-  zoomBar: {
-    position: "absolute", top: 12, right: 12, display: "flex", alignItems: "center", gap: 4,
-    background: "rgba(255,255,255,0.82)", border: `1px solid ${LINE}`, borderRadius: 8, padding: 3,
-    boxShadow: "0 10px 26px rgba(30,20,50,0.12)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
-  },
+  emptyUpload: { marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, background: BLUE, color: "#fff", borderRadius: 9, padding: "9px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer", pointerEvents: "auto" },
+  errBar: { position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(40,12,16,0.92)", border: "1px solid rgba(244,63,94,0.4)", color: "#fda4af", fontSize: 11.5, padding: "7px 14px", borderRadius: 8, maxWidth: "80%" },
+  floatCtrls: { position: "absolute", top: 10, right: 10, display: "flex", alignItems: "center", gap: 6, background: "rgba(18,19,22,0.88)", border: `1px solid ${LINE}`, borderRadius: 9, padding: 5, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" },
+  camTag: { display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: DIM, fontFamily: "'JetBrains Mono', monospace", background: BLACK, border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 6px" },
+  cam3d: { fontSize: 7, fontWeight: 800, color: "#60a5fa", border: "1px solid rgba(59,130,246,0.5)", background: "rgba(59,130,246,0.15)", borderRadius: 3, padding: "1px 2px" },
+  floatBtn: { background: CARD, border: `1px solid ${LINE}`, color: DIM, borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 },
+  floatBtnOn: { color: "#60a5fa", borderColor: "rgba(59,130,246,0.4)", background: "rgba(59,130,246,0.12)" },
+  statsBar: { minHeight: 52, background: PANEL, borderTop: `1px solid ${LINE}`, display: "flex", alignItems: "stretch", flexShrink: 0, flexWrap: "wrap" },
+  stat: { flex: 1, minWidth: 90, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, borderRight: `1px solid ${LINE}`, padding: "6px 8px" },
+  statVal: { fontSize: 13, fontWeight: 700, color: TXT, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" },
+  statKey: { fontSize: 9, color: DIM, textTransform: "uppercase", letterSpacing: "0.03em" },
+  fichaBtn: { display: "flex", alignItems: "center", gap: 6, background: CARD, border: `1px solid ${LINE}`, color: TXT, borderRadius: 8, padding: "8px 12px", fontSize: 11.5, fontWeight: 600, cursor: "pointer", margin: "auto 12px" },
+
+  /* ================= PANEL DERECHO: tabs + precio ================= */
+  tabs: { display: "flex", alignItems: "center", gap: 2, background: "rgba(0,0,0,0.28)", borderBottom: `1px solid ${LINE}`, padding: 4, flexShrink: 0 },
+  tab: { flex: 1, background: "transparent", border: "none", color: DIM, borderRadius: 6, padding: "7px 4px", fontSize: 11, fontWeight: 600, cursor: "pointer" },
+  tabOn: { color: "#60a5fa", background: "rgba(59,130,246,0.1)", borderBottom: `2px solid ${BLUE}` },
+  priceFoot: { padding: 14, borderTop: `1px solid ${LINE}`, background: "rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 },
+  priceRow: { display: "flex", justifyContent: "space-between", fontSize: 11.5, color: DIM },
+  priceMono: { color: TXT, fontFamily: "'JetBrains Mono', monospace" },
+  priceDivider: { height: 1, background: LINE },
+  cotizarBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, background: BLUE, border: "none", color: "#fff", borderRadius: 9, padding: "10px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" },
+  priceHint: { fontSize: 10, color: DIM, lineHeight: 1.4 },
+
+  /* ================= CONTROLES (reusados, oscurecidos) ================= */
+  flatBtn: { background: CARD2, border: `1px solid ${LINE}`, color: TXT, borderRadius: 8, padding: "7px 10px", fontSize: 10, cursor: "pointer" },
+  labelBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6 },
+  actionGrid: { display: "grid", gridTemplateColumns: "1fr", gap: 6, marginTop: 8 },
   zBtn: { background: "transparent", border: "none", color: DIM, borderRadius: 7, padding: 4, cursor: "pointer", display: "flex" },
-  zBtnOn: { background: "rgba(198,0,16,0.08)", color: RED },
-  zVal: { fontSize: 9.5, color: TXT, minWidth: 34, textAlign: "center", fontVariantNumeric: "tabular-nums" },
-  zSep: { width: 1, height: 18, background: "rgba(80,50,70,0.14)", margin: "0 2px" },
-  specs: {
-    display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1,
-    background: "rgba(80,50,70,0.08)", borderTop: `1px solid ${LINE}`,
-  },
-  spec: { background: "rgba(255,255,255,0.56)", padding: "7px 8px", display: "flex", flexDirection: "column", gap: 0, alignItems: "center" },
-  specVal: { fontSize: 11, fontWeight: 700, color: TXT, whiteSpace: "nowrap" },
-  specKey: { fontSize: 8, color: DIM, letterSpacing: 0 },
-  pTitle: { fontSize: 10.5, fontWeight: 800, color: TXT, marginBottom: 8 },
-  pLabel: {
-    fontSize: 8, letterSpacing: 0, textTransform: "uppercase", color: RED,
-    fontWeight: 700, marginTop: 12, marginBottom: 5,
-  },
+  zBtnOn: { background: "rgba(59,130,246,0.14)", color: "#60a5fa" },
+  pTitle: { fontSize: 11, fontWeight: 800, color: TXT, marginBottom: 8 },
+  pLabel: { fontSize: 8.5, letterSpacing: "0.06em", textTransform: "uppercase", color: RED, fontWeight: 700, marginTop: 12, marginBottom: 5 },
   pHint: { fontSize: 9.5, color: DIM, lineHeight: 1.45, marginTop: 8 },
-  note: {
-    marginTop: 7, fontSize: 9.5, color: DIM, lineHeight: 1.45,
-    background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 8px",
-  },
-  logoList: {
-    display: "grid", gridTemplateColumns: "1fr", gap: 5, maxHeight: 152, overflowY: "auto",
-    paddingRight: 2,
-  },
-  logoItem: {
-    display: "grid", gridTemplateColumns: "1fr 58px", alignItems: "center", gap: 6,
-    width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, background: "rgba(255,255,255,0.48)",
-    color: TXT, padding: "5px", textAlign: "left",
-  },
-  logoItemOn: { borderColor: BLUE, background: "rgba(47,139,239,0.13)", color: "#0755B8" },
-  logoPick: {
-    minWidth: 0, display: "grid", gridTemplateColumns: "22px 1fr", alignItems: "center", gap: 7,
-    border: "none", background: "transparent", color: "inherit", padding: 0, cursor: "pointer", textAlign: "left",
-  },
-  logoPlace: {
-    border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.58)", color: TXT,
-    borderRadius: 7, padding: "5px 4px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
-  },
+  note: { marginTop: 7, fontSize: 9.5, color: DIM, lineHeight: 1.45, background: CARD2, border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 8px" },
+  logoList: { display: "grid", gridTemplateColumns: "1fr", gap: 5, maxHeight: 152, overflowY: "auto", paddingRight: 2 },
+  logoItem: { display: "grid", gridTemplateColumns: "1fr 58px", alignItems: "center", gap: 6, width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, background: CARD2, color: TXT, padding: "5px", textAlign: "left" },
+  logoItemOn: { borderColor: BLUE, background: "rgba(59,130,246,0.14)", color: "#93c5fd" },
+  logoPick: { minWidth: 0, display: "grid", gridTemplateColumns: "22px 1fr", alignItems: "center", gap: 7, border: "none", background: "transparent", color: "inherit", padding: 0, cursor: "pointer", textAlign: "left" },
+  logoPlace: { border: `1px solid ${LINE}`, background: CARD, color: TXT, borderRadius: 7, padding: "5px 4px", fontSize: 8.5, fontWeight: 700, cursor: "pointer" },
   layerBtns: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, marginBottom: 8 },
-  logoIndex: {
-    width: 20, height: 20, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
-    background: "rgba(255,255,255,0.72)", fontSize: 9, fontWeight: 800,
-  },
+  logoIndex: { width: 20, height: 20, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: BLACK, fontSize: 9, fontWeight: 800 },
   logoName: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9.5, fontWeight: 600 },
-  warnNote: { borderColor: "rgba(217,147,32,0.36)", color: "#7A4F00", background: "rgba(255,248,231,0.76)" },
-  dangerNote: { borderColor: "rgba(198,0,16,0.34)", color: RED, background: "rgba(255,247,247,0.82)" },
+  warnNote: { borderColor: "rgba(245,181,68,0.4)", color: "#fcd34d", background: "rgba(245,181,68,0.08)" },
+  dangerNote: { borderColor: "rgba(244,63,94,0.4)", color: "#fda4af", background: "rgba(244,63,94,0.08)" },
   seg: { display: "grid", gap: 3 },
-  segBtn: {
-    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-    background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`, color: TXT,
-    borderRadius: 8, padding: "6px 5px", fontSize: 9.5, cursor: "pointer", lineHeight: 1.15,
-  },
-  segOn: { borderColor: BLUE, background: "rgba(47,139,239,0.13)", color: "#0755B8", fontWeight: 700 },
-  dot: { width: 7, height: 7, borderRadius: "50%", flexShrink: 0, border: "1px solid rgba(255,255,255,0.25)" },
+  segBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 5, background: CARD2, border: `1px solid ${LINE}`, color: TXT, borderRadius: 8, padding: "6px 5px", fontSize: 9.5, cursor: "pointer", lineHeight: 1.15 },
+  segOn: { borderColor: BLUE, background: "rgba(59,130,246,0.16)", color: "#93c5fd", fontWeight: 700 },
+  dot: { width: 7, height: 7, borderRadius: "50%", flexShrink: 0, border: "1px solid rgba(255,255,255,0.2)" },
   stack: { display: "flex", flexDirection: "column", gap: 3 },
-  card: {
-    display: "flex", flexDirection: "column", gap: 2, background: "rgba(255,255,255,0.48)",
-    border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 8px",
-    textAlign: "left", cursor: "pointer", color: TXT, width: "100%",
-  },
-  cardOn: { borderColor: RED, background: "rgba(198,0,16,0.08)", color: TXT },
+  card: { display: "flex", flexDirection: "column", gap: 2, background: CARD2, border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 8px", textAlign: "left", cursor: "pointer", color: TXT, width: "100%" },
+  cardOn: { borderColor: BLUE, background: "rgba(59,130,246,0.14)", color: TXT },
   cardTitle: { fontSize: 10.5, fontWeight: 600 },
   cardDesc: { fontSize: 8.5, color: DIM },
   fields: { display: "flex", gap: 6 },
-  readout: {
-    marginTop: 9, background: "rgba(255,255,255,0.48)", border: `1px solid ${LINE}`,
-    borderRadius: 8, padding: "8px 10px",
-  },
-  readLine: {
-    display: "flex", justifyContent: "space-between", gap: 8,
-    fontSize: 9, color: DIM, padding: "2px 0",
-  },
-  field: {
-    flex: 1, display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.55)",
-    border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 7px", userSelect: "none",
-  },
+  readout: { marginTop: 9, background: CARD2, border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 10px" },
+  readLine: { display: "flex", justifyContent: "space-between", gap: 8, fontSize: 9, color: DIM, padding: "2px 0" },
+  field: { flex: 1, display: "flex", alignItems: "center", gap: 4, background: CARD2, border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 7px", userSelect: "none" },
   fieldLabel: { fontSize: 8.5, color: DIM, whiteSpace: "nowrap" },
-  fieldInput: {
-    flex: 1, width: "100%", minWidth: 0, background: "rgba(255,255,255,0.72)",
-    border: `1px solid rgba(80,50,70,0.08)`, borderRadius: 6, color: TXT, fontSize: 11,
-    fontWeight: 800, outline: "none", padding: "3px 5px", userSelect: "text",
-  },
-  textarea: {
-    width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.55)", border: `1px solid ${LINE}`,
-    borderRadius: 8, padding: "8px 9px", color: TXT, fontSize: 12, fontWeight: 700,
-    fontFamily: "inherit", resize: "vertical", outline: "none", lineHeight: 1.35,
-  },
+  fieldInput: { flex: 1, width: "100%", minWidth: 0, background: BLACK, border: `1px solid ${LINE}`, borderRadius: 6, color: TXT, fontSize: 11, fontWeight: 800, outline: "none", padding: "3px 5px", userSelect: "text" },
+  textarea: { width: "100%", boxSizing: "border-box", background: BLACK, border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 9px", color: TXT, fontSize: 12, fontWeight: 700, fontFamily: "inherit", resize: "vertical", outline: "none", lineHeight: 1.35 },
   fieldUnit: { fontSize: 8.5, color: DIM },
-  colorRow: {
-    display: "flex", alignItems: "center", gap: 8, marginTop: 8, background: "rgba(255,255,255,0.55)",
-    border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 7px", cursor: "pointer",
-  },
+  colorRow: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, background: CARD2, border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 7px", cursor: "pointer" },
   colorInput: { width: 24, height: 18, border: "none", background: "transparent", cursor: "pointer", padding: 0 },
   slider: { marginBottom: 10 },
   sliderHead: { display: "flex", justifyContent: "space-between", fontSize: 9.5, color: DIM, marginBottom: 4 },
   sliderVal: { color: TXT, fontVariantNumeric: "tabular-nums" },
   range: { width: "100%", accentColor: BLUE },
-  swatches: { display: "flex", gap: 7, paddingLeft: 1 },
+  swatches: { display: "flex", gap: 7, paddingLeft: 1, flexWrap: "wrap" },
   swatch: { width: 17, height: 17, borderRadius: "50%", border: "none", cursor: "pointer", padding: 0 },
 };
