@@ -1921,8 +1921,14 @@ function NumField({ id, label, value, onChange, unit, numberDrafts, setNumberDra
 export default function Prototipo() {
   const mountRef = useRef(null);
   const S = useRef({});
+  // Etapa 3: overlay de cotas (medidas que siguen al letrero).
+  const cotasBoxRef = useRef(null);
+  const cotasWRef = useRef(null);
+  const cotasHRef = useRef(null);
 
   const [tool, setTool] = useState("producto");
+  // Etapa 3: herramienta activa del visor (barra superior).
+  const [viewTool, setViewTool] = useState("select"); // select | move | cotas
   const [fileName, setFileName] = useState(null);
   const [logoQueue, setLogoQueue] = useState([]);
   const [placedLogos, setPlacedLogos] = useState([]);
@@ -2012,6 +2018,8 @@ export default function Prototipo() {
   const [autoRotate, setAutoRotate] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [info, setInfo] = useState(null);
+  // Etapa 3: la info visible (medidas) disponible para las etiquetas de cotas.
+  useEffect(() => { S.current.cotasInfo = info; }, [info]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [ready, setReady] = useState(false);
@@ -2028,6 +2036,15 @@ export default function Prototipo() {
 
   // Rediseno: pestana activa del panel derecho (inspector).
   const [rightTab, setRightTab] = useState("material"); // material | medidas | luz
+
+  // Etapa 3: expone la herramienta activa al motor 3D (pan persistente con
+  // "Mover", overlay de cotas con "Cotas") y ajusta el cursor.
+  useEffect(() => {
+    S.current.viewTool = viewTool;
+    S.current.showCotas = viewTool === "cotas";
+    const el = S.current.renderer?.domElement;
+    if (el) el.style.cursor = viewTool === "move" ? "grab" : viewTool === "cotas" ? "crosshair" : "default";
+  }, [viewTool]);
 
   const setViewerZoom = useCallback((next) => {
     const base = Number.isFinite(S.current.zoom) ? S.current.zoom : 1;
@@ -2173,9 +2190,9 @@ export default function Prototipo() {
       }
       dragging = true; dragVel = 0;
       const p = gp(e); lx = p.clientX; ly = p.clientY;
-      // Tecla H mantenida: "mano" -> arrastra TODA la escena (pan), sin
-      // importar que haya debajo.
-      if (S.current.panKey) { S.current.dragMode = "pan"; return; }
+      // Herramienta "Mover" activa o tecla H mantenida: "mano" -> arrastra
+      // TODA la escena (pan), sin importar que haya debajo.
+      if (S.current.panKey || S.current.viewTool === "move") { S.current.dragMode = "pan"; return; }
       const picked = pickMovable(e);
       if (picked?.type === "extra") {
         S.current.dragMode = "extra";
@@ -2259,6 +2276,8 @@ export default function Prototipo() {
       const t = e.target;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       if (e.key === "h" || e.key === "H") S.current.panKey = true;
+      else if (e.key === "v" || e.key === "V") setViewTool("select");
+      else if (e.key === "d" || e.key === "D") setViewTool((tl) => (tl === "cotas" ? "select" : "cotas"));
     };
     const onKeyUp = (e) => { if (e.key === "h" || e.key === "H") S.current.panKey = false; };
     window.addEventListener("keydown", onKeyDown);
@@ -2291,6 +2310,49 @@ export default function Prototipo() {
     mount.addEventListener("touchmove", tMove, { passive: false });
     mount.addEventListener("touchend", tEnd);
 
+    // Etapa 3: cotas dinamicas. Proyecta la caja del letrero a pantalla y
+    // ubica un recuadro y las etiquetas de ancho/alto que lo siguen.
+    const _cbox = new THREE.Box3();
+    const _cv = new THREE.Vector3();
+    let cotasVisible = false;
+    const hideCotas = () => {
+      if (!cotasVisible) return;
+      cotasVisible = false;
+      [cotasBoxRef.current, cotasWRef.current, cotasHRef.current].forEach((el) => { if (el) el.style.display = "none"; });
+    };
+    const updateCotas = () => {
+      const ft = S.current.frameTarget;
+      const boxEl = cotasBoxRef.current, wEl = cotasWRef.current, hEl = cotasHRef.current;
+      if (!ft || !boxEl) { hideCotas(); return; }
+      _cbox.setFromObject(ft);
+      if (_cbox.isEmpty()) { hideCotas(); return; }
+      const cw = mount.clientWidth, ch = mount.clientHeight;
+      let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+      for (let i = 0; i < 8; i++) {
+        _cv.set(i & 1 ? _cbox.max.x : _cbox.min.x, i & 2 ? _cbox.max.y : _cbox.min.y, i & 4 ? _cbox.max.z : _cbox.min.z);
+        _cv.project(camera);
+        const sx = (_cv.x * 0.5 + 0.5) * cw, sy = (-_cv.y * 0.5 + 0.5) * ch;
+        if (sx < minX) minX = sx; if (sx > maxX) maxX = sx;
+        if (sy < minY) minY = sy; if (sy > maxY) maxY = sy;
+      }
+      const bw = maxX - minX, bh = maxY - minY;
+      const info2 = S.current.cotasInfo;
+      cotasVisible = true;
+      boxEl.style.display = "block";
+      boxEl.style.left = minX + "px"; boxEl.style.top = minY + "px";
+      boxEl.style.width = bw + "px"; boxEl.style.height = bh + "px";
+      if (wEl) {
+        wEl.style.display = "block";
+        wEl.style.left = (minX + bw / 2) + "px"; wEl.style.top = minY + "px";
+        wEl.textContent = info2 ? `${Math.round(info2.realW * 100)} cm` : "";
+      }
+      if (hEl) {
+        hEl.style.display = "block";
+        hEl.style.left = minX + "px"; hEl.style.top = (minY + bh / 2) + "px";
+        hEl.textContent = info2 ? `${Math.round(info2.realH * 100)} cm` : "";
+      }
+    };
+
     const clock = new THREE.Clock();
     let raf;
     const loop = () => {
@@ -2310,6 +2372,7 @@ export default function Prototipo() {
       // falta reaplicarlo por cuadro aca, nada mas lo toca salvo el
       // efecto de [zoom] mas abajo.
       renderer.render(sc, camera);
+      if (S.current.showCotas) updateCotas(); else hideCotas();
     };
     loop();
 
@@ -4603,9 +4666,12 @@ export default function Prototipo() {
 
           {!narrow && (
             <nav style={s.toolsNav} aria-label="Herramientas">
-              <button style={{ ...s.toolBtn, ...s.toolBtnOn }} title="Selección (V)"><Icon name="cursor" size={14} /><span>Selección</span><kbd style={s.kbdOn}>V</kbd></button>
-              <button style={s.toolBtn} title="Mover / Panorámica (mantén H y arrastra)"><Icon name="hand" size={14} /><span>Mover</span><kbd style={s.kbd}>H</kbd></button>
-              <button style={s.toolBtn} title="Cotas (D)"><Icon name="ruler" size={14} /><span>Cotas</span><kbd style={s.kbd}>D</kbd></button>
+              <button onClick={() => setViewTool("select")} style={{ ...s.toolBtn, ...(viewTool === "select" ? s.toolBtnOn : {}) }} title="Selección: click sobre un logo para moverlo (V)">
+                <Icon name="cursor" size={14} /><span>Selección</span><kbd style={viewTool === "select" ? s.kbdOn : s.kbd}>V</kbd></button>
+              <button onClick={() => setViewTool("move")} style={{ ...s.toolBtn, ...(viewTool === "move" ? s.toolBtnOn : {}) }} title="Mover: arrastra para desplazar toda la escena (o mantén H)">
+                <Icon name="hand" size={14} /><span>Mover</span><kbd style={viewTool === "move" ? s.kbdOn : s.kbd}>H</kbd></button>
+              <button onClick={() => setViewTool("cotas")} style={{ ...s.toolBtn, ...(viewTool === "cotas" ? s.toolBtnOn : {}) }} title="Cotas: muestra las medidas sobre el letrero (D)">
+                <Icon name="ruler" size={14} /><span>Cotas</span><kbd style={viewTool === "cotas" ? s.kbdOn : s.kbd}>D</kbd></button>
               <div style={s.toolSep} />
               <button onClick={() => setAutoRotate((v) => !v)} style={{ ...s.toolIcon, ...(autoRotate ? s.toolBtnOn : {}) }} title="Órbita 3D / giro automático"><Icon name="orbit" size={14} /></button>
               <button onClick={() => setTool("luz")} style={s.toolIcon} title="Iluminación (L)"><Icon name="light" size={14} /></button>
@@ -4747,6 +4813,12 @@ export default function Prototipo() {
               )}
               <div style={s.canvasArea}>
                 <div ref={mountRef} style={{ ...s.canvasHost, ...(narrow ? { height: 380 } : {}) }} />
+                {/* Cotas dinámicas (herramienta Cotas) — el loop las posiciona */}
+                <div style={s.cotasOverlay} aria-hidden="true">
+                  <div ref={cotasBoxRef} style={s.cotasBox} />
+                  <div ref={cotasWRef} style={s.cotasLabelW} />
+                  <div ref={cotasHRef} style={s.cotasLabelH} />
+                </div>
                 {!fileName && !busy && (
                   <div style={s.overlay}>
                     <div style={s.emptyTitle}>Sube tu logo</div>
@@ -4946,6 +5018,10 @@ const s = {
   cam3d: { fontSize: 7, fontWeight: 800, color: "#60a5fa", border: "1px solid rgba(59,130,246,0.5)", background: "rgba(59,130,246,0.15)", borderRadius: 3, padding: "1px 2px" },
   floatBtn: { background: CARD, border: `1px solid ${LINE}`, color: DIM, borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 },
   floatBtnOn: { color: "#60a5fa", borderColor: "rgba(59,130,246,0.4)", background: "rgba(59,130,246,0.12)" },
+  cotasOverlay: { position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 5 },
+  cotasBox: { position: "absolute", display: "none", border: "1px dashed rgba(96,165,250,0.95)", borderRadius: 4, boxShadow: "0 0 0 1px rgba(9,9,11,0.35)" },
+  cotasLabelW: { position: "absolute", display: "none", transform: "translate(-50%,-135%)", background: BLUE, color: "#fff", fontSize: 10.5, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, padding: "2px 7px", borderRadius: 6, whiteSpace: "nowrap", boxShadow: "0 4px 10px rgba(0,0,0,0.45)" },
+  cotasLabelH: { position: "absolute", display: "none", transform: "translate(-115%,-50%)", background: BLUE, color: "#fff", fontSize: 10.5, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, padding: "2px 7px", borderRadius: 6, whiteSpace: "nowrap", boxShadow: "0 4px 10px rgba(0,0,0,0.45)" },
   statsBar: { minHeight: 52, background: PANEL, borderTop: `1px solid ${LINE}`, display: "flex", alignItems: "stretch", flexShrink: 0, flexWrap: "wrap" },
   stat: { flex: 1, minWidth: 90, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, borderRight: `1px solid ${LINE}`, padding: "6px 8px" },
   statVal: { fontSize: 13, fontWeight: 700, color: TXT, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" },
