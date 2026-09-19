@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Calculator, Users,
   FileText, ScrollText, Wallet, Boxes, Truck, Image, Box, Frame,
-  LogOut, KeyRound,
+  LogOut, KeyRound, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { doLogout, ModalCambiarPin } from '../pages/Login'
 
@@ -21,7 +21,10 @@ const NAV = [
   { to: '/mockup-vitrina', icon: Frame, label: 'Mockup Vitrina' },
 ]
 
-export default function Sidebar() {
+// `collapsed` reduce el menú a un riel de solo íconos para ganar espacio en
+// pantalla (útil sobre todo en Prototipo y Mockup de vidrio). `onToggle` lo
+// abre/cierra; la elección se recuerda desde Layout.
+export default function Sidebar({ collapsed = false, onToggle }) {
   const [modalPin, setModalPin] = useState(false)
 
   const handleLogout = () => {
@@ -30,64 +33,81 @@ export default function Sidebar() {
     window.location.reload()
   }
 
+  const itemBase = 'flex items-center py-3 mx-2 rounded-full text-sm font-dm transition-all duration-300'
+
   return (
     <>
       {modalPin && <ModalCambiarPin onClose={() => setModalPin(false)} />}
 
-      <aside className="w-72 h-full glass-sidebar rounded-r-widget flex flex-col fixed left-0 top-0 z-30">
+      <aside className={`${collapsed ? 'w-[4.75rem]' : 'w-72'} h-full glass-sidebar rounded-r-widget flex flex-col fixed left-0 top-0 z-30 transition-all duration-300`}>
+        {/* Botón contraer / expandir */}
+        <button
+          onClick={onToggle}
+          title={collapsed ? 'Expandir menú' : 'Contraer menú'}
+          aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}
+          className="absolute top-4 -right-3 w-6 h-6 rounded-full bg-white/85 border border-white/70 shadow-md flex items-center justify-center text-on-surface-variant hover:text-primary z-40"
+        >
+          {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+        </button>
+
         {/* Logo */}
-        <div className="px-gutter py-8 flex flex-col items-center text-center">
+        <div className={`${collapsed ? 'px-2 py-5' : 'px-gutter py-8'} flex flex-col items-center text-center`}>
           <img
             src="/cotizador/logo-birth-dark.png"
             alt="Birth Studio"
-            className="h-12 w-auto object-contain mb-3"
+            className={`${collapsed ? 'h-8' : 'h-12 mb-3'} w-auto object-contain`}
           />
-          <p className="font-dm text-[11px] text-on-surface-variant uppercase tracking-wider">Sistema interno</p>
+          {!collapsed && <p className="font-dm text-[11px] text-on-surface-variant uppercase tracking-wider">Sistema interno</p>}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+        <nav className={`flex-1 ${collapsed ? 'px-1' : 'px-4'} space-y-1 overflow-y-auto`}>
           {NAV.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
+              title={collapsed ? label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 mx-2 rounded-full text-sm font-dm transition-all duration-300 ${
+                `${itemBase} ${collapsed ? 'justify-center px-0' : 'gap-3 px-4 hover:translate-x-1'} ${
                   isActive
                     ? 'bg-secondary-container/80 text-on-secondary-container font-semibold'
-                    : 'text-on-surface-variant hover:bg-white/40 hover:translate-x-1'
+                    : 'text-on-surface-variant hover:bg-white/40'
                 }`
               }
             >
               <Icon size={17} strokeWidth={1.75} />
-              {label}
+              {!collapsed && label}
             </NavLink>
           ))}
         </nav>
 
         {/* Footer — acciones */}
-        <div className="px-4 py-6 mt-auto space-y-1">
+        <div className={`${collapsed ? 'px-1' : 'px-4'} py-6 mt-auto space-y-1`}>
           <button
             onClick={() => setModalPin(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 mx-2 rounded-full text-sm font-dm text-on-surface-variant hover:bg-white/40 hover:translate-x-1 transition-all duration-300"
-            style={{ width: 'calc(100% - 1rem)' }}
+            title={collapsed ? 'Cambiar clave' : undefined}
+            className={`${itemBase} w-full text-on-surface-variant hover:bg-white/40 ${collapsed ? 'justify-center px-0' : 'gap-3 px-4 hover:translate-x-1'}`}
+            style={collapsed ? undefined : { width: 'calc(100% - 1rem)' }}
           >
             <KeyRound size={16} strokeWidth={1.75} />
-            Cambiar clave
+            {!collapsed && 'Cambiar clave'}
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 mx-2 rounded-full text-sm font-dm text-primary hover:bg-white/40 hover:translate-x-1 transition-all duration-300"
-            style={{ width: 'calc(100% - 1rem)' }}
+            title={collapsed ? 'Cerrar sesión' : undefined}
+            className={`${itemBase} w-full text-primary hover:bg-white/40 ${collapsed ? 'justify-center px-0' : 'gap-3 px-4 hover:translate-x-1'}`}
+            style={collapsed ? undefined : { width: 'calc(100% - 1rem)' }}
           >
             <LogOut size={16} strokeWidth={1.75} />
-            Cerrar sesión
+            {!collapsed && 'Cerrar sesión'}
           </button>
-          <p className="text-on-surface-variant/50 text-xs font-dm px-6 pt-3 leading-relaxed">
-            Birth Studio SpA
-            <br />
-            Talca, Chile
-          </p>
+          {!collapsed && (
+            <p className="text-on-surface-variant/50 text-xs font-dm px-6 pt-3 leading-relaxed">
+              Birth Studio SpA
+              <br />
+              Talca, Chile
+            </p>
+          )}
         </div>
       </aside>
     </>
