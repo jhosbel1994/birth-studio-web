@@ -55,7 +55,7 @@ function ModalContrato({ contrato, clientes, cotizaciones, onClose, onSave }) {
   }
 
   const isLetras = tipo === 'letras_corporeas'
-  const cotsAceptadas = cotizaciones.filter(c => c.estado === 'aceptada')
+  const cotsAceptadas = cotizaciones.filter(c => ['aceptada', 'terminada'].includes(c.estado))
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 p-0 md:p-4">

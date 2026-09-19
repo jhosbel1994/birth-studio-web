@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { db, storage } from '../firebase'
-import { initialDepositAmount } from './cotizacionesWorkflow'
+import { initialDepositAmount, remainingBalanceAmount } from './cotizacionesWorkflow'
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function snapToObj(snap) {
@@ -90,6 +90,10 @@ export function initialDepositId(cotizacionId) {
   return `anticipo-50-${cotizacionId}`
 }
 
+export function finalPaymentId(cotizacionId) {
+  return `saldo-final-${cotizacionId}`
+}
+
 export async function deleteCotizaciones(ids) {
   const uniqueIds = [...new Set(ids)].filter(Boolean)
   for (let offset = 0; offset < uniqueIds.length; offset += 250) {
@@ -97,13 +101,14 @@ export async function deleteCotizaciones(ids) {
     uniqueIds.slice(offset, offset + 250).forEach(id => {
       batch.delete(doc(db, 'cotizaciones', id))
       batch.delete(doc(db, 'pagos', initialDepositId(id)))
+      batch.delete(doc(db, 'pagos', finalPaymentId(id)))
     })
     await batch.commit()
   }
 }
 
 export async function ensureAcceptedDeposit(cotizacion) {
-  if (!cotizacion?.id || cotizacion.estado !== 'aceptada') return null
+  if (!cotizacion?.id || !['aceptada', 'terminada'].includes(cotizacion.estado)) return null
   const target = initialDepositAmount(cotizacion.total)
   if (!target) return null
   const pagos = await getPagosByCotizacion(cotizacion.id)
@@ -126,17 +131,44 @@ export async function ensureAcceptedDeposit(cotizacion) {
   })
 }
 
+export async function ensureCompletedPayment(cotizacion) {
+  if (!cotizacion?.id || cotizacion.estado !== 'terminada') return null
+  const pagos = await getPagosByCotizacion(cotizacion.id)
+  const current = pagos.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0)
+  const pending = remainingBalanceAmount(cotizacion.total, current)
+  if (!pending) return null
+  const id = finalPaymentId(cotizacion.id)
+  const existing = pagos.find(pago => pago.id === id)
+  const completedDate = String(cotizacion.completedAt || new Date().toISOString()).slice(0, 10)
+  return savePago({
+    ...existing,
+    id,
+    cotizacionId: cotizacion.id,
+    monto: (Number(existing?.monto) || 0) + pending,
+    fecha: completedDate,
+    tipo: 'saldo',
+    notas: 'Saldo final automático al marcar el trabajo como terminado',
+    automatico: true,
+    origen: 'trabajo_terminado',
+  })
+}
+
 export async function updateCotizacionEstado(cotizacion, estado) {
+  if (estado === 'terminada' && !['aceptada', 'terminada'].includes(cotizacion?.estado)) {
+    throw new Error('Solo una cotización aceptada puede marcarse como trabajo terminado')
+  }
   const now = new Date().toISOString()
   const next = {
     ...cotizacion,
     estado,
     ...(estado === 'aceptada' && !cotizacion.acceptedAt ? { acceptedAt: now } : {}),
+    ...(estado === 'terminada' && !cotizacion.completedAt ? { completedAt: now } : {}),
     ...(estado !== 'rechazada' ? { rechazoAutomaticoAt: null, rechazoMotivo: null } : {}),
   }
   const saved = await saveCotizacion(next)
-  const pago = estado === 'aceptada' ? await ensureAcceptedDeposit(saved) : null
-  return { cotizacion: saved, pago }
+  const anticipo = ['aceptada', 'terminada'].includes(estado) ? await ensureAcceptedDeposit(saved) : null
+  const pago = estado === 'terminada' ? await ensureCompletedPayment(saved) : anticipo
+  return { cotizacion: saved, pago, anticipo }
 }
 
 export async function getCotizacionById(id) {

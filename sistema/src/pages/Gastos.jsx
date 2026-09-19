@@ -145,7 +145,7 @@ function ModalGasto({ gasto, onClose, onSave }) {
 function ModalPago({ cotizaciones, onClose, onSave }) {
   const [form, setForm] = useState({ cotizacionId: '', monto: '', fecha: hoy(), tipo: 'anticipo', notas: '' })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const cots = cotizaciones.filter(c => c.estado === 'aceptada')
+  const cots = cotizaciones.filter(c => ['aceptada', 'terminada'].includes(c.estado))
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">

@@ -174,7 +174,7 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   doc.setTextColor(...GRIS)
   doc.text('Estado:', 130, y + 10)
   doc.setTextColor(...NEGRO)
-  const estadoLabel = cotizacion.estado === 'aceptada' ? 'Aceptada' : cotizacion.estado === 'rechazada' ? 'Rechazada' : 'Por aceptar'
+  const estadoLabel = cotizacion.estado === 'terminada' ? 'Terminada' : cotizacion.estado === 'aceptada' ? 'Aceptada' : cotizacion.estado === 'rechazada' ? 'Rechazada' : 'Por aceptar'
   doc.text(estadoLabel, 155, y + 10)
 
   // Datos cliente - lado izquierdo

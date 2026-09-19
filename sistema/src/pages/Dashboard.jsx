@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { subscribeCotizaciones, subscribeGastos, subscribePagos, syncPublicStats, ensureAcceptedDeposit, saveCotizacion } from '../utils/storage'
+import { subscribeCotizaciones, subscribeGastos, subscribePagos, syncPublicStats, ensureAcceptedDeposit, ensureCompletedPayment, saveCotizacion } from '../utils/storage'
 import { clp, fechaCorta, ESTADOS } from '../utils/formatters'
 import { shouldAutoReject, autoRejectedQuote } from '../utils/cotizacionesWorkflow'
 import {
@@ -82,11 +82,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loaded) return
     cotizaciones.forEach(cotizacion => {
-      if (cotizacion.estado === 'aceptada') {
-        const key = `${cotizacion.id}:${cotizacion.total || 0}`
+      if (['aceptada', 'terminada'].includes(cotizacion.estado)) {
+        const key = `${cotizacion.estado}:${cotizacion.id}:${cotizacion.total || 0}`
         if (depositsChecked.current.has(key)) return
         depositsChecked.current.add(key)
-        ensureAcceptedDeposit(cotizacion).catch(() => depositsChecked.current.delete(key))
+        ensureAcceptedDeposit(cotizacion)
+          .then(() => cotizacion.estado === 'terminada' ? ensureCompletedPayment(cotizacion) : null)
+          .catch(() => depositsChecked.current.delete(key))
         return
       }
       if (!shouldAutoReject(cotizacion, new Date(expiryTick))) return
@@ -111,7 +113,7 @@ export default function Dashboard() {
   }
 
   const porAceptar = cotizaciones.filter(c => c.estado === 'por_aceptar').length
-  const aceptadas = cotizaciones.filter(c => c.estado === 'aceptada').length
+  const aceptadas = cotizaciones.filter(c => ['aceptada', 'terminada'].includes(c.estado)).length
   const rechazadas = cotizaciones.filter(c => c.estado === 'rechazada').length
 
   // Sincroniza el contador público que lee bspublicidad.cl ("+180 Proyectos
@@ -130,7 +132,7 @@ export default function Dashboard() {
 
   // Pipeline: total comprometido en cotizaciones aceptadas este mes.
   const aceptadoMes = cotizaciones
-    .filter(c => c.estado === 'aceptada' && enMes(c.createdAt))
+    .filter(c => ['aceptada', 'terminada'].includes(c.estado) && enMes(c.createdAt))
     .reduce((s, c) => s + (c.total || 0), 0)
 
   const ultimas5 = [...cotizaciones]

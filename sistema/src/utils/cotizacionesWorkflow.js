@@ -13,6 +13,10 @@ export function initialDepositAmount(total) {
   return Math.max(0, Math.round((Number(total) || 0) * 0.5))
 }
 
+export function remainingBalanceAmount(total, paid) {
+  return Math.max(0, Math.round(Number(total) || 0) - Math.round(Number(paid) || 0))
+}
+
 export function markQuoteSent(cotizacion, now = new Date()) {
   const iso = now.toISOString()
   return {

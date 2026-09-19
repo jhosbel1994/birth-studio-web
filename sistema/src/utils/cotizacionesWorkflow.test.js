@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  initialDepositAmount, markQuoteSent, quoteExpiryDate,
+  initialDepositAmount, remainingBalanceAmount, markQuoteSent, quoteExpiryDate,
   shouldAutoReject, autoRejectedQuote, quoteTrackingLabel,
 } from './cotizacionesWorkflow.js'
 
@@ -10,6 +10,13 @@ test('the initial deposit is exactly half the quote total, rounded to CLP', () =
   assert.equal(initialDepositAmount(83300), 41650)
   assert.equal(initialDepositAmount(101), 51)
   assert.equal(initialDepositAmount(-100), 0)
+})
+
+test('the final payment only charges the unpaid balance', () => {
+  assert.equal(remainingBalanceAmount(809200, 404600), 404600)
+  assert.equal(remainingBalanceAmount(809200, 500000), 309200)
+  assert.equal(remainingBalanceAmount(809200, 809200), 0)
+  assert.equal(remainingBalanceAmount(809200, 900000), 0)
 })
 
 test('sending starts a 15-day validity window and edits restart it', () => {

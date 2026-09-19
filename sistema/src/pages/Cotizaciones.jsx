@@ -3,7 +3,7 @@ import {
   saveCotizacion, deleteCotizaciones, saveCliente, getClienteById,
   subscribeCotizaciones, subscribeClientes, syncPublicStats,
   saveGasto, deleteGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos,
-  subscribeInventario, saveInventarioItem, updateCotizacionEstado, ensureAcceptedDeposit,
+  subscribeInventario, saveInventarioItem, updateCotizacionEstado, ensureAcceptedDeposit, ensureCompletedPayment,
 } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
@@ -293,7 +293,7 @@ function ActionPill({ icon: Icon, label, tone = 'neutral', onClick, disabled }) 
 }
 
 // ─── MENÚ DE ACCIONES ─────────────────────────────────────────────────────────
-function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onFinanzas, onClose }) {
+function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onFinanzas, onTerminar, onClose }) {
   const cliente = clientes.find(c => c.id === cotizacion.clienteId) || null
 
   const acciones = [
@@ -316,9 +316,10 @@ function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, 
     {
       grupo: 'Gestión',
       items: [
+        cotizacion.estado === 'aceptada' && { icon: CheckCircle, label: 'Trabajo terminado', desc: 'Registrar saldo pendiente', onClick: onTerminar },
         { icon: Edit2, label: 'Editar', desc: '', onClick: onEditar },
         { icon: Trash2, label: 'Eliminar', desc: '', onClick: onEliminar, danger: true },
-      ]
+      ].filter(Boolean)
     },
   ]
 
@@ -688,6 +689,7 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
                   className="w-full border border-white/50 rounded px-2 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
                   <option value="por_aceptar">Por aceptar</option>
                   <option value="aceptada">Aceptada</option>
+                  {form.estado === 'terminada' && <option value="terminada">Terminada</option>}
                   <option value="rechazada">Rechazada</option>
                 </select>
               </div>
@@ -1086,16 +1088,19 @@ export default function Cotizaciones() {
   useEffect(() => {
     if (!cotizacionesCargadas) return
     cotizaciones.forEach(cotizacion => {
-      const action = cotizacion.estado === 'aceptada'
-        ? 'deposit'
+      const action = cotizacion.estado === 'terminada'
+        ? 'complete'
+        : cotizacion.estado === 'aceptada' ? 'deposit'
         : shouldAutoReject(cotizacion, new Date(expiryTick)) ? 'expire' : null
       if (!action) return
       const key = `${action}:${cotizacion.id}:${cotizacion.total || 0}:${cotizacion.updatedAt || ''}`
       if (maintenanceRef.current.has(key)) return
       maintenanceRef.current.add(key)
-      const task = action === 'deposit'
-        ? ensureAcceptedDeposit(cotizacion)
-        : saveCotizacion(autoRejectedQuote(cotizacion, new Date(expiryTick)))
+      const task = action === 'complete'
+        ? ensureAcceptedDeposit(cotizacion).then(() => ensureCompletedPayment(cotizacion))
+        : action === 'deposit'
+          ? ensureAcceptedDeposit(cotizacion)
+          : saveCotizacion(autoRejectedQuote(cotizacion, new Date(expiryTick)))
       task.catch(() => maintenanceRef.current.delete(key))
     })
   }, [cotizacionesCargadas, cotizaciones, expiryTick])
@@ -1105,13 +1110,14 @@ export default function Cotizaciones() {
   // alguien abra el Dashboard después.
   useEffect(() => {
     if (!cotizacionesCargadas) return
-    const aceptadas = cotizaciones.filter(c => c.estado === 'aceptada').length
+    const aceptadas = cotizaciones.filter(c => ['aceptada', 'terminada'].includes(c.estado)).length
     syncPublicStats(aceptadas).catch(() => {})
   }, [cotizacionesCargadas, cotizaciones])
 
   const handleSave = async (data) => {
     const saved = await saveCotizacion(data)
-    if (saved.estado === 'aceptada') await ensureAcceptedDeposit(saved)
+    if (['aceptada', 'terminada'].includes(saved.estado)) await ensureAcceptedDeposit(saved)
+    if (saved.estado === 'terminada') await ensureCompletedPayment(saved)
     setModal(null)
   }
   const handleDelete = (cot) => { setMenuAbierto(null); setConfirmDelete([cot]) }
@@ -1139,11 +1145,27 @@ export default function Cotizaciones() {
   }
 
   const handleEstado = async (cot, estado) => {
+    if (estado === 'terminada' && !['aceptada', 'terminada'].includes(cot.estado)) {
+      setEnvioEstado({ tipo: 'error', mensaje: 'Primero debes aceptar la cotización antes de marcar el trabajo como terminado.' })
+      return
+    }
+    if (estado === 'terminada' && cot.estado !== 'terminada') {
+      const confirmed = window.confirm(
+        `¿Marcar el trabajo #${cot.numero} como terminado?\n\nSe registrará automáticamente el saldo pendiente hasta completar el 100% de la cotización.`
+      )
+      if (!confirmed) return
+    }
     try {
-      await updateCotizacionEstado(cot, estado)
+      const result = await updateCotizacionEstado(cot, estado)
       if (estado === 'aceptada') {
         setEnvioEstado({ tipo: 'ok', mensaje: `Cotización #${cot.numero} aceptada. Abono inicial del 50% registrado en ingresos.` })
         setTimeout(() => setEnvioEstado(null), 3500)
+      } else if (estado === 'terminada') {
+        const detalle = result.pago
+          ? `Saldo final de ${clp(result.pago.monto)} registrado en ingresos.`
+          : 'El trabajo ya estaba pagado completamente; no se agregó un cobro duplicado.'
+        setEnvioEstado({ tipo: 'ok', mensaje: `Trabajo #${cot.numero} terminado. ${detalle}` })
+        setTimeout(() => setEnvioEstado(null), 4500)
       }
     } catch (error) {
       setEnvioEstado({ tipo: 'error', mensaje: `No se pudo actualizar la cotización: ${error?.message || 'error desconocido'}` })
@@ -1292,6 +1314,7 @@ export default function Cotizaciones() {
           onEnviarEmail={() => handleEnviarEmail(cotMenu)}
           onEnviarWhatsApp={() => handleEnviarWhatsApp(cotMenu)}
           onFinanzas={() => { setFinanzas(cotMenu); setMenuAbierto(null) }}
+          onTerminar={() => { setMenuAbierto(null); handleEstado(cotMenu, 'terminada') }}
           onEditar={() => { setModal({ ...cotMenu }); setMenuAbierto(null) }}
           onEliminar={() => handleDelete(cotMenu)}
           onClose={() => setMenuAbierto(null)}
@@ -1322,6 +1345,7 @@ export default function Cotizaciones() {
             { v: '', l: 'Todas', count: cotizaciones.length },
             { v: 'por_aceptar', l: 'Por aceptar', count: statusCounts.por_aceptar || 0 },
             { v: 'aceptada', l: 'Aceptadas', count: statusCounts.aceptada || 0 },
+            { v: 'terminada', l: 'Terminadas', count: statusCounts.terminada || 0 },
             { v: 'rechazada', l: 'Rechazadas', count: statusCounts.rechazada || 0 },
           ].map(({ v, l, count }) => (
             <button key={v} onClick={() => setFiltroEstado(v)}
@@ -1388,6 +1412,12 @@ export default function Cotizaciones() {
                       <ActionPill icon={FileText} label="PDF" onClick={() => handlePDF(c, 'preview')} />
                       <ActionPill icon={MoreHorizontal} label="Más" onClick={() => setMenuAbierto(c.id)} />
                     </div>
+                    {c.estado === 'aceptada' && (
+                      <button type="button" onClick={() => handleEstado(c, 'terminada')}
+                        className="mt-2.5 w-full h-10 rounded-full bg-green-600 text-white flex items-center justify-center gap-2 text-xs font-dm font-medium active:bg-green-700">
+                        <CheckCircle size={15} /> Trabajo terminado
+                      </button>
+                    )}
                   </div>
                   <div className="px-3 pb-3 flex items-center justify-between gap-3">
                     <button onClick={() => setResumen(c)} className="text-xs font-dm text-on-surface-variant underline-offset-2 active:text-primary">
@@ -1397,6 +1427,7 @@ export default function Cotizaciones() {
                       className={`text-xs px-2 py-1 rounded border font-dm focus:outline-none ${est.color} bg-transparent`}>
                       <option value="por_aceptar">Por aceptar</option>
                       <option value="aceptada">Aceptada</option>
+                      <option value="terminada" disabled={!['aceptada', 'terminada'].includes(c.estado)}>Terminada</option>
                       <option value="rechazada">Rechazada</option>
                     </select>
                   </div>
@@ -1443,17 +1474,24 @@ export default function Cotizaciones() {
                           className={`text-xs px-2 py-1 rounded border font-dm cursor-pointer focus:outline-none ${est.color} bg-transparent`}>
                           <option value="por_aceptar">Por aceptar</option>
                           <option value="aceptada">Aceptada</option>
+                          <option value="terminada" disabled={!['aceptada', 'terminada'].includes(c.estado)}>Terminada</option>
                           <option value="rechazada">Rechazada</option>
                         </select>
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-1.5 justify-end">
+                          {c.estado === 'aceptada' && (
+                            <button type="button" onClick={() => handleEstado(c, 'terminada')} title="Marcar trabajo terminado y registrar saldo"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-green-300 text-green-700 hover:border-green-600 hover:bg-green-50 transition-colors text-[11px] font-dm">
+                              <CheckCircle size={13} /> <span>Terminar</span>
+                            </button>
+                          )}
                           <button onClick={() => setResumen(c)} title="Ver resumen"
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors text-[11px] font-dm">
                             <Eye size={13} /> <span>Resumen</span>
                           </button>
                           <button onClick={() => setFinanzas(c)} title="Finanzas del proyecto"
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded border transition-colors text-[11px] font-dm ${c.estado === 'aceptada' ? 'border-green-300 text-green-700 hover:border-green-600 hover:bg-green-50' : 'border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface'}`}>
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded border transition-colors text-[11px] font-dm ${['aceptada', 'terminada'].includes(c.estado) ? 'border-green-300 text-green-700 hover:border-green-600 hover:bg-green-50' : 'border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface'}`}>
                             <Wallet size={13} /> <span>Finanzas</span>
                           </button>
                           <button onClick={() => handlePDF(c, 'download')} title="Descargar PDF"
