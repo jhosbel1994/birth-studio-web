@@ -1,5 +1,10 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import * as THREE from "three";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { MOUNTING_ENVIRONMENTS, compatibleSurfaces, reconcileMounting } from "../utils/prototipoMounting";
+import "./PrototipoMounting.css";
+import { lightingLevel, haloRadius } from "../utils/prototipoLighting";
+import { MIN_DIM_M, MAX_DIM_M, formatDimension, parseDimension, fitAvailableSpace } from "../utils/prototipoMeasures";
 import { guardarPrototipo } from "../utils/prototipoStore";
 import { obtenerMockupVitrinaParaPrototipo, limpiarMockupVitrinaParaPrototipo } from "../utils/mockupVitrinaBridge";
 
@@ -1758,16 +1763,10 @@ const MODES = [
   { id: "back", label: "Retroiluminado", desc: "Halo sobre el muro" },
   { id: "both", label: "Las dos", desc: "Cara y halo" },
 ];
-const SCENES = [
-  { id: "fachada", label: "Fachada externa" },
-  { id: "totem", label: "Totem" },
-  { id: "interior", label: "Interior de pared" },
-  { id: "foto", label: "Foto de la fachada" }, // sin a/b: la medida real la da la calibracion, no un preset
-];
 const PLACEMENT_SURFACES = [
-  { id: "wall", label: "Pared fondo", x: 0, y: 0.08, z: 0.065, ry: 0 },
-  { id: "side", label: "Lateral", x: -1.35, y: 0.1, z: 0.42, ry: -Math.PI / 2 },
-  { id: "desk", label: "Frente escritorio", x: 0, y: null, z: 1.85, ry: 0 },
+  { id: "wall", label: "Pared frontal", x: 0, y: 0.08, z: 0.065, ry: 0 },
+  { id: "side", label: "Pared lateral", x: -1.35, y: 0.1, z: 0.42, ry: -Math.PI / 2 },
+  { id: "desk", label: "Frente de escritorio", x: 0, y: null, z: 1.85, ry: 0 },
 ];
 const PLACEMENT_ORIENTATIONS = [
   { id: "front", label: "Frontal", ry: 0 },
@@ -1821,7 +1820,7 @@ const TOOLS = [
   { id: "texto", icon: "text", label: "Arte y texto" },
   { id: "producto", icon: "product", label: "Producto y materiales" },
   { id: "medidas", icon: "size", label: "Medidas y volumen" },
-  { id: "fachada", icon: "wall", label: "Fachada y montaje" },
+  { id: "fachada", icon: "wall", label: "Tipo de local" },
   { id: "luz", icon: "light", label: "Iluminación" },
   { id: "ajustes", icon: "tune", label: "Ajustes de detección" },
 ];
@@ -1837,7 +1836,6 @@ const TOOL_DESCRIPTIONS = {
 const ZMIN = 0.3; // permite alejar más (galpón y fachadas grandes)
 const ZMAX = 5;
 const FACADE_FIT_RATIO = 0.5;
-const MIN_DIM_M = 0.1;
 const clampZoom = (z) => Math.max(ZMIN, Math.min(ZMAX, z));
 
 /* Campo numérico (Ancho/Alto/fachada). DEFINIDO A NIVEL DE MÓDULO a
@@ -1847,15 +1845,19 @@ const clampZoom = (z) => Math.max(ZMIN, Math.min(ZMAX, z));
    setNumberDrafts por props para no cerrar sobre estado del componente. */
 function NumField({ id, label, value, onChange, unit, numberDrafts, setNumberDrafts }) {
   const key = id || label;
-  const k = unit === "cm" ? 100 : 1;
-  const shown = unit === "cm" ? String(Math.round(value * 100)) : String(Number(value.toFixed(2)));
+  const errorId = `${key}-error`;
+  const [error, setError] = useState("");
+  const cancelEdit = useRef(false);
+  const shown = formatDimension(value, unit);
   const editing = Object.prototype.hasOwnProperty.call(numberDrafts, key);
   const applyRaw = (raw) => {
-    const cleaned = String(raw ?? "").replace(",", ".").trim();
-    if (!cleaned) return;
-    const n = parseFloat(cleaned);
-    if (isNaN(n)) return;
-    onChange(Math.max(MIN_DIM_M, Math.min(20, n / k)));
+    const next = parseDimension(raw, unit);
+    if (next === null) {
+      setError(`Ingresa un valor entre ${formatDimension(MIN_DIM_M, unit)} y ${formatDimension(MAX_DIM_M, unit)} ${unit}.`);
+      return;
+    }
+    setError("");
+    if (String(raw).trim().replace(",", ".") !== shown && next !== value) onChange(next);
   };
   const commit = () => {
     const raw = String(numberDrafts[key] ?? "").trim();
@@ -1864,12 +1866,13 @@ function NumField({ id, label, value, onChange, unit, numberDrafts, setNumberDra
       delete next[key];
       return next;
     });
-    applyRaw(raw);
+    if (!cancelEdit.current) applyRaw(raw);
+    cancelEdit.current = false;
   };
   return (
     <label style={s.field}>
       <span style={s.fieldLabel}>{label}</span>
-      <input type="text" inputMode="decimal" value={editing ? numberDrafts[key] : shown}
+      <input type="text" inputMode="decimal" aria-invalid={!!error} aria-describedby={error ? errorId : undefined} value={editing ? numberDrafts[key] : shown}
         min={unit === "cm" ? 10 : 0.1} max={unit === "cm" ? 2000 : 20}
         step={unit === "cm" ? 5 : 0.1} style={s.fieldInput}
         onFocus={(e) => {
@@ -1878,15 +1881,17 @@ function NumField({ id, label, value, onChange, unit, numberDrafts, setNumberDra
           setTimeout(() => el.select(), 0);
         }}
         onChange={(e) => {
-          const raw = e.target.value.replace(/[^\d.,]/g, "");
+          const raw = e.target.value;
           setNumberDrafts((drafts) => ({ ...drafts, [key]: raw }));
-          applyRaw(raw);
+          setError("");
         }}
         onPointerDown={(e) => e.stopPropagation()}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") {
+            cancelEdit.current = true;
+            setError("");
             setNumberDrafts((drafts) => {
               const next = { ...drafts };
               delete next[key];
@@ -1896,6 +1901,7 @@ function NumField({ id, label, value, onChange, unit, numberDrafts, setNumberDra
           }
         }} />
       <span style={s.fieldUnit}>{unit}</span>
+      {error && <span id={errorId} role="alert" style={{ color: "#b91c1c", fontSize: 11 }}>{error}</span>}
     </label>
   );
 }
@@ -1915,6 +1921,8 @@ export default function Prototipo() {
   const [form, setForm] = useState("rect");
   const [suggested, setSuggested] = useState(null);
   const [scene, setScene] = useState("fachada");
+  const [mountingEnvironment, setMountingEnvironment] = useState(null);
+  const [choosingEnvironment, setChoosingEnvironment] = useState(true);
   const [facadeStyle, setFacadeStyle] = useState("vitrina");
   const [buildingFloors, setBuildingFloors] = useState(0); // pisos extra bajo el local, solo estilo "esquina"
   const [facadeAuto, setFacadeAuto] = useState(true); // false = medidas de fachada manuales, no derivadas del letrero
@@ -2412,11 +2420,7 @@ export default function Prototipo() {
     const signDepth = sourceType === "texto" ? textDepth : depth;
     const standoff = standoffCm / 100;
     const litFront = mode === "front" || mode === "both";
-    // Nivel de intensidad 1..10 -> factor que escala emision, halo y luz.
-    // Rango AMPLIO para que se note mucho: 1 = casi apagado (0.06x),
-    // ~5 = medio, 10 = a full (~6x).
-    const _lvl = Math.max(1, Math.min(10, ledLevel));
-    const litK = 0.06 + Math.pow((_lvl - 1) / 9, 1.35) * 5.9;
+    const { gain: litK, haloSpread } = lightingLevel(ledLevel);
     let shapes, uvParams, realW, realH, perim, faceArea, tex, sil;
 
     if (!imageData) {
@@ -2537,7 +2541,7 @@ export default function Prototipo() {
         let aw = realW * 0.8, ah = aw / la;
         if (ah > realH * 0.8) { ah = realH * 0.8; aw = ah * la; }
         const artMat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.42, metalness: 0, side: THREE.DoubleSide, depthWrite: false });
-        if (litFront) { artMat.emissiveMap = tex; artMat.emissive = new THREE.Color(ledColor); artMat.emissiveIntensity = mode === "both" ? 0.5 : 0.8; }
+        if (litFront) { artMat.emissiveMap = tex; artMat.emissive = new THREE.Color(ledColor); artMat.emissiveIntensity = (mode === "both" ? 0.5 : 0.8) * litK; }
         const art = new THREE.Mesh(new THREE.PlaneGeometry(aw, ah), artMat);
         art.position.set(0, 0, thick + 0.006);
         art.renderOrder = 3;
@@ -2578,7 +2582,7 @@ export default function Prototipo() {
       // separacion del muro pero tiene un minimo generoso para que se note
       // incluso pegado a la pared.
       // El aura crece con la intensidad -> a mayor nivel, glow mas grande.
-      const radiusPx = Math.max(2, ((standoff * 1.3 + 0.06) * (0.5 + litK * 0.55)) / mPerPxSil);
+      const radiusPx = haloRadius(((standoff * 1.3 + 0.06) * haloSpread) / mPerPxSil, sil.canvas.width, sil.canvas.height);
       const { canvas: hc, pad } = haloCanvas(sil.canvas, radiusPx);
       const htex = new THREE.CanvasTexture(hc);
       htex.colorSpace = SRGB;
@@ -2698,13 +2702,13 @@ export default function Prototipo() {
           // emisión para leerse encendida (acrílico iluminado por dentro).
           pFace.emissiveMap = pTex;
           pFace.emissive = new THREE.Color(ledColor);
-          pFace.emissiveIntensity = mode === "both" ? 1.4 : 2.1;
+          pFace.emissiveIntensity = (mode === "both" ? 1.4 : 2.1) * litK;
         }
       } else {
         pFace.color = new THREE.Color(faceColor);
         if (litFront) {
           pFace.emissive = new THREE.Color(faceColor).multiply(new THREE.Color(ledColor));
-          pFace.emissiveIntensity = mode === "both" ? 1.55 : 2.25;
+          pFace.emissiveIntensity = (mode === "both" ? 1.55 : 2.25) * litK;
         }
       }
       if (mode === "back") { pFace.emissive = new THREE.Color(0x000000); pFace.emissiveIntensity = 0; pFace.color.multiplyScalar(0.45); }
@@ -2742,12 +2746,12 @@ export default function Prototipo() {
         const silOffX = (pImg.width / 2 - pres.cx) * pres.mPerPx;
         const silOffY = -(pImg.height / 2 - pres.cy) * pres.mPerPx;
         const mPerPxSil = silWM / silCanvas.width;
-        const radiusPx = Math.max(2, (standoff * 0.9) / mPerPxSil);
+        const radiusPx = haloRadius(((standoff * 0.9 + 0.06) * haloSpread) / mPerPxSil, silCanvas.width, silCanvas.height);
         const { canvas: hc, pad } = haloCanvas(silCanvas, radiusPx);
         const htex = new THREE.CanvasTexture(hc); htex.colorSpace = SRGB;
         const haloMat = new THREE.MeshBasicMaterial({
           map: htex, color: new THREE.Color(ledColor), transparent: true,
-          opacity: mode === "back" ? 0.95 : 0.6,
+          opacity: Math.min(1, (mode === "back" ? 0.95 : 0.6) * litK),
           blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
         });
         const halo = new THREE.Mesh(
@@ -2800,7 +2804,7 @@ export default function Prototipo() {
       if (kind === "lightbox") {
         const boxMat = new THREE.MeshStandardMaterial({
           color: 0xf7f8fb, roughness: 0.34, metalness: 0.02,
-          emissive: new THREE.Color(ledColor), emissiveIntensity: night ? 0.5 : 0.16,
+          emissive: new THREE.Color(ledColor), emissiveIntensity: (night ? 0.5 : 0.16) * litK,
         });
         const isCircle = (item.boxForm || "rect") === "circle";
         const box = isCircle
@@ -2813,6 +2817,10 @@ export default function Prototipo() {
         const texExtra = cached?.tex || new THREE.TextureLoader().load(item.dataUrl);
         texExtra.colorSpace = SRGB; texExtra.anisotropy = 8;
         const art = flatArt(texExtra);
+        art.material.dispose();
+        art.material = new THREE.MeshStandardMaterial({ map: texExtra, transparent: true,
+          side: THREE.DoubleSide, roughness: 0.34, emissive: new THREE.Color(ledColor),
+          emissiveMap: texExtra, emissiveIntensity: litFront ? (night ? 0.8 : 0.5) * litK : 0 });
         art.position.z = 0.012;
         plane.add(art);
       } else if (kind === "letters" && cached?.imageData) {
@@ -2822,9 +2830,10 @@ export default function Prototipo() {
         // canto (resalta el relieve y da reflejo en el acrílico), sin lavar
         // el muro de atrás — eso se leería como retroiluminado. Neutro para
         // no teñir el arte; la emisión de la cara ya aporta el color del LED.
-        if (grp && litFront) {
-          const front = new THREE.PointLight(0xffffff, mode === "both" ? 0.5 : 0.85, wTarget * 6, 2);
-          front.position.set(0, wTarget * 0.15, Math.max(0.28, wTarget * 0.45));
+        if (grp && (litFront || mode === "back")) {
+          const front = new THREE.PointLight(litFront ? 0xffffff : new THREE.Color(ledColor),
+            (mode === "back" ? (night ? 3.4 : 2) : mode === "both" ? 0.5 : 0.85) * litK, wTarget * 6, 2);
+          front.position.set(0, litFront ? wTarget * 0.15 : 0, litFront ? Math.max(0.28, wTarget * 0.45) : -depth - standoff * 0.5);
           front.raycast = () => {};
           plane.add(front);
         }
@@ -2832,6 +2841,11 @@ export default function Prototipo() {
         const texExtra = cached?.tex || new THREE.TextureLoader().load(item.dataUrl);
         texExtra.colorSpace = SRGB; texExtra.anisotropy = 8;
         plane.add(flatArt(texExtra));
+      }
+      if (kind === "lightbox") {
+        const light = new THREE.PointLight(new THREE.Color(ledColor), (night ? 2.4 : 1.5) * litK, wTarget * 6, 2);
+        light.position.z = -0.04;
+        plane.add(light);
       }
       rig.add(plane);
       extraTargets.push(plane);
@@ -3064,7 +3078,7 @@ export default function Prototipo() {
           new THREE.PlaneGeometry(glowSize, glowSize),
           new THREE.MeshBasicMaterial({
             map: gtex, color: new THREE.Color(ledColor), transparent: true,
-            opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false,
+            opacity: 1 - Math.exp(-0.65 * litK), blending: THREE.AdditiveBlending, depthWrite: false,
           })
         );
         glow.position.set(sign.position.x, sign.position.y, photoZ + 0.02);
@@ -3153,7 +3167,21 @@ export default function Prototipo() {
       }
     }
 
-    setInfo({ realW, realH, perim, faceArea, count: built, product });
+    const stretchedText = sourceType === "texto" && !whLocked;
+    const sx = stretchedText ? anchoM / realW : 1;
+    const sy = stretchedText ? altoM / realH : 1;
+    // Report manufacturing dimensions, not photo calibration or camera scale.
+    const effectivePerim = stretchedText ? shapes.reduce((total, shape) => {
+      return total + [shape, ...shape.holes].reduce((sum, path) => {
+        const points = path.getPoints(64);
+        return sum + points.reduce((length, point, index) => {
+          const next = points[(index + 1) % points.length];
+          return length + Math.hypot((next.x - point.x) * sx, (next.y - point.y) * sy);
+        }, 0);
+      }, 0);
+    }, 0) : perim;
+    setInfo({ realW: realW * sx, realH: realH * sy, perim: effectivePerim,
+      faceArea: faceArea * sx * sy, count: built, product });
     setBusy(false);
   }, [product, form, scene, facadeStyle, buildingFloors, facadeAuto, facadeWidthM, facadeHeightM, showFacade, material, wallPanelDir, wallPanelSize, finish, wallColor, deskColor, deskStyle, floorColor, acrylicBase, acrylicColor, mode, night, ledColor, ledLevel,
       useArt, faceColor, sourceType, genSeq, artScale, offsetX, offsetY, posX, posY, placedLogos, activePlacementId, edgeColor, edgeMetal,
@@ -3290,6 +3318,9 @@ export default function Prototipo() {
     S.current.photoTex = tex;
     setPhotoImg({ url: canvas.toDataURL("image/jpeg", quality), w: cw, h: ch });
     setScene("foto");
+    setMountingEnvironment("foto");
+    setChoosingEnvironment(false);
+    setPlacedLogos(items => reconcileMounting(items, "foto"));
     setFacadeAuto(false);
     setPhotoCalib(null); setCalibPts([]); setCalibrating(false);
   }, []);
@@ -3657,7 +3688,12 @@ export default function Prototipo() {
   }, [product]);
 
   const pickScene = (x) => {
-    setScene(x.id);
+    setChoosingEnvironment(false);
+    if (x.id === mountingEnvironment) return;
+    setMountingEnvironment(x.id);
+    setScene(x.scene);
+    setPlacedLogos(items => reconcileMounting(items, x.id));
+    if (x.id === "vitrina") setFacadeStyle("vitrina");
     if (x.id === "interior") { setMaterial("lisa"); setFinish("blanco"); setWallColor("#eceef1"); }
     if (x.id === "foto") setTool("fachada");
     if (x.id === "totem") { setMaterial("acm"); setFinish("negro"); setWallColor("#191a1d"); }
@@ -3669,17 +3705,10 @@ export default function Prototipo() {
   };
 
   const ajustarLetreroAFachada = useCallback((ratio = FACADE_FIT_RATIO) => {
-    const aspect = Math.max(0.12, anchoM / Math.max(0.12, altoM));
-    const maxW = Math.max(0.2, facadeWidthM * ratio);
-    const maxH = Math.max(0.2, facadeHeightM * ratio);
-    let nextW = maxW;
-    let nextH = nextW / aspect;
-    if (nextH > maxH) {
-      nextH = maxH;
-      nextW = nextH * aspect;
-    }
-    setAnchoM(Number(nextW.toFixed(2)));
-    setAltoM(Number(nextH.toFixed(2)));
+    const next = fitAvailableSpace(anchoM, altoM, facadeWidthM, facadeHeightM, ratio);
+    if (!next) { setErr("El ajuste queda fuera del rango permitido: 10 a 2000 cm por lado."); return; }
+    setAnchoM(next.width);
+    setAltoM(next.height);
     setFacadeAuto(false);
   }, [anchoM, altoM, facadeWidthM, facadeHeightM]);
 
@@ -3819,19 +3848,47 @@ export default function Prototipo() {
         )}
   </>);
   const mountingControls = (<>
-    <div style={s.pLabel}>Ambiente / escenario</div>
-    <Seg items={SCENES} value={scene} onPick={pickScene} cols={1} />
-    <div style={s.pLabel}>Superficie de montaje</div>
+    <div style={s.pLabel}>1. Ambiente / escenario</div>
+    {mountingEnvironment && <button type="button" className="prototipo-mounting-option"
+      aria-expanded={choosingEnvironment} aria-controls="prototipo-environments"
+      onClick={() => setChoosingEnvironment(open => !open)}
+      style={{ ...s.segBtn, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, textAlign: "left" }}>
+      <span>{MOUNTING_ENVIRONMENTS.find(x => x.id === mountingEnvironment)?.label}</span>
+      {choosingEnvironment ? <ChevronUp size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+        : <ChevronDown size={16} aria-hidden="true" style={{ flexShrink: 0 }} />}
+    </button>}
+    <div id="prototipo-environments" className="prototipo-mounting-collapse" data-open={choosingEnvironment}
+      aria-hidden={!choosingEnvironment} {...(!choosingEnvironment ? { inert: "" } : {})}>
+      <div><div style={{ display: "grid", gap: 6, paddingTop: 6 }}>
+        {MOUNTING_ENVIRONMENTS.map(environment => <button key={environment.id} type="button"
+          className="prototipo-mounting-option" aria-pressed={mountingEnvironment === environment.id}
+          style={{ ...s.segBtn, ...(mountingEnvironment === environment.id ? s.segOn : {}) }}
+          onClick={() => pickScene(environment)}>{environment.label}</button>)}
+      </div></div>
+    </div>
+    <div className="prototipo-mounting-collapse" data-open={!choosingEnvironment && !!mountingEnvironment}
+      aria-hidden={choosingEnvironment || !mountingEnvironment}
+      {...(choosingEnvironment || !mountingEnvironment ? { inert: "" } : {})}><div>
+    <div style={s.pLabel}>2. Superficie de montaje</div>
     {(() => {
       const active = placedLogos.find((item) => item.id === activePlacementId);
       if (!active) return null;
       return (<>
                   <div style={s.pHint}>{active.name}</div>
-                  <Seg items={PLACEMENT_SURFACES} value={active.surface || "wall"}
-                    onPick={(surface) => setPlacementSurface(active.id, surface.id)} cols={1} />
+                  {active.surface == null && <div role="status" style={s.note}>Superficie pendiente de selección.</div>}
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {PLACEMENT_SURFACES.filter(surface => compatibleSurfaces(mountingEnvironment).includes(surface.id)).map(surface => (
+                      <button key={surface.id} type="button" className="prototipo-mounting-option"
+                        aria-pressed={active.surface === surface.id}
+                        style={{ ...s.segBtn, ...(active.surface === surface.id ? s.segOn : {}) }}
+                        onClick={() => setPlacementSurface(active.id, surface.id)}>{surface.label}</button>
+                    ))}
+                  </div>
+                  {active.surface != null && <>
                   <div style={s.pLabel}>Orientación</div>
                   <Seg items={PLACEMENT_ORIENTATIONS} value={active.orientation || "front"}
                     onPick={(orientation) => setPlacementOrientation(active.id, orientation.id)} cols={1} />
+                  </>}
       </>);
     })()}
     {!placedLogos.some((item) => item.id === activePlacementId) && (
@@ -3860,6 +3917,7 @@ export default function Prototipo() {
             </button>
           </>
         )}
+    </div></div>
   </>);
   const placementSizeControls = (<>{(() => {
       const active = placedLogos.find((item) => item.id === activePlacementId);
@@ -4180,10 +4238,14 @@ export default function Prototipo() {
         <div style={s.pTitle}>Medidas y volumen</div>
         {placementSizeControls}
         <div style={s.pLabel}>Unidad</div>
-        <Seg items={[{ id: "cm", label: "Centimetros" }, { id: "m", label: "Metros" }]}
-          value={unit} onPick={(u) => setUnit(u.id)} />
+        <div style={{ ...s.seg, gridTemplateColumns: "repeat(2, 1fr)" }}>
+          {[{ id: "cm", label: "Centimetros" }, { id: "m", label: "Metros" }].map(u => (
+            <button type="button" key={u.id} aria-pressed={unit === u.id} onClick={() => setUnit(u.id)}
+              style={{ ...s.segBtn, ...(unit === u.id ? s.segOn : {}) }}>{u.label}</button>
+          ))}
+        </div>
         {sourceType === "texto" ? textPanels.medidas : (<>
-        <div style={s.pLabel}>Dimensiones</div>
+        <div style={s.pLabel}>Espacio disponible</div>
         <div style={s.fields}>
           <NumField {...fieldCtx} id="logo-ancho" label="Ancho" value={anchoM} onChange={setAnchoM} />
           <NumField {...fieldCtx} id="logo-alto" label="Alto" value={altoM} onChange={setAltoM} />
@@ -4196,13 +4258,16 @@ export default function Prototipo() {
           </button>
         </div>
         {(() => {
-          const m = panelMetrics(anchoM, altoM);
+          const panel = buildLightbox({ form, anchoM, altoM });
+          const m = panelMetrics(panel.realW, panel.realH);
           return (
             <div style={s.readout}>
-              <div style={s.readLine}><span>Medidas ingresadas</span><b>{Math.round(anchoM * 100)} x {Math.round(altoM * 100)} cm</b></div>
-              <div style={s.readLine}><span>Escala de dibujo</span><b>1:{m.escala}</b></div>
-              <div style={s.readLine}><span>Lienzo de arte</span><b>{m.pxW} x {m.pxH} px</b></div>
-              <div style={s.readLine}><span>Densidad</span><b>{m.pxPorCm.toFixed(1)} px/cm</b></div>
+              <div style={s.readLine}><span>{sourceType === "texto" ? "Medidas ingresadas" : "Espacio disponible"}</span><b>{formatDimension(anchoM)} x {formatDimension(altoM)} cm</b></div>
+              {(product === "lightbox" || product === "acrilico") && <>
+                <div style={s.readLine}><span>Escala sugerida de dibujo</span><b>1:{m.escala}</b></div>
+                <div style={s.readLine}><span>Lienzo del panel</span><b>{m.pxW} x {m.pxH} px</b></div>
+                <div style={s.readLine}><span>Resolución a tamaño real</span><b>{m.pxPorCm.toFixed(1)} px/cm</b></div>
+              </>}
             </div>
           );
         })()}
@@ -4221,13 +4286,17 @@ export default function Prototipo() {
         <Slider label="Separacion del muro" value={standoffCm} unit=" cm" min={1} max={30} step={1} onChange={setStandoffCm} />
         <div style={s.pHint}>Mas separacion, halo mas ancho y difuso.</div>
         <div style={s.pHint}>
-          Sobre {LIMITE_1A1_CM} cm se dibuja a escala 1:10. El ajuste recomendado deja el letrero
-          en torno al 50% de la fachada para que no se vea desproporcionado.
+          {sourceType !== "texto" && product === "letters"
+            ? "Proporción original conservada. El espacio disponible y la medida efectiva pueden ser distintos."
+            : "Las medidas efectivas corresponden al letrero principal, sin sumar logos colocados."}
         </div>
       </>
     ),
     fachada: (<>
       {mountingControls}
+      <div className="prototipo-mounting-collapse" data-open={!choosingEnvironment && !!mountingEnvironment}
+        aria-hidden={choosingEnvironment || !mountingEnvironment}
+        {...(choosingEnvironment || !mountingEnvironment ? { inert: "" } : {})}><div>
       <label style={{ ...s.flatBtn, ...s.labelBtn, width: "100%" }}>
         <Icon name="upload" size={13} /> {photoImg ? "Cambiar foto de fachada" : "Subir foto de fachada"}
         <input type="file" accept="image/*" style={{ display: "none" }}
@@ -4235,7 +4304,7 @@ export default function Prototipo() {
       </label>
       {scene === "foto" ? (
       <>
-        <div style={s.pTitle}>Foto de la fachada</div>
+        <div style={s.pTitle}>Foto de fachada desde Mockup de vidrio</div>
         {!photoImg && <div style={s.pHint}>Sube una foto de la fachada real (galería o cámara) para montar el letrero encima.</div>}
 
         {photoImg && (
@@ -4247,7 +4316,7 @@ export default function Prototipo() {
             <div style={s.pHint}>Inclina (perspectiva) y gira (rotación) el letrero para calzarlo con la banda o el muro de la foto, a ojo.</div>
 
             <div style={s.pLabel}>Tamaño y posición</div>
-            <Slider label="Tamaño" value={Math.round(anchoM * 100)} unit=" cm" min={20} max={600} step={5}
+            <Slider label="Ancho del espacio" value={anchoM * 100} unit=" cm" min={Math.max(10, 10 * anchoM / altoM)} max={Math.min(2000, 2000 * anchoM / altoM)} step={0.1}
               onChange={(v) => { const asp = anchoM / Math.max(0.1, altoM); const w = v / 100; setAnchoM(w); setAltoM(w / asp); }} />
             <div style={s.pHint}>Arrástralo con el dedo o el mouse para moverlo al lugar donde irá.</div>
 
@@ -4308,9 +4377,9 @@ export default function Prototipo() {
           <>
             {scene === "fachada" && (
               <>
-                <div style={s.pLabel}>Tipo de local</div>
+                <div style={s.pLabel}>Estilo de fachada</div>
                 <Seg items={FACADE_STYLES} value={facadeStyle}
-                  onPick={(f) => setFacadeStyle(f.id)} cols={1} />
+                  onPick={(f) => { setFacadeStyle(f.id); if (mountingEnvironment === "vitrina" && f.id !== "vitrina") setMountingEnvironment("fachada"); }} cols={1} />
                 {facadeStyle === "esquina" && (
                   <Slider label="Pisos de altura" value={buildingFloors} unit="" min={0} max={14} step={1}
                     onChange={setBuildingFloors} />
@@ -4436,13 +4505,18 @@ export default function Prototipo() {
         )}
       </>
     )}
+    </div></div>
     </>),
     luz: (
       <>
         <div style={s.pTitle}>Luz</div>
         <Stack items={MODES} value={mode} onPick={(m) => setMode(m.id)} />
         <div style={s.pLabel}>Intensidad de la luz</div>
-        <Slider label="Nivel" value={ledLevel} unit=" / 10" min={1} max={10} step={1} onChange={setLedLevel} />
+        <div style={s.slider}>
+          <div style={s.sliderHead}><span>Nivel</span><span style={s.sliderVal}>{ledLevel} / 10</span></div>
+          <input type="range" aria-label="Intensidad de la luz" min={1} max={10} step={1}
+            value={ledLevel} style={s.range} onChange={e => setLedLevel(Number(e.target.value))} />
+        </div>
         <div style={s.pHint}>1 = tenue · 6 = normal · 10 = muy encendido.</div>
         <div style={s.pLabel}>Temperatura (LED blanco)</div>
         <Seg items={LIGHT_TEMPS.map((t) => ({ id: String(t.k), label: t.label }))}
@@ -4569,7 +4643,7 @@ export default function Prototipo() {
                 <div style={s.emptyTitle}>Sube una foto de fachada</div>
                 <div style={s.emptyText}>La foto será el fondo real del mockup</div>
                 <button type="button" style={s.emptyUpload} onClick={() => setTool("fachada")}>
-                  <Icon name="wall" size={15} /> Fachada y montaje
+                  <Icon name="wall" size={15} /> Tipo de local
                 </button>
               </div>
             )}
@@ -4585,9 +4659,9 @@ export default function Prototipo() {
                 style={{ ...s.zBtn, ...(autoRotate ? s.zBtnOn : {}) }}><Icon name="spin" size={15} /></button>
             </div>
 
-            {info && (
+            {info && !(placedLogos.length > 0 && sourceType !== "texto") && (
               <div style={s.specs}>
-                <div style={s.spec}><b style={s.specVal}>{info.realW.toFixed(2)} x {info.realH.toFixed(2)}</b><span style={s.specKey}>metros</span></div>
+                <div style={s.spec}><b style={s.specVal}>{info.realW.toFixed(2)} x {info.realH.toFixed(2)}</b><span style={s.specKey}>metros efectivos · principal</span></div>
                 <div style={s.spec}><b style={s.specVal}>{info.faceArea.toFixed(2)}</b><span style={s.specKey}>m2 de cara</span></div>
                 <div style={s.spec}><b style={s.specVal}>{info.perim.toFixed(1)}</b><span style={s.specKey}>{info.product === "letters" ? "m de canto" : "m de perfil"}</span></div>
                 <div style={s.spec}><b style={s.specVal}>{info.count}</b><span style={s.specKey}>{info.product === "letters" ? "piezas" : "placa"}</span></div>

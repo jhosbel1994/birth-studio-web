@@ -1,0 +1,29 @@
+.prototipo-mounting-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows 280ms ease, opacity 280ms ease, visibility 280ms;
+}
+.prototipo-mounting-collapse[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+}
+.prototipo-mounting-collapse > div {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.prototipo-mounting-option {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  letter-spacing: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .prototipo-mounting-collapse { transition: none; }
+}
