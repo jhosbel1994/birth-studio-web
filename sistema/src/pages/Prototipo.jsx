@@ -4802,24 +4802,38 @@ export default function Prototipo() {
               ))}
             </div>
             <div style={s.panelScroll}>
-              {rightTab === "material" && panels.producto}
-              {rightTab === "medidas" && panels.medidas}
-              {rightTab === "luz" && panels.luz}
+              {rightTab === "material" && (
+                <div style={s.logoActivo}>
+                  <div style={s.logoActivoTop}>
+                    <span style={s.logoActivoLeft}>
+                      <span style={s.dotLive} />
+                      <b style={{ color: TXT, fontSize: 12 }}>Logo activo:</b>
+                      <span style={s.logoActivoName}>{fileName || (sourceType === "texto" ? "texto" : "sin-logo")}</span>
+                    </span>
+                    <span style={s.badgeBlue}>{sourceType === "texto" ? "TEXTO" : "VECTOR 3D"}</span>
+                  </div>
+                  <div style={s.logoActivoRow}>
+                    <span style={s.logoActivoHint}>Arrastra tu archivo (.ai, .svg, .png, .pdf, .dxf) o elige uno nuevo.</span>
+                    <label style={s.logoActivoBtn}>
+                      <input type="file" multiple accept="image/*,.svg" style={{ display: "none" }}
+                        onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+                      <Icon name="upload" size={13} /> Cambiar logo
+                    </label>
+                  </div>
+                </div>
+              )}
+              <div style={s.inspCard}>
+                {rightTab === "material" && panels.producto}
+                {rightTab === "medidas" && panels.medidas}
+                {rightTab === "luz" && panels.luz}
+              </div>
             </div>
             <div style={s.priceFoot}>
-              {info ? (
-                <>
-                  <div style={s.priceRow}><span>Cara</span><span style={s.priceMono}>{info.faceArea.toFixed(2)} m²</span></div>
-                  <div style={s.priceRow}><span>{info.product === "letters" ? "Canto total" : "Perfil"}</span><span style={s.priceMono}>{info.perim.toFixed(1)} m</span></div>
-                  <div style={s.priceRow}><span>Piezas</span><span style={s.priceMono}>{info.count}</span></div>
-                </>
-              ) : <div style={s.priceRow}><span>Sin logo cargado</span></div>}
-              <div style={s.priceDivider} />
               <button onClick={enviarACotizacion} disabled={!fileName}
                 style={{ ...s.cotizarBtn, ...(sent ? s.secondaryBtnOk : {}), ...(!fileName ? s.btnOff : {}) }}>
-                <Icon name="send" size={14} /> {sent ? "Enviado a cotización" : "Enviar a cotización"}
+                <Icon name="send" size={14} /> {sent ? "✓ Imagen enviada a cotización" : "Enviar a cotización"}
               </button>
-              <div style={s.priceHint}>El total en CLP se calcula en el Cotizador (la etapa siguiente lo trae aquí).</div>
+              <div style={s.priceHint}>Se adjunta automáticamente la imagen actual del letrero (como se ve ahora) al PDF de la cotización.</div>
             </div>
           </aside>
         </div>
@@ -4942,6 +4956,14 @@ const s = {
   tabs: { display: "flex", alignItems: "center", gap: 2, background: "rgba(0,0,0,0.28)", borderBottom: `1px solid ${LINE}`, padding: 4, flexShrink: 0 },
   tab: { flex: 1, background: "transparent", border: "none", color: DIM, borderRadius: 6, padding: "7px 4px", fontSize: 11, fontWeight: 600, cursor: "pointer" },
   tabOn: { color: "#60a5fa", background: "rgba(59,130,246,0.1)", borderBottom: `2px solid ${BLUE}` },
+  logoActivo: { border: "1px dashed rgba(59,130,246,0.42)", borderRadius: 10, background: "rgba(59,130,246,0.05)", padding: "9px 10px", display: "flex", flexDirection: "column", gap: 7 },
+  logoActivoTop: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  logoActivoLeft: { display: "flex", alignItems: "center", gap: 6, minWidth: 0 },
+  logoActivoName: { fontSize: 11, color: "#93c5fd", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  logoActivoRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  logoActivoHint: { fontSize: 9.5, color: DIM, lineHeight: 1.35, flex: 1 },
+  logoActivoBtn: { display: "flex", alignItems: "center", gap: 5, background: BLUE, color: "#fff", border: "none", borderRadius: 7, padding: "6px 9px", fontSize: 10.5, fontWeight: 700, cursor: "pointer", flexShrink: 0 },
+  inspCard: { border: `1px solid ${LINE}`, borderRadius: 12, background: CARD, padding: "11px 12px" },
   priceFoot: { padding: 14, borderTop: `1px solid ${LINE}`, background: "rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 },
   priceRow: { display: "flex", justifyContent: "space-between", fontSize: 11.5, color: DIM },
   priceMono: { color: TXT, fontFamily: "'JetBrains Mono', monospace" },

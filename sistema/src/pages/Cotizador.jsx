@@ -19,6 +19,7 @@ import { clp, hoy, sumarDias } from '../utils/formatters'
 import CosteoLetrasPanel from '../components/CosteoLetras/CosteoLetrasPanel'
 import MaterialesPanel from '../components/Materiales/MaterialesPanel'
 import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
+import { obtenerPrototipo } from '../utils/prototipoStore'
 import {
   Plus, Trash2, RotateCcw, ArrowRight,
   User, UserPlus, X, Download, Save, Mail, Eye, Pencil,
@@ -1891,7 +1892,9 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
   const [loading, setLoading] = useState(false)
   const [msgEmail, setMsgEmail] = useState(null)
   const [preview, setPreview] = useState(null)
-  const [prototipoImg, setPrototipoImg] = useState(null)
+  // Se adjunta automaticamente el ultimo render enviado desde Prototipo Logo,
+  // tal como quedo al momento de exportar. El usuario puede quitarlo o cambiarlo.
+  const [prototipoImg, setPrototipoImg] = useState(() => obtenerPrototipo()?.dataUrl || null)
 
   const subtotalBruto   = items.reduce((s, i) => s + (i.total || 0), 0)
   const pctDesc         = Math.min(Math.max(parseFloat(descuento) || 0, 0), 100)

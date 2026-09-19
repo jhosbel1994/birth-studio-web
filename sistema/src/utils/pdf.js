@@ -84,13 +84,18 @@ function addPrototipoPage(doc, empresa, logoImg, imgDataUrl, numero, marcaFallba
   try { props = doc.getImageProperties(imgDataUrl) } catch { return }
   const fmt = /^data:image\/png/i.test(imgDataUrl) ? 'PNG' : 'JPEG'
 
-  const maxW = 182, maxH = 225, topY = 42
+  // Tamano moderado: visible pero no de pagina completa (aprox. mitad del ancho).
+  const maxW = 120, maxH = 90, topY = 52
   const ratio = props.width / props.height
   let w = maxW, h = w / ratio
   if (h > maxH) { h = maxH; w = h * ratio }
   const x = (210 - w) / 2
-  const y = topY + (maxH - h) / 2
+  const y = topY
 
+  // Marco sutil alrededor de la imagen
+  doc.setDrawColor(205)
+  doc.setLineWidth(0.3)
+  doc.rect(x - 1.2, y - 1.2, w + 2.4, h + 2.4)
   doc.addImage(imgDataUrl, fmt, x, y, w, h)
 
   doc.setFont('helvetica', 'italic')
@@ -98,7 +103,7 @@ function addPrototipoPage(doc, empresa, logoImg, imgDataUrl, numero, marcaFallba
   doc.setTextColor(...GRIS)
   doc.text(
     'Imagen referencial del letrero. El resultado final puede variar según materiales y condiciones de instalación.',
-    105, 285, { align: 'center' }
+    105, y + h + 9, { align: 'center' }
   )
 }
 
