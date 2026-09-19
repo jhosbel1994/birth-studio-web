@@ -85,7 +85,16 @@ function ModalGasto({ gasto, onClose, onSave }) {
     setGuardando(true)
     let uploaded = null
     try {
-      uploaded = boletaFile ? await uploadBoletaImagen(boletaFile) : null
+      // La foto es opcional: si no se puede subir (p.ej. Firebase Storage sin
+      // activar) NO bloqueamos el registro del gasto — se guardan los datos
+      // igual y avisamos que la imagen no se adjuntó.
+      if (boletaFile) {
+        try {
+          uploaded = await uploadBoletaImagen(boletaFile)
+        } catch {
+          uploaded = null
+        }
+      }
       await onSave({
         ...form,
         ...(uploaded ? {
