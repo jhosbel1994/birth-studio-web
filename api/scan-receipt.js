@@ -10,6 +10,16 @@ const ALLOWED_CATEGORIES = new Set([
   'Servicios externos', 'Publicidad', 'Otros',
 ])
 
+// Limpia la ANTHROPIC_API_KEY por si en Vercel quedó con espacios, saltos de
+// línea o comillas envolventes (causas frecuentes de "invalid x-api-key").
+function cleanApiKey(raw) {
+  let key = String(raw || '').trim()
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1).trim()
+  }
+  return key
+}
+
 function cleanText(value, maxLength = 180) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : null
 }
@@ -87,7 +97,8 @@ async function verifyFirebaseUser(idToken) {
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' })
   if (!originAllowed(req.headers.origin)) return res.status(403).json({ error: 'Origen no autorizado' })
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const apiKey = cleanApiKey(process.env.ANTHROPIC_API_KEY)
+  if (!apiKey) {
     return res.status(503).json({ error: 'El reconocimiento de boletas aún no está configurado' })
   }
 
@@ -124,9 +135,7 @@ async function handler(req, res) {
       signal: controller.signal,
       headers: {
         'content-type': 'application/json',
-        // .trim() por si la variable en Vercel quedó con espacios o un salto
-        // de línea invisible al pegarla (causa común de "invalid x-api-key").
-        'x-api-key': process.env.ANTHROPIC_API_KEY.trim(),
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
