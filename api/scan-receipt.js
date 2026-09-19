@@ -124,7 +124,9 @@ async function handler(req, res) {
       signal: controller.signal,
       headers: {
         'content-type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        // .trim() por si la variable en Vercel quedó con espacios o un salto
+        // de línea invisible al pegarla (causa común de "invalid x-api-key").
+        'x-api-key': process.env.ANTHROPIC_API_KEY.trim(),
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
@@ -152,7 +154,13 @@ Usa pesos chilenos enteros sin puntos ni símbolos. "total" debe ser el total fi
 
     const data = await response.json().catch(() => ({}))
     if (!response.ok) {
-      const message = data?.error?.message || `Error ${response.status} del servicio de reconocimiento`
+      let message = data?.error?.message || `Error ${response.status} del servicio de reconocimiento`
+      // Traducir los errores de configuración más comunes a algo accionable.
+      if (response.status === 401 || /x-api-key|authentication/i.test(message)) {
+        message = 'La clave de Anthropic (ANTHROPIC_API_KEY en Vercel) no es válida. Debe empezar con "sk-ant-", sin comillas ni espacios, y luego hay que volver a desplegar.'
+      } else if (/credit|balance|billing/i.test(message)) {
+        message = 'La cuenta de Anthropic no tiene saldo. Agrega crédito en console.anthropic.com y reintenta.'
+      }
       return res.status(response.status >= 500 ? 502 : 400).json({ error: message })
     }
     const text = data.content?.find(block => block.type === 'text')?.text
