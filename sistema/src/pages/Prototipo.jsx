@@ -2132,8 +2132,12 @@ export default function Prototipo() {
     const ambient = new THREE.AmbientLight(0xffffff, 0.16); sc.add(ambient);
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.05);
     keyLight.castShadow = !isMobile;
-    keyLight.shadow.mapSize.set(isMobile ? 512 : 1024, isMobile ? 512 : 1024);
-    keyLight.shadow.bias = -0.0015; sc.add(keyLight);
+    keyLight.shadow.mapSize.set(isMobile ? 512 : 2048, isMobile ? 512 : 2048);
+    keyLight.shadow.bias = -0.0009;
+    // Bloque 7: sombras mas suaves y sin artefactos (bordes graduales, sin
+    // "acne" ni peter-panning sobre el muro y el piso).
+    keyLight.shadow.radius = isMobile ? 1 : 4;
+    keyLight.shadow.normalBias = 0.025; sc.add(keyLight);
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.28); sc.add(fillLight);
     const rimLight = new THREE.DirectionalLight(0x8899cc, 0.45); sc.add(rimLight);
     const spill = new THREE.PointLight(0xffffff, 0, 5, 2); sc.add(spill);
@@ -3848,60 +3852,10 @@ export default function Prototipo() {
 
   const mismatch = suggested && suggested.product !== product;
 
+  // Las listas de logos y el orden de capas viven ahora en el "Árbol de Capas
+  // 3D" del panel izquierdo (Etapa 3). Aqui solo quedan los ajustes propios del
+  // logo: voltear y, para caja de luz, la posicion del arte.
   const artControls = (<>
-        {logoQueue.length > 0 && (
-          <>
-            <div style={s.pLabel}>Logos cargados ({logoQueue.length})</div>
-            <div style={s.logoList}>
-              {logoQueue.map((asset, idx) => {
-                const active = activeLogoId === asset.id;
-                return (
-                  <div key={asset.id} style={{ ...s.logoItem, ...(active ? s.logoItemOn : {}) }}>
-                    <button type="button" onClick={() => loadLogoAsset(asset)} style={s.logoPick}>
-                      <span style={s.logoIndex}>{idx + 1}</span>
-                      <span style={s.logoName}>{asset.name}</span>
-                    </button>
-                    <button type="button" onClick={() => addLogoToMockup(asset)} style={s.logoPlace}>Colocar</button>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {placedLogos.length > 0 && (
-          <>
-            <div style={s.pLabel}>En el mockup ({placedLogos.length})</div>
-            <div style={s.logoList}>
-              {placedLogos.map((item, idx) => {
-                const active = activePlacementId === item.id;
-                return (
-                  <div key={item.id} style={{ ...s.logoItem, ...(active ? s.logoItemOn : {}) }}>
-                    <button type="button" onClick={() => setActivePlacementId(item.id)} style={s.logoPick}>
-                      <span style={s.logoIndex}>{idx + 1}</span>
-                      <span style={s.logoName}>{item.name}</span>
-                    </button>
-                    <button type="button" onClick={() => setPlacedLogos((items) => items.filter((x) => x.id !== item.id))}
-                      style={s.logoPlace}>Quitar</button>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={s.pHint}>Arrastra cada logo directamente sobre la escena para ubicarlo.</div>
-          </>
-        )}
-{(() => {
-      const active = placedLogos.find((item) => item.id === activePlacementId);
-      if (!active) return null;
-      return (<>
-                  <div style={s.pLabel}>Capas</div>
-                  <div style={s.layerBtns}>
-                    <button type="button" onClick={() => movePlacementLayer(active.id, "back")} style={s.logoPlace}>Fondo</button>
-                    <button type="button" onClick={() => movePlacementLayer(active.id, "down")} style={s.logoPlace}>Atrás</button>
-                    <button type="button" onClick={() => movePlacementLayer(active.id, "up")} style={s.logoPlace}>Adelante</button>
-                    <button type="button" onClick={() => movePlacementLayer(active.id, "front")} style={s.logoPlace}>Frente</button>
-                  </div>
-      </>);
-    })()}
         {placedLogos.length === 0 && sourceType === "logo" && (
           <>
             <div style={s.pLabel}>Voltear el logo</div>
@@ -4776,13 +4730,13 @@ export default function Prototipo() {
                 )}
               </div>
 
-              {(fileName || sourceType === "texto") && (
+              {placedLogos.length === 0 && (sourceType === "logo" || product === "lightbox") && (
                 <div style={s.panelCard}>
                   <div style={s.panelCardHead}>
                     <span style={s.panelCardIcon}><Icon name="text" size={16} /></span>
                     <div>
-                      <div style={s.panelCardTitle}>Arte y capas</div>
-                      <div style={s.panelCardSub}>Logos, texto y fuentes</div>
+                      <div style={s.panelCardTitle}>Ajustes del logo</div>
+                      <div style={s.panelCardSub}>Voltear y posición del arte</div>
                     </div>
                   </div>
                   <div style={s.panelCardBody}>{artControls}</div>
