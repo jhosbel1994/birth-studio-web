@@ -137,6 +137,8 @@ test('logs bounded diagnostic metadata for unexpected failures', async () => {
   assert.equal(entries[0][1].error_code, '7')
   assert.equal(entries[0][1].error_message.length, 300)
   assert.doesNotMatch(entries[0][1].error_message, /[\r\n]/)
+  assert.match(entries[0][1].error_stack, /^Error: database detail/)
+  assert.doesNotMatch(entries[0][1].error_stack, /[\r\n]/)
   assert.doesNotMatch(JSON.stringify(res.body), /database detail/)
 })
 

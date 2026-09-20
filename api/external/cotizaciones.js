@@ -45,15 +45,16 @@ function credentialDiagnostics(env = process.env) {
 }
 
 function logInternalError(logger, requestId, error) {
-  const safeText = value => String(value || '')
+  const safeText = (value, limit = 300) => String(value || '')
     .replace(/[\r\n]+/g, ' ')
-    .slice(0, 300)
+    .slice(0, limit)
 
   logger.error('external quote request failed', {
     request_id: requestId,
     error_name: safeText(error?.name),
     error_code: safeText(error?.code),
     error_message: safeText(error?.message),
+    error_stack: safeText(error?.stack, 1200),
     credentials: credentialDiagnostics(),
   })
 }
