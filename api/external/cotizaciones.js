@@ -20,6 +20,30 @@ function errorBody(code, message, requestId, errors) {
   }
 }
 
+function credentialDiagnostics(env = process.env) {
+  const fingerprint = value => crypto.createHash('sha256')
+    .update(String(value || ''), 'utf8')
+    .digest('hex')
+    .slice(0, 12)
+  const projectId = String(env.FIREBASE_PROJECT_ID || '').trim()
+  const clientEmail = String(env.FIREBASE_CLIENT_EMAIL || '').trim()
+  const encodedKey = String(env.FIREBASE_PRIVATE_KEY_BASE64 || '').trim()
+  let decodedKey = ''
+  try { decodedKey = Buffer.from(encodedKey, 'base64').toString('utf8').trim() } catch {}
+
+  return {
+    project_id_length: projectId.length,
+    project_id_fingerprint: fingerprint(projectId),
+    client_email_length: clientEmail.length,
+    client_email_fingerprint: fingerprint(clientEmail),
+    private_key_base64_length: encodedKey.length,
+    private_key_decoded_length: decodedKey.length,
+    private_key_fingerprint: fingerprint(decodedKey),
+    private_key_pem_valid: decodedKey.startsWith('-----BEGIN PRIVATE KEY-----')
+      && decodedKey.endsWith('-----END PRIVATE KEY-----'),
+  }
+}
+
 function logInternalError(logger, requestId, error) {
   const safeText = value => String(value || '')
     .replace(/[\r\n]+/g, ' ')
@@ -30,6 +54,7 @@ function logInternalError(logger, requestId, error) {
     error_name: safeText(error?.name),
     error_code: safeText(error?.code),
     error_message: safeText(error?.message),
+    credentials: credentialDiagnostics(),
   })
 }
 
@@ -113,6 +138,7 @@ const handler = createHandler()
 
 module.exports = handler
 module.exports.createHandler = createHandler
+module.exports.credentialDiagnostics = credentialDiagnostics
 module.exports.logInternalError = logInternalError
 module.exports.parseBody = parseBody
 module.exports.safeCompare = safeCompare
