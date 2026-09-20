@@ -3,7 +3,7 @@ import {
   subscribeInventario, saveInventarioItem, deleteInventarioItem, subscribeProveedores,
 } from '../utils/storage'
 import { clp } from '../utils/formatters'
-import { Plus, Search, Trash2, Edit2, X, Boxes, Package, Plus as PlusIcon, Minus } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, X, Boxes, Package, Plus as PlusIcon, Minus, AlertTriangle } from 'lucide-react'
 
 // Tipos de unidad para el inventario (cómo se mide el stock)
 const TIPOS = [
@@ -19,10 +19,29 @@ const TIPOS = [
 ]
 const tipoLabel = (v) => TIPOS.find(t => t.v === v)?.v || v
 
-const EMPTY = { nombre: '', tipo: 'm2', cantidad: '', precio: '', proveedorId: '', nota: '' }
+const EMPTY = { nombre: '', tipo: 'm2', cantidad: '', stockMinimo: '', precio: '', proveedorId: '', nota: '' }
 
 // Mapea la unidad del proveedor (m², ml…) al tipo del inventario (m2, ml…)
 const UNIDAD_A_TIPO = { 'm²': 'm2', 'm2': 'm2', 'ml': 'ml', 'unidad': 'unidad', 'plancha': 'plancha', 'rollo': 'rollo', 'caja': 'caja', 'kilo': 'kilo', 'litro': 'litro', 'set': 'set' }
+
+// Estado de stock de un ítem según su stock mínimo (punto de reorden):
+//   'sin'  → agotado (0 o menos)
+//   'bajo' → llegó al mínimo o por debajo (hay que reponer)
+//   'ok'   → suficiente
+export const estadoStock = (i) => {
+  const c = i.cantidad || 0
+  const min = i.stockMinimo || 0
+  if (c <= 0) return 'sin'
+  if (min > 0 && c <= min) return 'bajo'
+  return 'ok'
+}
+
+// Etiqueta de color para el estado de stock (roja=agotado, ámbar=bajo).
+function BadgeStock({ estado }) {
+  if (estado === 'sin') return <span className="inline-block px-2 py-0.5 text-[10px] font-dm font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Sin stock</span>
+  if (estado === 'bajo') return <span className="inline-block px-2 py-0.5 text-[10px] font-dm font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Bajo stock</span>
+  return null
+}
 
 // ─── MODAL CREAR/EDITAR ÍTEM ──────────────────────────────────────────────────
 function Modal({ item, proveedores, onClose, onSave }) {
@@ -56,6 +75,7 @@ function Modal({ item, proveedores, onClose, onSave }) {
       ...form,
       nombre: form.nombre.trim(),
       cantidad: parseFloat(form.cantidad) || 0,
+      stockMinimo: parseFloat(form.stockMinimo) || 0,
       precio: parseFloat(form.precio) || 0,
     })
   }
@@ -109,13 +129,19 @@ function Modal({ item, proveedores, onClose, onSave }) {
                 className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
             <div>
-              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Proveedor (opcional)</label>
-              <select value={form.proveedorId} onChange={e => set('proveedorId', e.target.value)}
-                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white">
-                <option value="">Sin proveedor</option>
-                {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Stock mínimo (alerta)</label>
+              <input type="number" min="0" step="0.01" value={form.stockMinimo} onChange={e => set('stockMinimo', e.target.value)}
+                placeholder="Ej. 5 — avisa al llegar aquí"
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
+          </div>
+          <div>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Proveedor (opcional)</label>
+            <select value={form.proveedorId} onChange={e => set('proveedorId', e.target.value)}
+              className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white">
+              <option value="">Sin proveedor</option>
+              {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
           </div>
           <div>
             <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Nota</label>
@@ -145,6 +171,7 @@ export default function Inventario() {
   const [proveedores, setProveedores] = useState([])
   const [modal, setModal] = useState(null)
   const [busqueda, setBusqueda] = useState('')
+  const [soloBajo, setSoloBajo] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   useEffect(() => {
@@ -155,8 +182,13 @@ export default function Inventario() {
 
   const provNombre = (id) => proveedores.find(p => p.id === id)?.nombre || ''
 
-  const filtrados = items.filter(i =>
-    !busqueda || i.nombre?.toLowerCase().includes(busqueda.toLowerCase()) || provNombre(i.proveedorId).toLowerCase().includes(busqueda.toLowerCase()))
+  // Ítems que necesitan reponerse (agotados o en/bajo el mínimo).
+  const porReponer = items.filter(i => estadoStock(i) !== 'ok')
+
+  const filtrados = items.filter(i => {
+    if (soloBajo && estadoStock(i) === 'ok') return false
+    return !busqueda || i.nombre?.toLowerCase().includes(busqueda.toLowerCase()) || provNombre(i.proveedorId).toLowerCase().includes(busqueda.toLowerCase())
+  })
 
   const valorTotal = items.reduce((s, i) => s + (i.cantidad || 0) * (i.precio || 0), 0)
 
@@ -208,7 +240,7 @@ export default function Inventario() {
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-2 gap-2.5 md:gap-4 mb-4 md:mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-4 mb-4 md:mb-6">
         <div className="glass-panel rounded-widget px-4 py-4 md:px-6 md:py-5">
           <div className="flex items-center gap-2 mb-1"><Package size={16} className="text-on-surface-variant" /><p className="text-xs font-dm uppercase tracking-wider text-on-surface-variant">Ítems distintos</p></div>
           <p className="font-barlow text-2xl md:text-3xl font-bold text-on-surface">{items.length}</p>
@@ -217,6 +249,21 @@ export default function Inventario() {
           <div className="flex items-center gap-2 mb-1"><Boxes size={16} className="text-green-600" /><p className="text-xs font-dm uppercase tracking-wider text-on-surface-variant">Valor del inventario</p></div>
           <p className="font-barlow text-2xl md:text-3xl font-bold text-green-700">{clp(valorTotal)}</p>
         </div>
+        {/* Alerta de reorden: toca para filtrar solo lo que hay que reponer */}
+        <button
+          type="button"
+          onClick={() => setSoloBajo(v => !v)}
+          className={`glass-panel rounded-widget px-4 py-4 md:px-6 md:py-5 text-left col-span-2 md:col-span-1 transition-all ${soloBajo ? 'ring-2 ring-amber-400' : ''} ${porReponer.length ? 'hover:ring-2 hover:ring-amber-300' : ''}`}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle size={16} className={porReponer.length ? 'text-amber-600' : 'text-on-surface-variant'} />
+            <p className="text-xs font-dm uppercase tracking-wider text-on-surface-variant">Por reponer</p>
+          </div>
+          <p className={`font-barlow text-2xl md:text-3xl font-bold ${porReponer.length ? 'text-amber-600' : 'text-on-surface'}`}>{porReponer.length}</p>
+          <p className="text-[11px] font-dm text-on-surface-variant/80 mt-0.5">
+            {porReponer.length === 0 ? 'Todo con stock suficiente' : soloBajo ? 'Filtrando · toca para ver todo' : 'Toca para ver solo estos'}
+          </p>
+        </button>
       </div>
 
       {/* Buscador */}
@@ -238,9 +285,13 @@ export default function Inventario() {
               <div key={i.id} className="glass-panel rounded-widget px-3 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-dm font-semibold text-on-surface leading-tight">{i.nombre}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-dm font-semibold text-on-surface leading-tight">{i.nombre}</p>
+                      <BadgeStock estado={estadoStock(i)} />
+                    </div>
                     <p className="text-[11px] text-on-surface-variant font-dm mt-0.5">
                       {clp(i.precio)}/{tipoLabel(i.tipo)}{i.proveedorId && ` · ${provNombre(i.proveedorId)}`}
+                      {(i.stockMinimo || 0) > 0 && ` · mín. ${i.stockMinimo}`}
                     </p>
                     {i.nota && <p className="text-[11px] text-on-surface-variant/80 font-dm mt-0.5">{i.nota}</p>}
                   </div>
@@ -252,7 +303,7 @@ export default function Inventario() {
                 <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-white/50">
                   <div className="flex items-center gap-2">
                     <button onClick={() => ajustarStock(i, -1)} className="w-7 h-7 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant active:bg-white/70"><Minus size={13} /></button>
-                    <span className="font-barlow text-lg font-bold text-on-surface min-w-[3rem] text-center">{i.cantidad ?? 0} <span className="text-xs font-dm text-on-surface-variant">{tipoLabel(i.tipo)}</span></span>
+                    <span className={`font-barlow text-lg font-bold min-w-[3rem] text-center ${estadoStock(i) === 'sin' ? 'text-red-600' : estadoStock(i) === 'bajo' ? 'text-amber-600' : 'text-on-surface'}`}>{i.cantidad ?? 0} <span className="text-xs font-dm text-on-surface-variant">{tipoLabel(i.tipo)}</span></span>
                     <button onClick={() => ajustarStock(i, 1)} className="w-7 h-7 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant active:bg-white/70"><PlusIcon size={13} /></button>
                   </div>
                   <span className="text-sm font-dm font-bold text-green-700">{clp((i.cantidad || 0) * (i.precio || 0))}</span>
@@ -278,7 +329,10 @@ export default function Inventario() {
                 {filtrados.map(i => (
                   <tr key={i.id} className="border-b border-white/50 hover:bg-white/50">
                     <td className="px-5 py-3">
-                      <p className="font-medium text-on-surface">{i.nombre}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-on-surface">{i.nombre}</p>
+                        <BadgeStock estado={estadoStock(i)} />
+                      </div>
                       {i.nota && <p className="text-[11px] text-on-surface-variant">{i.nota}</p>}
                     </td>
                     <td className="px-3 py-3 text-on-surface-variant">{provNombre(i.proveedorId) || '—'}</td>
@@ -286,7 +340,7 @@ export default function Inventario() {
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-center gap-1.5">
                         <button onClick={() => ajustarStock(i, -1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><Minus size={12} /></button>
-                        <span className="font-medium text-on-surface min-w-[3.5rem] text-center">{i.cantidad ?? 0} {tipoLabel(i.tipo)}</span>
+                        <span className={`font-medium min-w-[3.5rem] text-center ${estadoStock(i) === 'sin' ? 'text-red-600' : estadoStock(i) === 'bajo' ? 'text-amber-600' : 'text-on-surface'}`}>{i.cantidad ?? 0} {tipoLabel(i.tipo)}</span>
                         <button onClick={() => ajustarStock(i, 1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><PlusIcon size={12} /></button>
                       </div>
                     </td>

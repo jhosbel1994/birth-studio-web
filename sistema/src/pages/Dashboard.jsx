@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { subscribeCotizaciones, subscribeGastos, subscribePagos, syncPublicStats, ensureAcceptedDeposit, ensureCompletedPayment, saveCotizacion } from '../utils/storage'
+import { subscribeCotizaciones, subscribeGastos, subscribePagos, subscribeInventario, syncPublicStats, ensureAcceptedDeposit, ensureCompletedPayment, saveCotizacion } from '../utils/storage'
 import { clp, fechaCorta, ESTADOS } from '../utils/formatters'
 import { shouldAutoReject, autoRejectedQuote } from '../utils/cotizacionesWorkflow'
 import {
   TrendingUp, FileText, Clock, CheckCircle, XCircle, DollarSign,
-  Calculator, Users, ScrollText, Wallet,
+  Calculator, Users, ScrollText, Wallet, AlertTriangle,
 } from 'lucide-react'
 
 function StatCard({ label, value, sub, color, blob, icon: Icon }) {
@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [cotizaciones, setCotizaciones] = useState([])
   const [gastos, setGastos] = useState([])
   const [pagos, setPagos] = useState([])
+  const [inventario, setInventario] = useState([])
   const [loaded, setLoaded] = useState(false)
   const [expiryTick, setExpiryTick] = useState(() => Date.now())
   const depositsChecked = useRef(new Set())
@@ -68,7 +69,8 @@ export default function Dashboard() {
     const u1 = subscribeCotizaciones((data) => { setCotizaciones(data); setLoaded(true) })
     const u2 = subscribeGastos(setGastos)
     const u3 = subscribePagos(setPagos)
-    return () => { u1(); u2(); u3() }
+    const u4 = subscribeInventario(setInventario)
+    return () => { u1(); u2(); u3(); u4() }
   }, [])
 
   useEffect(() => {
@@ -144,6 +146,12 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
     .slice(0, 4)
 
+  // Materiales agotados o en/bajo su stock mínimo (misma regla que Inventario).
+  const materialesPorReponer = inventario.filter(i => {
+    const c = i.cantidad || 0, min = i.stockMinimo || 0
+    return c <= 0 || (min > 0 && c <= min)
+  })
+
   return (
     <div className="px-2.5 py-3 md:p-6 lg:p-8">
       <div className="mb-5 md:mb-8">
@@ -152,6 +160,28 @@ export default function Dashboard() {
       </div>
 
       <MobileQuickNav navigate={navigate} />
+
+      {/* Alerta de inventario: solo aparece si hay material por reponer */}
+      {materialesPorReponer.length > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/inventario')}
+          className="w-full mb-5 md:mb-6 flex items-center gap-3 rounded-widget border border-amber-300 bg-amber-50 px-4 py-3 md:px-5 md:py-4 text-left hover:bg-amber-100 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+            <AlertTriangle size={18} className="text-amber-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-dm font-semibold text-amber-800 text-sm leading-tight">
+              {materialesPorReponer.length === 1 ? '1 material por reponer' : `${materialesPorReponer.length} materiales por reponer`}
+            </p>
+            <p className="text-[11px] md:text-xs font-dm text-amber-700/80 truncate">
+              {materialesPorReponer.slice(0, 3).map(i => i.nombre).join(' · ')}{materialesPorReponer.length > 3 ? '…' : ''}
+            </p>
+          </div>
+          <span className="text-xs font-dm font-medium text-amber-700 shrink-0">Ver inventario →</span>
+        </button>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-5 md:mb-8">
