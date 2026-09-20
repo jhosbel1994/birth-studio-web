@@ -15,3 +15,4 @@ assets/fotos/
 
 # Capturas y scripts de QA del prototipo (material temporal, no va al sitio)
 output/
+.vercel
