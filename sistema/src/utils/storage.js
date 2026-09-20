@@ -565,6 +565,42 @@ export function subscribeMovimientosItem(itemId, cb) {
   )
 }
 
+// Descuenta del inventario los materiales usados en un trabajo (una salida por
+// material en el kardex) y guarda la lista en la cotización. Usa merge para NO
+// pisar el estado ni otros campos de la cotización.
+export async function descontarMaterialesTrabajo(cotizacion, materiales) {
+  const limpio = (materiales || [])
+    .filter(m => m.itemId && Number(m.cantidad) > 0)
+    .map(m => ({ itemId: m.itemId, itemNombre: m.itemNombre || '', cantidad: Number(m.cantidad) }))
+  for (const m of limpio) {
+    await registrarMovimiento({
+      itemId: m.itemId, tipo: 'salida', cantidad: m.cantidad,
+      motivo: `Trabajo #${cotizacion.numero || ''}`.trim(),
+      fecha: new Date().toISOString().slice(0, 10),
+    })
+  }
+  await setDoc(doc(db, 'cotizaciones', cotizacion.id),
+    { materialesUsados: limpio, materialesDescontados: true, updatedAt: new Date().toISOString() },
+    { merge: true })
+  return limpio
+}
+
+// Devuelve al inventario los materiales de un trabajo (entradas) si se reabre.
+export async function revertirMaterialesTrabajo(cotizacion) {
+  for (const m of (cotizacion.materialesUsados || [])) {
+    if (m.itemId && Number(m.cantidad) > 0) {
+      await registrarMovimiento({
+        itemId: m.itemId, tipo: 'entrada', cantidad: Number(m.cantidad),
+        motivo: `Devolución trabajo #${cotizacion.numero || ''}`.trim(),
+        fecha: new Date().toISOString().slice(0, 10),
+      })
+    }
+  }
+  await setDoc(doc(db, 'cotizaciones', cotizacion.id),
+    { materialesDescontados: false, updatedAt: new Date().toISOString() },
+    { merge: true })
+}
+
 // ─── PROVEEDORES (con teléfono y los materiales que venden) ──────────────────
 // Shape: { id, nombre, telefono?, email?, direccion?, nota?,
 //          materiales: [{ nombre, unidad, precio }], createdAt }

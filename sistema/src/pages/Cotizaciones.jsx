@@ -4,6 +4,7 @@ import {
   subscribeCotizaciones, subscribeClientes, syncPublicStats,
   saveGasto, deleteGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos,
   subscribeInventario, saveInventarioItem, updateCotizacionEstado, ensureAcceptedDeposit, ensureCompletedPayment,
+  descontarMaterialesTrabajo, revertirMaterialesTrabajo,
 } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { generarCotizacionPDF } from '../utils/pdf'
@@ -17,7 +18,7 @@ import {
 import {
   Plus, Download, Trash2, Edit2, X, Search,
   Eye, Mail, MessageCircle, FileText, MoreHorizontal, CheckCircle, AlertCircle, Loader2,
-  BookOpen, Wallet,
+  BookOpen, Wallet, Boxes, ArrowUpFromLine, ArrowDownToLine,
 } from 'lucide-react'
 
 // Catálogo plano para el selector — excluye calculadoras complejas
@@ -293,7 +294,7 @@ function ActionPill({ icon: Icon, label, tone = 'neutral', onClick, disabled }) 
 }
 
 // ─── MENÚ DE ACCIONES ─────────────────────────────────────────────────────────
-function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onFinanzas, onTerminar, onClose }) {
+function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onFinanzas, onTerminar, onMateriales, onClose }) {
   const cliente = clientes.find(c => c.id === cotizacion.clienteId) || null
 
   const acciones = [
@@ -317,6 +318,7 @@ function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, 
       grupo: 'Gestión',
       items: [
         cotizacion.estado === 'aceptada' && { icon: CheckCircle, label: 'Trabajo terminado', desc: 'Registrar saldo pendiente', onClick: onTerminar },
+        ['aceptada', 'terminada'].includes(cotizacion.estado) && { icon: Boxes, label: 'Materiales del trabajo', desc: cotizacion.materialesDescontados ? 'Descontados del inventario' : 'Descontar del inventario', onClick: onMateriales },
         { icon: Edit2, label: 'Editar', desc: '', onClick: onEditar },
         { icon: Trash2, label: 'Eliminar', desc: '', onClick: onEliminar, danger: true },
       ].filter(Boolean)
@@ -1050,6 +1052,107 @@ function FinanzasCotizacion({ cotizacion, onClose }) {
 }
 
 // ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
+// Modal para descontar (o devolver) del inventario los materiales de un trabajo.
+function MaterialesTrabajoModal({ cot, onClose }) {
+  const [inventario, setInventario] = useState([])
+  const [rows, setRows] = useState(() => {
+    const prev = (cot.materialesUsados || []).map(m => ({ itemId: m.itemId, cantidad: String(m.cantidad ?? '') }))
+    return prev.length ? prev : [{ itemId: '', cantidad: '' }]
+  })
+  const [guardando, setGuardando] = useState(false)
+  const descontado = !!cot.materialesDescontados
+
+  useEffect(() => subscribeInventario(setInventario), [])
+
+  const addRow = () => setRows(r => [...r, { itemId: '', cantidad: '' }])
+  const setRow = (i, k, v) => setRows(r => r.map((row, idx) => (idx === i ? { ...row, [k]: v } : row)))
+  const delRow = (i) => setRows(r => r.filter((_, idx) => idx !== i))
+  const itemsOrden = [...inventario].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''))
+
+  const materiales = rows
+    .filter(r => r.itemId && Number(r.cantidad) > 0)
+    .map(r => { const it = inventario.find(x => x.id === r.itemId); return { itemId: r.itemId, itemNombre: it?.nombre || '', cantidad: Number(r.cantidad) } })
+
+  const descontar = async () => {
+    if (!materiales.length || guardando) return
+    setGuardando(true)
+    try { await descontarMaterialesTrabajo(cot, materiales); onClose() }
+    catch (e) { window.alert(e.message || 'No se pudo descontar del inventario') }
+    finally { setGuardando(false) }
+  }
+  const revertir = async () => {
+    if (guardando || !window.confirm('¿Devolver estos materiales al inventario?')) return
+    setGuardando(true)
+    try { await revertirMaterialesTrabajo(cot); onClose() }
+    catch (e) { window.alert(e.message || 'No se pudo devolver al inventario') }
+    finally { setGuardando(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-[70] p-0 md:p-4" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
+          <div className="min-w-0">
+            <h2 className="font-barlow text-xl font-bold tracking-wide">MATERIALES DEL TRABAJO</h2>
+            <p className="text-xs text-on-surface-variant font-dm truncate">#{cot.numero} · {cot.clienteNombre || '—'}</p>
+          </div>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
+        </div>
+
+        <div className="p-5 space-y-3">
+          {descontado ? (
+            <>
+              <div className="flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 text-xs font-dm text-green-800">
+                <ArrowUpFromLine size={14} className="mt-0.5 shrink-0" />
+                Estos materiales ya se descontaron del inventario para este trabajo.
+              </div>
+              <div className="divide-y divide-white/50 rounded-xl border border-white/50 bg-white/40">
+                {(cot.materialesUsados || []).map((m, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2 text-sm font-dm">
+                    <span className="text-on-surface">{m.itemNombre || '—'}</span>
+                    <span className="text-on-surface-variant">−{m.cantidad}</span>
+                  </div>
+                ))}
+                {(cot.materialesUsados || []).length === 0 && <p className="px-3 py-3 text-sm text-on-surface-variant font-dm">Sin materiales registrados.</p>}
+              </div>
+              <button type="button" onClick={revertir} disabled={guardando}
+                className="w-full flex items-center justify-center gap-2 border border-white/60 bg-white/50 rounded-full py-2.5 text-sm font-dm text-on-surface hover:border-primary transition-colors disabled:opacity-45">
+                <ArrowDownToLine size={15} /> {guardando ? 'Devolviendo…' : 'Devolver al inventario'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-on-surface-variant font-dm">Agrega los materiales que consumió este trabajo. Al descontar, se restan del stock y quedan en el kardex de cada material.</p>
+              <div className="space-y-2">
+                {rows.map((row, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <select value={row.itemId} onChange={e => setRow(i, 'itemId', e.target.value)}
+                      className="flex-1 min-w-0 border border-white/60 bg-white/50 rounded-full px-3 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white">
+                      <option value="">Elegir material…</option>
+                      {itemsOrden.map(it => <option key={it.id} value={it.id}>{it.nombre} (stock {it.cantidad ?? 0})</option>)}
+                    </select>
+                    <input type="number" min="0" step="0.01" value={row.cantidad} onChange={e => setRow(i, 'cantidad', e.target.value)}
+                      placeholder="Cant." className="w-20 border border-white/60 bg-white/50 rounded-full px-3 py-2 text-sm font-dm text-center focus:outline-none focus:border-primary focus:bg-white" />
+                    <button type="button" onClick={() => delRow(i)} className="p-2 text-on-surface-variant hover:text-primary shrink-0"><X size={15} /></button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={addRow}
+                className="w-full border border-dashed border-white/70 rounded-full py-2 text-sm font-dm text-on-surface-variant hover:border-primary hover:text-on-surface transition-colors">
+                + Agregar material
+              </button>
+              <button type="button" onClick={descontar} disabled={guardando || materiales.length === 0}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary rounded-full py-2.5 text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20 disabled:opacity-45">
+                <ArrowUpFromLine size={15} /> {guardando ? 'Descontando…' : 'Descontar del inventario'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Cotizaciones() {
   const location = useLocation()
   const [cotizaciones, setCotizaciones] = useState([])
@@ -1063,6 +1166,7 @@ export default function Cotizaciones() {
   const [filtroEstado, setFiltroEstado] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [confirmDelete, setConfirmDelete] = useState([])
+  const [matModal, setMatModal] = useState(null) // id de la cotización cuyos materiales se editan
   const [selectedIds, setSelectedIds] = useState(() => new Set())
   const [deleting, setDeleting] = useState(false)
   const [cotizacionesCargadas, setCotizacionesCargadas] = useState(false)
@@ -1155,8 +1259,11 @@ export default function Cotizaciones() {
       )
       if (!confirmed) return
     }
+    // Si se reabre un trabajo terminado, devuelve sus materiales al inventario.
+    const reabriendo = cot.estado === 'terminada' && estado !== 'terminada' && cot.materialesDescontados
     try {
       const result = await updateCotizacionEstado(cot, estado)
+      if (reabriendo) await revertirMaterialesTrabajo(cot).catch(() => {})
       if (estado === 'aceptada') {
         setEnvioEstado({ tipo: 'ok', mensaje: `Cotización #${cot.numero} aceptada. Abono inicial del 50% registrado en ingresos.` })
         setTimeout(() => setEnvioEstado(null), 3500)
@@ -1166,6 +1273,8 @@ export default function Cotizaciones() {
           : 'El trabajo ya estaba pagado completamente; no se agregó un cobro duplicado.'
         setEnvioEstado({ tipo: 'ok', mensaje: `Trabajo #${cot.numero} terminado. ${detalle}` })
         setTimeout(() => setEnvioEstado(null), 4500)
+        // Descuento automático de materiales: abre el selector si aún no se hizo.
+        if (!cot.materialesDescontados) setMatModal(cot.id)
       }
     } catch (error) {
       setEnvioEstado({ tipo: 'error', mensaje: `No se pudo actualizar la cotización: ${error?.message || 'error desconocido'}` })
@@ -1257,6 +1366,7 @@ export default function Cotizaciones() {
   })
 
   const cotMenu = menuAbierto ? cotizaciones.find(c => c.id === menuAbierto) : null
+  const matCot = matModal ? cotizaciones.find(c => c.id === matModal) : null
 
   return (
     <div className="px-2.5 py-3 md:p-6 lg:p-8">
@@ -1304,6 +1414,10 @@ export default function Cotizaciones() {
         />
       )}
 
+      {matCot && (
+        <MaterialesTrabajoModal cot={matCot} onClose={() => setMatModal(null)} />
+      )}
+
       {cotMenu && (
         <AccionesMenu
           cotizacion={cotMenu}
@@ -1315,6 +1429,7 @@ export default function Cotizaciones() {
           onEnviarWhatsApp={() => handleEnviarWhatsApp(cotMenu)}
           onFinanzas={() => { setFinanzas(cotMenu); setMenuAbierto(null) }}
           onTerminar={() => { setMenuAbierto(null); handleEstado(cotMenu, 'terminada') }}
+          onMateriales={() => { setMatModal(cotMenu.id); setMenuAbierto(null) }}
           onEditar={() => { setModal({ ...cotMenu }); setMenuAbierto(null) }}
           onEliminar={() => handleDelete(cotMenu)}
           onClose={() => setMenuAbierto(null)}
