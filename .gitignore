@@ -16,3 +16,9 @@ assets/fotos/
 # Capturas y scripts de QA del prototipo (material temporal, no va al sitio)
 output/
 .vercel
+
+# 🔒 Cuentas de servicio / claves privadas de Firebase Admin — NUNCA subir
+*firebase-adminsdk*.json
+birth-studio-cotizador-*.json
+*serviceAccount*.json
+service-account*.json
