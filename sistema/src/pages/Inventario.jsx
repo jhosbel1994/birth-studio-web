@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
 import {
   subscribeInventario, saveInventarioItem, deleteInventarioItem, subscribeProveedores,
+  registrarMovimiento, subscribeMovimientosItem,
 } from '../utils/storage'
-import { clp } from '../utils/formatters'
-import { Plus, Search, Trash2, Edit2, X, Boxes, Package, Plus as PlusIcon, Minus, AlertTriangle, Download } from 'lucide-react'
+import { clp, hoy, fechaCorta } from '../utils/formatters'
+import {
+  Plus, Search, Trash2, Edit2, X, Boxes, Package, Plus as PlusIcon, Minus,
+  AlertTriangle, Download, History, ArrowDownToLine, ArrowUpFromLine,
+} from 'lucide-react'
 
 // Tipos de unidad para el inventario (cómo se mide el stock)
 const TIPOS = [
@@ -55,6 +59,137 @@ function BadgeStock({ estado, agotado }) {
   if (estado === 'rojo') return <span className="inline-block px-2 py-0.5 text-[10px] font-dm font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">{agotado ? 'Sin stock' : 'Crítico'}</span>
   if (estado === 'amarillo') return <span className="inline-block px-2 py-0.5 text-[10px] font-dm font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Bajo</span>
   return null
+}
+
+// ─── MODAL KARDEX (movimientos de un ítem) ────────────────────────────────────
+function KardexModal({ item, onClose }) {
+  const [movs, setMovs] = useState([])
+  const [tipo, setTipo] = useState('entrada')
+  const [cantidad, setCantidad] = useState('')
+  const [motivo, setMotivo] = useState('')
+  const [fecha, setFecha] = useState(hoy())
+  const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => subscribeMovimientosItem(item.id, setMovs), [item.id])
+
+  // El saldo más reciente lo da el último movimiento; si no hay, la cantidad del ítem.
+  const stock = movs.length ? movs[0].stockResultante : (item.cantidad || 0)
+
+  const registrar = async (e) => {
+    e.preventDefault()
+    const c = parseFloat(cantidad)
+    if (!(c > 0) || guardando) return
+    setGuardando(true)
+    try {
+      await registrarMovimiento({ itemId: item.id, tipo, cantidad: c, motivo: motivo.trim(), fecha })
+      setCantidad(''); setMotivo('')
+    } catch (err) {
+      alert(err.message || 'No se pudo registrar el movimiento')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const exportar = () => {
+    const esc = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
+    const cab = ['Fecha', 'Tipo', 'Cantidad', 'Motivo', 'Stock resultante', 'Nota']
+    const filas = [...movs].reverse().map(m => [
+      m.fecha, m.tipo === 'salida' ? 'Salida' : 'Entrada', m.cantidad, m.motivo, m.stockResultante, m.nota || '',
+    ].map(esc).join(','))
+    const csv = '﻿' + [cab.join(','), ...filas].join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `kardex_${(item.nombre || 'item').replace(/\s+/g, '_')}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 4000)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-[70] p-0 md:p-4">
+      <div className="glass-panel bg-white/90 rounded-t-[32px] md:rounded-widget w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
+          <div className="min-w-0">
+            <h2 className="font-barlow text-xl font-bold tracking-wide truncate">MOVIMIENTOS</h2>
+            <p className="text-xs text-on-surface-variant font-dm truncate">{item.nombre} · Stock actual: <b>{stock}</b></p>
+          </div>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
+        </div>
+
+        {/* Registrar un movimiento */}
+        <form onSubmit={registrar} className="p-5 space-y-3 border-b border-white/40">
+          <div className="inline-flex rounded-full border border-white/60 bg-white/50 p-0.5">
+            <button type="button" onClick={() => setTipo('entrada')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-dm transition-colors ${tipo === 'entrada' ? 'bg-green-600 text-white' : 'text-on-surface-variant'}`}>
+              <ArrowDownToLine size={14} /> Entrada
+            </button>
+            <button type="button" onClick={() => setTipo('salida')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-dm transition-colors ${tipo === 'salida' ? 'bg-red-600 text-white' : 'text-on-surface-variant'}`}>
+              <ArrowUpFromLine size={14} /> Salida
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Cantidad</label>
+              <input type="number" min="0" step="0.01" value={cantidad} onChange={e => setCantidad(e.target.value)} autoFocus
+                placeholder="0" className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Fecha</label>
+              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)}
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Motivo</label>
+            <input value={motivo} onChange={e => setMotivo(e.target.value)}
+              placeholder={tipo === 'entrada' ? 'Ej. Compra, devolución…' : 'Ej. Uso en trabajo, merma…'}
+              className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
+          </div>
+          <button type="submit" disabled={guardando || !(parseFloat(cantidad) > 0)}
+            className="w-full bg-primary text-on-primary py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors disabled:opacity-45">
+            {guardando ? 'Registrando…' : `Registrar ${tipo}`}
+          </button>
+        </form>
+
+        {/* Historial */}
+        <div className="p-5">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-dm text-sm font-semibold text-on-surface">Historial</h3>
+            {movs.length > 0 && (
+              <button type="button" onClick={exportar}
+                className="flex items-center gap-1.5 text-xs font-dm text-on-surface-variant hover:text-primary">
+                <Download size={13} /> Exportar
+              </button>
+            )}
+          </div>
+          {movs.length === 0 ? (
+            <p className="text-sm text-on-surface-variant font-dm py-6 text-center">Aún no hay movimientos registrados.</p>
+          ) : (
+            <div className="divide-y divide-white/40">
+              {movs.map(m => {
+                const salida = m.tipo === 'salida'
+                return (
+                  <div key={m.id} className="flex items-center justify-between py-2.5">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-dm font-semibold ${salida ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          {salida ? <ArrowUpFromLine size={10} /> : <ArrowDownToLine size={10} />}{salida ? 'Salida' : 'Entrada'}
+                        </span>
+                        <span className={`font-barlow font-bold ${salida ? 'text-red-600' : 'text-green-600'}`}>{salida ? '−' : '+'}{m.cantidad}</span>
+                      </div>
+                      <p className="text-[11px] text-on-surface-variant font-dm mt-0.5">{fechaCorta(m.fecha)}{m.motivo ? ` · ${m.motivo}` : ''}</p>
+                    </div>
+                    <span className="text-xs font-dm text-on-surface-variant shrink-0">Queda: <b className="text-on-surface">{m.stockResultante}</b></span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ─── MODAL CREAR/EDITAR ÍTEM ──────────────────────────────────────────────────
@@ -199,6 +334,7 @@ export default function Inventario() {
   const [items, setItems] = useState([])
   const [proveedores, setProveedores] = useState([])
   const [modal, setModal] = useState(null)
+  const [movModal, setMovModal] = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [soloBajo, setSoloBajo] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -221,9 +357,15 @@ export default function Inventario() {
 
   const valorTotal = items.reduce((s, i) => s + (i.cantidad || 0) * (i.precio || 0), 0)
 
+  // El +/- rápido también queda registrado en el kardex como entrada/salida.
   const ajustarStock = (item, delta) => {
-    const nueva = Math.max(0, (item.cantidad || 0) + delta)
-    saveInventarioItem({ ...item, cantidad: nueva })
+    registrarMovimiento({
+      itemId: item.id,
+      tipo: delta < 0 ? 'salida' : 'entrada',
+      cantidad: Math.abs(delta),
+      motivo: 'Ajuste rápido',
+      fecha: hoy(),
+    }).catch(() => {})
   }
 
   // Exporta el inventario completo a CSV (Google Sheets / Excel).
@@ -253,6 +395,10 @@ export default function Inventario() {
           onClose={() => setModal(null)}
           onSave={async (data) => { await saveInventarioItem(data); setModal(null) }}
         />
+      )}
+
+      {movModal && (
+        <KardexModal item={movModal} onClose={() => setMovModal(null)} />
       )}
 
       {confirmDelete && (
@@ -350,6 +496,7 @@ export default function Inventario() {
                     {i.nota && <p className="text-[11px] text-on-surface-variant/80 font-dm mt-0.5">{i.nota}</p>}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => setMovModal(i)} title="Movimientos" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><History size={14} /></button>
                     <button onClick={() => setModal({ ...i })} className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><Edit2 size={14} /></button>
                     <button onClick={() => setConfirmDelete(i)} className="p-1.5 rounded border border-red-200 text-primary hover:bg-red-50"><Trash2 size={14} /></button>
                   </div>
@@ -402,6 +549,7 @@ export default function Inventario() {
                     <td className="px-3 py-3 text-right font-medium text-green-700">{clp((i.cantidad || 0) * (i.precio || 0))}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5 justify-end">
+                        <button onClick={() => setMovModal(i)} title="Movimientos" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><History size={14} /></button>
                         <button onClick={() => setModal({ ...i })} title="Editar" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><Edit2 size={14} /></button>
                         <button onClick={() => setConfirmDelete(i)} title="Eliminar" className="p-1.5 rounded border border-red-200 text-primary hover:border-primary hover:bg-red-50"><Trash2 size={14} /></button>
                       </div>

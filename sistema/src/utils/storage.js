@@ -526,6 +526,45 @@ export async function deleteInventarioItem(id) {
   await deleteDoc(doc(db, 'inventario', id))
 }
 
+// ─── MOVIMIENTOS DE INVENTARIO (KARDEX) ──────────────────────────────────────
+// Registra una entrada o salida de stock de forma ATÓMICA: actualiza la
+// cantidad del ítem y guarda el movimiento con el stock resultante (para tener
+// el historial y que el saldo nunca se descuadre por dos cambios simultáneos).
+export async function registrarMovimiento({ itemId, tipo, cantidad, motivo, fecha, nota, costoUnitario }) {
+  const cant = Math.abs(Number(cantidad) || 0)
+  if (!itemId || cant <= 0) throw new Error('Movimiento inválido')
+  return runTransaction(db, async (tx) => {
+    const ref = doc(db, 'inventario', itemId)
+    const snap = await tx.get(ref)
+    if (!snap.exists()) throw new Error('El material ya no existe')
+    const item = snap.data()
+    const delta = tipo === 'salida' ? -cant : cant
+    const nueva = Math.max(0, (item.cantidad || 0) + delta)
+    tx.set(ref, { cantidad: nueva }, { merge: true })
+    const id = crypto.randomUUID()
+    const mov = {
+      id, itemId, itemNombre: item.nombre || '',
+      tipo: tipo === 'salida' ? 'salida' : 'entrada',
+      cantidad: cant, motivo: motivo || '',
+      fecha: fecha || new Date().toISOString().slice(0, 10),
+      stockResultante: nueva,
+      costoUnitario: costoUnitario != null && costoUnitario !== '' ? Number(costoUnitario) : null,
+      nota: nota || '', createdAt: new Date().toISOString(),
+    }
+    tx.set(doc(db, 'movimientosInventario', id), mov)
+    return mov
+  })
+}
+
+// Historial de movimientos de un ítem (ordenado en cliente para no requerir
+// índice compuesto en Firestore).
+export function subscribeMovimientosItem(itemId, cb) {
+  return onSnapshot(
+    query(collection(db, 'movimientosInventario'), where('itemId', '==', itemId)),
+    snap => cb(snapsToArr(snap).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))),
+  )
+}
+
 // ─── PROVEEDORES (con teléfono y los materiales que venden) ──────────────────
 // Shape: { id, nombre, telefono?, email?, direccion?, nota?,
 //          materiales: [{ nombre, unidad, precio }], createdAt }
