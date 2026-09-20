@@ -1,0 +1,11 @@
+{
+  "name": "birth-studio-web-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:api": "node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "9.2.0"
+  }
+}
