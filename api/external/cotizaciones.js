@@ -20,6 +20,19 @@ function errorBody(code, message, requestId, errors) {
   }
 }
 
+function logInternalError(logger, requestId, error) {
+  const safeText = value => String(value || '')
+    .replace(/[\r\n]+/g, ' ')
+    .slice(0, 300)
+
+  logger.error('external quote request failed', {
+    request_id: requestId,
+    error_name: safeText(error?.name),
+    error_code: safeText(error?.code),
+    error_message: safeText(error?.message),
+  })
+}
+
 function safeCompare(value, expected) {
   const left = Buffer.from(String(value || ''), 'utf8')
   const right = Buffer.from(String(expected || ''), 'utf8')
@@ -90,7 +103,7 @@ function createHandler(options = {}) {
       if (error instanceof DomainError) {
         return sendJson(res, error.status, errorBody(error.code, error.message, requestId, error.errors))
       }
-      ;(options.logger || console).error('external quote request failed', { request_id: requestId })
+      logInternalError(options.logger || console, requestId, error)
       return sendJson(res, 500, errorBody('INTERNAL_ERROR', 'No fue posible crear la cotización', requestId))
     }
   }
@@ -100,5 +113,6 @@ const handler = createHandler()
 
 module.exports = handler
 module.exports.createHandler = createHandler
+module.exports.logInternalError = logInternalError
 module.exports.parseBody = parseBody
 module.exports.safeCompare = safeCompare

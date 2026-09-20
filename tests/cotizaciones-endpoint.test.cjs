@@ -121,6 +121,25 @@ test('maps repository domain failures without leaking internal errors', async ()
   assert.doesNotMatch(JSON.stringify(internal.res.body), /database detail/)
 })
 
+test('logs bounded diagnostic metadata for unexpected failures', async () => {
+  const entries = []
+  const res = response()
+  const logger = { error(...args) { entries.push(args) } }
+  const error = new Error(`database detail\n${'x'.repeat(400)}`)
+  error.code = 7
+
+  await createHandler({ apiKey: API_KEY, repository: repository(error), logger })(request(), res)
+
+  assert.equal(res.statusCode, 500)
+  assert.equal(entries.length, 1)
+  assert.equal(entries[0][0], 'external quote request failed')
+  assert.equal(entries[0][1].error_name, 'Error')
+  assert.equal(entries[0][1].error_code, '7')
+  assert.equal(entries[0][1].error_message.length, 300)
+  assert.doesNotMatch(entries[0][1].error_message, /[\r\n]/)
+  assert.doesNotMatch(JSON.stringify(res.body), /database detail/)
+})
+
 test('passes through a successful idempotent replay', async () => {
   const replay = repository({ status: 200, body: { ok: true, folio: '#00307', idempotent_replay: true } })
   const { res } = await invoke(request(), replay)
