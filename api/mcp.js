@@ -7,6 +7,7 @@
 // Se agrega en Claude como conector personalizado por URL: https://.../api/mcp
 
 const crypto = require('node:crypto')
+const gastos = require('../server/gastos/gastos-repository.cjs')
 
 const PROTOCOL_VERSION = '2025-06-18'
 const SERVER_NAME = 'birth-studio-cotizaciones'
@@ -64,6 +65,68 @@ const TOOL_CREAR_COTIZACION = {
       validez_dias: { type: 'integer', description: 'Días de validez (1 a 30). Por defecto 15.' },
     },
     required: ['cliente_nombre', 'proyecto', 'items'],
+  },
+}
+
+const TOOL_REGISTRAR_GASTO = {
+  name: 'registrar_gasto',
+  description:
+    'Registra un gasto en el sistema de Birth Studio (queda en Gastos & Finanzas). Úsalo cuando el ' +
+    'usuario envíe una foto de una boleta/factura o describa un gasto: extrae los datos de la imagen, ' +
+    'muéstrale un resumen y pide confirmación antes de registrar. Montos en pesos chilenos enteros; ' +
+    '"monto" es el TOTAL pagado.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      descripcion: {
+        type: 'string',
+        description: 'Proveedor/comercio y detalle del gasto. Ej: "Sodimac - tornillos y silicona"',
+      },
+      monto: {
+        type: 'integer',
+        description: 'Monto TOTAL pagado en pesos chilenos, entero, sin puntos ni símbolos',
+      },
+      fecha: {
+        type: 'string',
+        description: 'Fecha de la boleta en formato YYYY-MM-DD (la de la boleta, no necesariamente hoy)',
+      },
+      categoria: { type: 'string', enum: gastos.CATEGORIAS, description: 'Categoría del gasto' },
+      notas: {
+        type: 'string',
+        description: 'Notas opcionales: N° de boleta, RUT del proveedor, neto/IVA si vienen desglosados, etc.',
+      },
+    },
+    required: ['descripcion', 'monto', 'fecha', 'categoria'],
+  },
+}
+
+const TOOL_CONSULTAR_BALANCE = {
+  name: 'consultar_balance',
+  description:
+    'Consulta el total de gastos (y opcionalmente ingresos) de Birth Studio en un período. Solo lectura. ' +
+    'Útil para "¿cuánto gasté esta semana/mes?", "gastos por categoría", "gastos de este proveedor". ' +
+    'Zona horaria de Chile; la semana parte el lunes; la quincena es 1–15 y 16–fin de mes.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      periodo: {
+        type: 'string',
+        enum: ['hoy', 'semana', 'quincena', 'mes', 'personalizado'],
+        description: 'Período a consultar. Por defecto "mes".',
+      },
+      fecha_inicio: { type: 'string', description: 'Inicio YYYY-MM-DD (obligatorio si periodo = personalizado)' },
+      fecha_fin: { type: 'string', description: 'Fin YYYY-MM-DD (obligatorio si periodo = personalizado)' },
+      categoria: { type: 'string', enum: gastos.CATEGORIAS, description: 'Filtrar por una categoría (opcional)' },
+      agrupar_por: {
+        type: 'string',
+        enum: ['categoria', 'dia', 'proveedor'],
+        description: 'Cómo desglosar el total. Por defecto "categoria".',
+      },
+      incluir_ingresos: {
+        type: 'boolean',
+        description: 'Si es true, incluye ingresos (pagos recibidos) y el neto (ingresos − gastos).',
+      },
+    },
   },
 }
 
@@ -133,6 +196,40 @@ async function crearCotizacion(args = {}) {
   return { isError: false, text: texto }
 }
 
+// Registra un gasto y devuelve texto para Claude.
+async function registrarGastoTool(args = {}) {
+  const r = await gastos.registrarGasto(args)
+  if (!r.ok) return { isError: true, text: `⚠️ ${r.message}` }
+  const g = r.gasto
+  const text =
+    `✅ Gasto registrado.\n` +
+    `• ${g.descripcion}\n` +
+    `• Monto: ${clp(g.monto)}\n` +
+    `• Fecha: ${g.fecha}\n` +
+    `• Categoría: ${g.categoria}` +
+    (g.notas ? `\n• Notas: ${g.notas}` : '')
+  return { isError: false, text }
+}
+
+// Consulta balances y devuelve texto para Claude.
+async function consultarBalanceTool(args = {}) {
+  const r = await gastos.consultarBalance(args)
+  const lineas = Object.entries(r.grupos)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `   • ${k}: ${clp(v)}`)
+  let text =
+    `📊 Balance — ${r.etiqueta}\n` +
+    `Total gastos: ${clp(r.total)} (${r.cantidad} ${r.cantidad === 1 ? 'gasto' : 'gastos'})` +
+    (r.filtroCategoria ? ` · categoría: ${r.filtroCategoria}` : '')
+  if (lineas.length) text += `\nDesglose por ${r.agruparPor}:\n${lineas.join('\n')}`
+  if (r.ingresos != null) {
+    text +=
+      `\nIngresos (pagos recibidos): ${clp(r.ingresos)}` +
+      `\nNeto (ingresos − gastos): ${clp(r.neto)}`
+  }
+  return { isError: false, text }
+}
+
 // ─── Protocolo MCP (JSON-RPC 2.0 sobre Streamable HTTP) ───────────────────────
 
 function rpcResult(id, result) {
@@ -154,16 +251,24 @@ async function handleRpc(msg) {
       })
 
     case 'tools/list':
-      return rpcResult(id, { tools: [TOOL_CREAR_COTIZACION] })
+      return rpcResult(id, { tools: [TOOL_CREAR_COTIZACION, TOOL_REGISTRAR_GASTO, TOOL_CONSULTAR_BALANCE] })
 
     case 'tools/call': {
       const name = params && params.name
       const args = (params && params.arguments) || {}
-      if (name !== 'crear_cotizacion') {
-        return rpcError(id, -32602, `Herramienta desconocida: ${name}`)
+      try {
+        let out
+        if (name === 'crear_cotizacion') out = await crearCotizacion(args)
+        else if (name === 'registrar_gasto') out = await registrarGastoTool(args)
+        else if (name === 'consultar_balance') out = await consultarBalanceTool(args)
+        else return rpcError(id, -32602, `Herramienta desconocida: ${name}`)
+        return rpcResult(id, { content: [{ type: 'text', text: out.text }], isError: out.isError })
+      } catch {
+        return rpcResult(id, {
+          content: [{ type: 'text', text: 'No se pudo completar la operación. Intenta de nuevo.' }],
+          isError: true,
+        })
       }
-      const { isError, text } = await crearCotizacion(args)
-      return rpcResult(id, { content: [{ type: 'text', text }], isError })
     }
 
     // Métodos que algunos clientes consultan tras conectar; respondemos vacío.
