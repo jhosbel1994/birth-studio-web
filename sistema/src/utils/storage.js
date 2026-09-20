@@ -274,6 +274,31 @@ export async function deletePago(id) {
   await deleteDoc(doc(db, 'pagos', id))
 }
 
+// Registra un ingreso. Si es personal y proviene de Birth (retiro), crea además
+// el gasto vinculado en Birth (categoría "Retiro") para que en un solo paso baje
+// el balance de Birth y suba el de Personal.
+export async function savePagoConRetiro(pago) {
+  if (!pago.id && pago.ambito === 'personal' && pago.origenBirth) {
+    const gasto = await saveGasto({
+      descripcion: pago.notas?.trim() ? `Retiro: ${pago.notas.trim()}` : 'Retiro a finanzas personales',
+      monto: pago.monto,
+      fecha: pago.fecha,
+      categoria: 'Retiro',
+      ambito: 'birth',
+    })
+    return savePago({ ...pago, gastoVinculadoId: gasto.id })
+  }
+  return savePago(pago)
+}
+
+// Borra un ingreso y, si era un retiro, borra también el gasto vinculado en Birth.
+export async function deletePagoConReversa(pago) {
+  if (pago?.gastoVinculadoId) {
+    try { await deleteDoc(doc(db, 'gastos', pago.gastoVinculadoId)) } catch {}
+  }
+  await deleteDoc(doc(db, 'pagos', pago.id))
+}
+
 export async function getPagosByCotizacion(cotizacionId) {
   const snap = await getDocs(query(collection(db, 'pagos'), where('cotizacionId', '==', cotizacionId)))
   return snapsToArr(snap)

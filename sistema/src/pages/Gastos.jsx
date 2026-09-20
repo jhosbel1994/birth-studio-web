@@ -1,19 +1,62 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  saveGasto, deleteGastoConReversa, savePago, deletePago,
+  saveGasto, deleteGastoConReversa, savePagoConRetiro, deletePagoConReversa,
   subscribeGastos, subscribePagos, subscribeCotizaciones,
   uploadBoletaImagen, getBoletaImagenUrl, deleteBoletaImagen,
 } from '../utils/storage'
 import { clp, fechaCorta, hoy, CATEGORIAS_GASTO } from '../utils/formatters'
 import { escanearBoleta } from '../utils/scanner'
+import { exportarFinanzasCSV, exportarFinanzasPDF } from '../utils/exportFinanzas'
 import {
   Plus, Trash2, X, TrendingUp, TrendingDown, DollarSign, Camera,
   Loader2, AlertCircle, CheckCircle2, Upload, ExternalLink, ReceiptText,
+  Download, Building2, User, Wallet,
 } from 'lucide-react'
 
+// Ámbito de un movimiento: 'birth' (negocio) o 'personal'. Los registros
+// antiguos sin ámbito se consideran Birth (compatibilidad hacia atrás).
+const ambitoDe = (x) => (x?.ambito === 'personal' ? 'personal' : 'birth')
+const ambitoLabel = (a) => (a === 'personal' ? 'Personal' : 'Birth')
+
+// Control segmentado Birth/Personal (con opción "Todos" para el filtro).
+function AmbitoToggle({ value, onChange, withTodos = false, size = 'md' }) {
+  const opts = [
+    ...(withTodos ? [{ v: 'todos', label: 'Todos', icon: Wallet }] : []),
+    { v: 'birth', label: 'Birth', icon: Building2 },
+    { v: 'personal', label: 'Personal', icon: User },
+  ]
+  const pad = size === 'sm' ? 'px-2.5 py-1' : 'px-3 py-1.5'
+  return (
+    <div className="inline-flex rounded-full border border-white/60 bg-white/50 p-0.5">
+      {opts.map(o => {
+        const Icon = o.icon
+        const active = value === o.v
+        return (
+          <button key={o.v} type="button" onClick={() => onChange(o.v)}
+            className={`flex items-center gap-1.5 ${pad} rounded-full text-sm font-dm transition-colors ${active ? 'bg-on-surface text-white shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}>
+            <Icon size={14} /> {o.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// Etiqueta pequeña de ámbito para las listas.
+function BadgeAmbito({ ambito }) {
+  const personal = ambito === 'personal'
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-dm font-semibold border ${
+      personal ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-sky-100 text-sky-700 border-sky-200'
+    }`}>
+      {personal ? <User size={10} /> : <Building2 size={10} />}{ambitoLabel(ambito)}
+    </span>
+  )
+}
+
 function ModalGasto({ gasto, onClose, onSave }) {
-  const [form, setForm] = useState(gasto?.id ? { ...gasto } : {
-    descripcion: '', monto: '', fecha: hoy(), categoria: 'Materiales', notas: ''
+  const [form, setForm] = useState(gasto?.id ? { ambito: 'birth', ...gasto } : {
+    descripcion: '', monto: '', fecha: hoy(), categoria: 'Materiales', notas: '', ambito: 'birth'
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -187,6 +230,10 @@ function ModalGasto({ gasto, onClose, onSave }) {
         <form onSubmit={handleSubmit}
           className="p-5 md:p-6 pt-4 space-y-4">
           <div>
+            <label className="block text-xs text-on-surface-variant mb-1.5 font-dm uppercase tracking-wider">¿De qué bolsillo?</label>
+            <AmbitoToggle value={form.ambito || 'birth'} onChange={v => set('ambito', v)} />
+          </div>
+          <div>
             <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Descripción *</label>
             <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)} required
               className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
@@ -268,9 +315,14 @@ function BoletaLink({ gasto, compact = false }) {
 }
 
 function ModalPago({ cotizaciones, onClose, onSave }) {
-  const [form, setForm] = useState({ cotizacionId: '', monto: '', fecha: hoy(), tipo: 'anticipo', notas: '' })
+  const [form, setForm] = useState({ cotizacionId: '', monto: '', fecha: hoy(), tipo: 'anticipo', notas: '', ambito: 'birth', origenBirth: false })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const cots = cotizaciones.filter(c => ['aceptada', 'terminada'].includes(c.estado))
+  // Al cambiar de bolsillo, limpiamos los campos que no aplican al otro.
+  const cambiarAmbito = (v) => setForm(f => ({
+    ...f, ambito: v,
+    ...(v === 'personal' ? { cotizacionId: '', tipo: 'otro' } : { origenBirth: false }),
+  }))
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
@@ -281,13 +333,30 @@ function ModalPago({ cotizaciones, onClose, onSave }) {
         </div>
         <form onSubmit={e => { e.preventDefault(); if (!form.monto) return; onSave(form) }} className="p-5 md:p-6 space-y-4">
           <div>
-            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Cotización (opcional)</label>
-            <select value={form.cotizacionId} onChange={e => set('cotizacionId', e.target.value)}
-              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
-              <option value="">Sin vincular</option>
-              {cots.map(c => <option key={c.id} value={c.id}>#{c.numero} — {c.clienteNombre} ({clp(c.total)})</option>)}
-            </select>
+            <label className="block text-xs text-on-surface-variant mb-1.5 font-dm uppercase tracking-wider">¿A qué bolsillo entra?</label>
+            <AmbitoToggle value={form.ambito} onChange={cambiarAmbito} />
           </div>
+
+          {form.ambito === 'personal' && (
+            <label className="flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 cursor-pointer">
+              <input type="checkbox" checked={form.origenBirth} onChange={e => set('origenBirth', e.target.checked)}
+                className="mt-0.5 accent-on-surface" />
+              <span className="text-xs font-dm text-on-surface leading-snug">
+                Este dinero <b>proviene de Birth</b> (retiro). Se descontará del balance de Birth y se sumará a tu balance Personal.
+              </span>
+            </label>
+          )}
+
+          {form.ambito === 'birth' && (
+            <div>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Cotización (opcional)</label>
+              <select value={form.cotizacionId} onChange={e => set('cotizacionId', e.target.value)}
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
+                <option value="">Sin vincular</option>
+                {cots.map(c => <option key={c.id} value={c.id}>#{c.numero} — {c.clienteNombre} ({clp(c.total)})</option>)}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Monto *</label>
@@ -300,16 +369,18 @@ function ModalPago({ cotizaciones, onClose, onSave }) {
                 className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
             </div>
           </div>
-          <div>
-            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Tipo</label>
-            <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
-              className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
-              <option value="anticipo">Anticipo</option>
-              <option value="saldo">Saldo</option>
-              <option value="total">Pago total</option>
-              <option value="otro">Otro ingreso</option>
-            </select>
-          </div>
+          {form.ambito === 'birth' && (
+            <div>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Tipo</label>
+              <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
+                className="w-full border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
+                <option value="anticipo">Anticipo</option>
+                <option value="saldo">Saldo</option>
+                <option value="total">Pago total</option>
+                <option value="otro">Otro ingreso</option>
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Notas</label>
             <input value={form.notas} onChange={e => set('notas', e.target.value)}
@@ -342,6 +413,7 @@ export default function Gastos() {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
+  const [ambitoFiltro, setAmbitoFiltro] = useState('birth') // 'todos' | 'birth' | 'personal'
 
   useEffect(() => {
     const u1 = subscribeGastos(setGastos)
@@ -350,18 +422,27 @@ export default function Gastos() {
     return () => { u1(); u2(); u3() }
   }, [])
 
-  const gastosMes = gastos.filter(g => g.fecha?.startsWith(mesFiltro))
-  const pagosMes = pagos.filter(p => p.fecha?.startsWith(mesFiltro))
+  const enAmbito = (x) => ambitoFiltro === 'todos' || ambitoDe(x) === ambitoFiltro
+  const gastosMes = gastos.filter(g => g.fecha?.startsWith(mesFiltro) && enAmbito(g))
+  const pagosMes = pagos.filter(p => p.fecha?.startsWith(mesFiltro) && enAmbito(p))
 
   const totalGastos = gastosMes.reduce((s, g) => s + (g.monto || 0), 0)
   const totalIngresos = pagosMes.reduce((s, p) => s + (p.monto || 0), 0)
   const ganancia = totalIngresos - totalGastos
 
-  // Gastos por categoría
-  const porCategoria = CATEGORIAS_GASTO.map(cat => ({
+  // Gastos por categoría (incluye 'Retiro' si aparece; respeta el ámbito).
+  const porCategoria = [...new Set(gastosMes.map(g => g.categoria || 'Otros'))].map(cat => ({
     cat,
-    total: gastosMes.filter(g => g.categoria === cat).reduce((s, g) => s + (g.monto || 0), 0),
+    total: gastosMes.filter(g => (g.categoria || 'Otros') === cat).reduce((s, g) => s + (g.monto || 0), 0),
   })).filter(c => c.total > 0).sort((a, b) => b.total - a.total)
+
+  // Detalle para exportar: lo que se está viendo (mes + ámbito).
+  const movimientos = [
+    ...gastosMes.map(g => ({ fecha: g.fecha, tipo: 'Gasto', ambito: ambitoDe(g), descripcion: g.descripcion, categoria: g.categoria || 'Otros', monto: g.monto || 0 })),
+    ...pagosMes.map(p => ({ fecha: p.fecha, tipo: 'Ingreso', ambito: ambitoDe(p), descripcion: p.notas || 'Ingreso', categoria: p.tipo || '—', monto: p.monto || 0 })),
+  ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  const nombreBase = `finanzas_${ambitoFiltro}_${mesFiltro}`
+  const ambTexto = ambitoFiltro === 'todos' ? 'Birth + Personal' : ambitoLabel(ambitoFiltro)
 
   const meses = []
   for (let i = 5; i >= 0; i--) {
@@ -383,7 +464,7 @@ export default function Gastos() {
         <ModalPago
           cotizaciones={cotizaciones}
           onClose={() => setModalPago(false)}
-          onSave={async (data) => { await savePago(data); setModalPago(false) }}
+          onSave={async (data) => { await savePagoConRetiro(data); setModalPago(false) }}
         />
       )}
 
@@ -402,6 +483,23 @@ export default function Gastos() {
               return <option key={m} value={m}>{label}</option>
             })}
           </select>
+        </div>
+      </div>
+
+      {/* Filtro de bolsillo (Birth/Personal) + exportar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5 md:mb-6">
+        <AmbitoToggle withTodos value={ambitoFiltro} onChange={setAmbitoFiltro} />
+        <div className="flex gap-2">
+          <button type="button" onClick={() => exportarFinanzasCSV(movimientos, `${nombreBase}.csv`)}
+            disabled={movimientos.length === 0}
+            className="flex items-center gap-2 border border-white/60 bg-white/50 rounded-full px-3.5 py-2 text-sm font-dm text-on-surface hover:border-primary transition-colors disabled:opacity-40">
+            <Download size={14} /> Excel/Sheets
+          </button>
+          <button type="button" onClick={() => exportarFinanzasPDF(movimientos, { titulo: `Finanzas — ${ambTexto}`, subtitulo: `Período ${mesFiltro}`, nombreArchivo: `${nombreBase}.pdf` })}
+            disabled={movimientos.length === 0}
+            className="flex items-center gap-2 border border-white/60 bg-white/50 rounded-full px-3.5 py-2 text-sm font-dm text-on-surface hover:border-primary transition-colors disabled:opacity-40">
+            <Download size={14} /> PDF
+          </button>
         </div>
       </div>
 
@@ -424,7 +522,7 @@ export default function Gastos() {
         <div className="glass-panel rounded-widget p-4 md:p-5">
           <div className="flex items-center gap-2 mb-1">
             <DollarSign size={16} className={ganancia >= 0 ? 'text-green-500' : 'text-primary'} />
-            <p className="text-xs text-on-surface-variant font-dm uppercase tracking-wider">Ganancia neta</p>
+            <p className="text-xs text-on-surface-variant font-dm uppercase tracking-wider">Balance {ambTexto}</p>
           </div>
           <p className={`font-barlow text-2xl md:text-3xl font-bold ${ganancia >= 0 ? 'text-green-700' : 'text-primary'}`}>{clp(ganancia)}</p>
         </div>
@@ -467,8 +565,9 @@ export default function Gastos() {
                         <div className="min-w-0">
                           <p className="font-dm font-semibold text-sm text-on-surface truncate">{g.descripcion}</p>
                           <p className="text-xs text-on-surface-variant mt-1 font-dm">{fechaCorta(g.fecha)}{cot ? ` · #${cot.numero}` : ''}</p>
-                          <div className="mt-2 flex items-center gap-2">
+                          <div className="mt-2 flex items-center gap-2 flex-wrap">
                             <span className="inline-block bg-white/60 px-2 py-0.5 rounded text-[11px] font-dm text-on-surface-variant">{g.categoria}</span>
+                            {ambitoFiltro === 'todos' && <BadgeAmbito ambito={ambitoDe(g)} />}
                             <BoletaLink gasto={g} />
                           </div>
                         </div>
@@ -507,6 +606,7 @@ export default function Gastos() {
                         </td>
                         <td className="px-3 py-3">
                           <span className="bg-white/60 px-2 py-0.5 rounded text-xs">{g.categoria}</span>
+                          {ambitoFiltro === 'todos' && <span className="ml-1.5 inline-block align-middle"><BadgeAmbito ambito={ambitoDe(g)} /></span>}
                         </td>
                         <td className="px-3 py-3 text-on-surface-variant">{fechaCorta(g.fecha)}</td>
                         <td className="px-3 py-3 text-right font-medium text-primary">{clp(g.monto)}</td>
@@ -537,13 +637,16 @@ export default function Gastos() {
                           <div className="min-w-0">
                             <p className="font-dm font-semibold text-sm text-on-surface truncate">{p.notas || 'Ingreso registrado'}</p>
                             <p className="text-xs text-on-surface-variant mt-1 font-dm">{fechaCorta(p.fecha)}{cot ? ` · #${cot.numero}` : ''}</p>
-                            <span className="inline-block mt-2 bg-white/60 px-2 py-0.5 rounded text-[11px] font-dm text-on-surface-variant capitalize">{p.tipo}</span>
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              <span className="inline-block bg-white/60 px-2 py-0.5 rounded text-[11px] font-dm text-on-surface-variant capitalize">{p.tipo}</span>
+                              {ambitoFiltro === 'todos' && <BadgeAmbito ambito={ambitoDe(p)} />}
+                            </div>
                           </div>
                           <p className="font-barlow text-lg font-bold text-green-700 shrink-0">{clp(p.monto)}</p>
                         </div>
                         <button
                           type="button"
-                          onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id) } }}
+                          onClick={() => { if (confirm('¿Eliminar?')) { deletePagoConReversa(p) } }}
                           className="mt-4 h-10 w-full rounded border border-white/50 text-xs font-dm text-primary flex items-center justify-center gap-2 active:border-primary"
                         >
                           <Trash2 size={14} /> Eliminar ingreso
@@ -572,11 +675,12 @@ export default function Gastos() {
                           <td className="px-3 py-3 text-on-surface-variant">{cot ? `#${cot.numero}` : '—'}</td>
                           <td className="px-3 py-3">
                             <span className="bg-white/60 px-2 py-0.5 rounded text-xs capitalize">{p.tipo}</span>
+                            {ambitoFiltro === 'todos' && <span className="ml-1.5 inline-block align-middle"><BadgeAmbito ambito={ambitoDe(p)} /></span>}
                           </td>
                           <td className="px-3 py-3 text-on-surface-variant">{fechaCorta(p.fecha)}</td>
                           <td className="px-3 py-3 text-right font-medium text-green-700">{clp(p.monto)}</td>
                           <td className="px-5 py-3">
-                            <button onClick={() => { if (confirm('¿Eliminar?')) { deletePago(p.id) } }}
+                            <button onClick={() => { if (confirm('¿Eliminar?')) { deletePagoConReversa(p) } }}
                               className="p-1.5 text-on-surface-variant hover:text-primary rounded hover:bg-white/60">
                               <Trash2 size={14} />
                             </button>
