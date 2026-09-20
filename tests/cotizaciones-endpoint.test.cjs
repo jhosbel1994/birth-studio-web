@@ -76,7 +76,7 @@ test('returns service unavailable when the server API key is not securely config
 })
 
 test('returns service unavailable when Firestore server credentials are absent', async () => {
-  const names = ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY']
+  const names = ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_PRIVATE_KEY_BASE64']
   const previous = Object.fromEntries(names.map(name => [name, process.env[name]]))
   names.forEach(name => delete process.env[name])
   try {

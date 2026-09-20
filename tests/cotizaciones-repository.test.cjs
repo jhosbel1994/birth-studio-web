@@ -1,6 +1,9 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { createFirebaseQuoteRepository } = require('../server/cotizaciones/firebase-repository.cjs')
+const {
+  createFirebaseQuoteRepository,
+  privateKeyFromEnv,
+} = require('../server/cotizaciones/firebase-repository.cjs')
 const { DomainError, hashRequest, validateRequest } = require('../server/cotizaciones/domain.cjs')
 
 class FakeSnapshot {
@@ -207,4 +210,14 @@ test('concurrent requests receive different consecutive folios', async () => {
   assert.equal(db.collectionData('settings').get('app').ultimoNumeroCotizacion, 308)
   assert.equal(db.collectionData('clientes').size, 1)
   assert.equal(db.collectionData('cotizaciones').size, 2)
+})
+
+test('decodes a base64 private key and keeps escaped-key compatibility', () => {
+  const pem = '-----BEGIN PRIVATE KEY-----\nprivate-data\n-----END PRIVATE KEY-----'
+  assert.equal(privateKeyFromEnv({ FIREBASE_PRIVATE_KEY_BASE64: Buffer.from(pem).toString('base64') }), pem)
+  assert.equal(privateKeyFromEnv({ FIREBASE_PRIVATE_KEY: pem.replace(/\n/g, '\\n') }), pem)
+  assert.throws(
+    () => privateKeyFromEnv({ FIREBASE_PRIVATE_KEY_BASE64: Buffer.from('invalid').toString('base64') }),
+    error => error instanceof DomainError && error.code === 'SERVICE_NOT_CONFIGURED',
+  )
 })

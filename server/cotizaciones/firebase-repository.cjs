@@ -18,13 +18,25 @@ function requiredEnv(name) {
   return value
 }
 
+function privateKeyFromEnv(env = process.env) {
+  const encoded = String(env.FIREBASE_PRIVATE_KEY_BASE64 || '').trim()
+  const key = encoded
+    ? Buffer.from(encoded, 'base64').toString('utf8').trim()
+    : String(env.FIREBASE_PRIVATE_KEY || '').trim().replace(/\\n/g, '\n')
+
+  if (!key.startsWith('-----BEGIN PRIVATE KEY-----') || !key.endsWith('-----END PRIVATE KEY-----')) {
+    throw new DomainError('SERVICE_NOT_CONFIGURED', 'El servicio no está configurado', 503)
+  }
+  return key
+}
+
 function getAdminDb() {
   if (!serverDb) {
     serverDb = new Firestore({
       projectId: requiredEnv('FIREBASE_PROJECT_ID'),
       credentials: {
         client_email: requiredEnv('FIREBASE_CLIENT_EMAIL'),
-        private_key: requiredEnv('FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n'),
+        private_key: privateKeyFromEnv(),
       },
     })
   }
@@ -157,5 +169,6 @@ module.exports = {
   createFirebaseQuoteRepository,
   getAdminDb,
   newClientRecord,
+  privateKeyFromEnv,
   resolveClient,
 }

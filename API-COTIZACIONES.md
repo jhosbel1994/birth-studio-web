@@ -17,13 +17,16 @@ Configurar como secretos de Vercel en `Production` y `Preview`:
 COTIZADOR_API_KEY
 FIREBASE_PROJECT_ID
 FIREBASE_CLIENT_EMAIL
-FIREBASE_PRIVATE_KEY
+FIREBASE_PRIVATE_KEY_BASE64
 ```
 
 `COTIZADOR_API_KEY` debe contener al menos 32 bytes aleatorios. No debe usar el
 prefijo `VITE_`. Las credenciales corresponden a una cuenta de servicio de Google
 Cloud con acceso a Firestore y nunca deben incorporarse al frontend. El endpoint usa
 el cliente oficial server-side `@google-cloud/firestore`; no usa el SDK del navegador.
+`FIREBASE_PRIVATE_KEY_BASE64` contiene la clave PEM codificada en Base64 para evitar
+problemas con saltos de línea en Vercel. Por compatibilidad, también se admite
+`FIREBASE_PRIVATE_KEY`, pero Base64 es la configuración recomendada.
 
 Después de crear o modificar variables en Vercel es necesario volver a desplegar.
 
