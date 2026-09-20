@@ -146,10 +146,15 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
     .slice(0, 4)
 
-  // Materiales agotados o en/bajo su stock mínimo (misma regla que Inventario).
+  // Materiales que necesitan atención según el semáforo (rojo o amarillo).
+  // Misma regla que estadoStock() en Inventario: verde=óptimo, rojo=crítico.
   const materialesPorReponer = inventario.filter(i => {
-    const c = i.cantidad || 0, min = i.stockMinimo || 0
-    return c <= 0 || (min > 0 && c <= min)
+    const c = i.cantidad || 0, rojo = i.stockMinimo || 0, verde = i.stockVerde || 0
+    if (verde > 0 && c >= verde) return false       // verde → suficiente
+    if (c <= 0) return true                          // agotado
+    if (rojo > 0 && c <= rojo) return true           // crítico
+    if (verde > 0) return true                       // amarillo (bajo el óptimo)
+    return false                                     // sin umbrales y con stock
   })
 
   return (

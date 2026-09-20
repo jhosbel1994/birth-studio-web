@@ -3,7 +3,7 @@ import {
   subscribeInventario, saveInventarioItem, deleteInventarioItem, subscribeProveedores,
 } from '../utils/storage'
 import { clp } from '../utils/formatters'
-import { Plus, Search, Trash2, Edit2, X, Boxes, Package, Plus as PlusIcon, Minus, AlertTriangle } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, X, Boxes, Package, Plus as PlusIcon, Minus, AlertTriangle, Download } from 'lucide-react'
 
 // Tipos de unidad para el inventario (cómo se mide el stock)
 const TIPOS = [
@@ -19,27 +19,41 @@ const TIPOS = [
 ]
 const tipoLabel = (v) => TIPOS.find(t => t.v === v)?.v || v
 
-const EMPTY = { nombre: '', tipo: 'm2', cantidad: '', stockMinimo: '', precio: '', proveedorId: '', nota: '' }
+const EMPTY = { nombre: '', tipo: 'm2', cantidad: '', stockVerde: '', stockMinimo: '', precio: '', proveedorId: '', nota: '' }
 
 // Mapea la unidad del proveedor (m², ml…) al tipo del inventario (m2, ml…)
 const UNIDAD_A_TIPO = { 'm²': 'm2', 'm2': 'm2', 'ml': 'ml', 'unidad': 'unidad', 'plancha': 'plancha', 'rollo': 'rollo', 'caja': 'caja', 'kilo': 'kilo', 'litro': 'litro', 'set': 'set' }
 
-// Estado de stock de un ítem según su stock mínimo (punto de reorden):
-//   'sin'  → agotado (0 o menos)
-//   'bajo' → llegó al mínimo o por debajo (hay que reponer)
-//   'ok'   → suficiente
+// Semáforo de stock con dos umbrales editables por ítem (los define el usuario):
+//   stockVerde  = umbral óptimo (verde si el stock llega o supera este número)
+//   stockMinimo = umbral crítico (rojo si el stock cae a este número o menos)
+// Entre ambos → amarillo. Sin umbrales → neutro (solo marca agotado en rojo).
+// Devuelve 'verde' | 'amarillo' | 'rojo' | 'ok'.
 export const estadoStock = (i) => {
   const c = i.cantidad || 0
-  const min = i.stockMinimo || 0
-  if (c <= 0) return 'sin'
-  if (min > 0 && c <= min) return 'bajo'
+  const rojo = i.stockMinimo || 0
+  const verde = i.stockVerde || 0
+  if (verde > 0 && c >= verde) return 'verde'
+  if (c <= 0) return 'rojo'
+  if (rojo > 0 && c <= rojo) return 'rojo'
+  if (verde > 0) return 'amarillo'
+  if (rojo > 0) return 'verde'
   return 'ok'
 }
 
-// Etiqueta de color para el estado de stock (roja=agotado, ámbar=bajo).
-function BadgeStock({ estado }) {
-  if (estado === 'sin') return <span className="inline-block px-2 py-0.5 text-[10px] font-dm font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Sin stock</span>
-  if (estado === 'bajo') return <span className="inline-block px-2 py-0.5 text-[10px] font-dm font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Bajo stock</span>
+// Color del texto de la cantidad según el semáforo.
+const colorEstado = (e) => e === 'verde' ? 'text-green-600' : e === 'amarillo' ? 'text-amber-600' : e === 'rojo' ? 'text-red-600' : 'text-on-surface'
+
+// Punto de color del semáforo (verde / amarillo / rojo / neutro).
+function DotEstado({ estado }) {
+  const c = estado === 'verde' ? 'bg-green-500' : estado === 'amarillo' ? 'bg-amber-500' : estado === 'rojo' ? 'bg-red-500' : 'bg-on-surface-variant/40'
+  return <span className={`inline-block w-2.5 h-2.5 rounded-full ${c} shrink-0`} />
+}
+
+// Etiqueta de texto solo cuando hay alerta (amarillo/rojo). Verde va sin texto.
+function BadgeStock({ estado, agotado }) {
+  if (estado === 'rojo') return <span className="inline-block px-2 py-0.5 text-[10px] font-dm font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">{agotado ? 'Sin stock' : 'Crítico'}</span>
+  if (estado === 'amarillo') return <span className="inline-block px-2 py-0.5 text-[10px] font-dm font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Bajo</span>
   return null
 }
 
@@ -75,6 +89,7 @@ function Modal({ item, proveedores, onClose, onSave }) {
       ...form,
       nombre: form.nombre.trim(),
       cantidad: parseFloat(form.cantidad) || 0,
+      stockVerde: parseFloat(form.stockVerde) || 0,
       stockMinimo: parseFloat(form.stockMinimo) || 0,
       precio: parseFloat(form.precio) || 0,
     })
@@ -121,19 +136,33 @@ function Modal({ item, proveedores, onClose, onSave }) {
                 className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Precio (costo por unidad)</label>
-              <input type="number" min="0" value={form.precio} onChange={e => set('precio', e.target.value)}
-                placeholder="0"
-                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
+          <div>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Precio (costo por unidad)</label>
+            <input type="number" min="0" value={form.precio} onChange={e => set('precio', e.target.value)}
+              placeholder="0"
+              className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
+          </div>
+
+          {/* Semáforo de stock: los umbrales los defines tú */}
+          <div>
+            <label className="block text-xs text-on-surface-variant mb-1.5 font-dm uppercase tracking-wider">Alertas de stock (semáforo)</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-green-200 bg-green-50/60 px-3 py-2">
+                <div className="flex items-center gap-1.5 mb-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /><span className="text-[11px] font-dm text-green-700">Verde (óptimo) desde</span></div>
+                <input type="number" min="0" step="0.01" value={form.stockVerde} onChange={e => set('stockVerde', e.target.value)}
+                  placeholder="Ej. 5"
+                  className="w-full bg-transparent text-sm font-dm focus:outline-none" />
+              </div>
+              <div className="rounded-2xl border border-red-200 bg-red-50/60 px-3 py-2">
+                <div className="flex items-center gap-1.5 mb-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /><span className="text-[11px] font-dm text-red-700">Rojo (crítico) hasta</span></div>
+                <input type="number" min="0" step="0.01" value={form.stockMinimo} onChange={e => set('stockMinimo', e.target.value)}
+                  placeholder="Ej. 1"
+                  className="w-full bg-transparent text-sm font-dm focus:outline-none" />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Stock mínimo (alerta)</label>
-              <input type="number" min="0" step="0.01" value={form.stockMinimo} onChange={e => set('stockMinimo', e.target.value)}
-                placeholder="Ej. 5 — avisa al llegar aquí"
-                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
-            </div>
+            <p className="text-[11px] text-on-surface-variant/80 font-dm mt-1.5">
+              🟢 {form.stockVerde || '—'} o más · 🟡 entre medio · 🔴 {form.stockMinimo || '—'} o menos. Déjalos en blanco si ese material no necesita alertas.
+            </p>
           </div>
           <div>
             <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Proveedor (opcional)</label>
@@ -182,11 +211,11 @@ export default function Inventario() {
 
   const provNombre = (id) => proveedores.find(p => p.id === id)?.nombre || ''
 
-  // Ítems que necesitan reponerse (agotados o en/bajo el mínimo).
-  const porReponer = items.filter(i => estadoStock(i) !== 'ok')
+  // Ítems que necesitan atención (rojo = crítico o amarillo = bajo).
+  const porReponer = items.filter(i => { const e = estadoStock(i); return e === 'rojo' || e === 'amarillo' })
 
   const filtrados = items.filter(i => {
-    if (soloBajo && estadoStock(i) === 'ok') return false
+    if (soloBajo) { const e = estadoStock(i); if (e !== 'rojo' && e !== 'amarillo') return false }
     return !busqueda || i.nombre?.toLowerCase().includes(busqueda.toLowerCase()) || provNombre(i.proveedorId).toLowerCase().includes(busqueda.toLowerCase())
   })
 
@@ -195,6 +224,24 @@ export default function Inventario() {
   const ajustarStock = (item, delta) => {
     const nueva = Math.max(0, (item.cantidad || 0) + delta)
     saveInventarioItem({ ...item, cantidad: nueva })
+  }
+
+  // Exporta el inventario completo a CSV (Google Sheets / Excel).
+  const exportarCSV = () => {
+    const esc = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
+    const estLabel = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo', ok: '—' }
+    const cab = ['Material', 'Se mide por', 'Cantidad', 'Umbral verde', 'Umbral rojo', 'Estado', 'Precio unit', 'Valor', 'Proveedor', 'Nota']
+    const filas = items.map(i => [
+      i.nombre, tipoLabel(i.tipo), i.cantidad || 0, i.stockVerde || '', i.stockMinimo || '',
+      estLabel[estadoStock(i)], i.precio || 0, (i.cantidad || 0) * (i.precio || 0), provNombre(i.proveedorId), i.nota || '',
+    ].map(esc).join(','))
+    const csv = '﻿' + [cab.join(','), ...filas].join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `inventario_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 4000)
   }
 
   return (
@@ -233,10 +280,16 @@ export default function Inventario() {
           <h1 className="font-barlow text-3xl md:text-4xl font-bold text-on-surface tracking-wide">INVENTARIO</h1>
           <p className="text-on-surface-variant text-xs md:text-sm font-dm mt-1">Stock de materiales de Birth Studio</p>
         </div>
-        <button onClick={() => setModal({})}
-          className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
-          <Plus size={15} /> <span className="hidden sm:inline">Nuevo</span> ítem
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={exportarCSV} disabled={items.length === 0}
+            className="flex items-center gap-2 border border-white/60 bg-white/50 rounded-full px-3.5 py-2.5 text-sm font-dm text-on-surface hover:border-primary transition-colors disabled:opacity-40">
+            <Download size={15} /> <span className="hidden sm:inline">Excel/Sheets</span>
+          </button>
+          <button onClick={() => setModal({})}
+            className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
+            <Plus size={15} /> <span className="hidden sm:inline">Nuevo</span> ítem
+          </button>
+        </div>
       </div>
 
       {/* Resumen */}
@@ -286,12 +339,13 @@ export default function Inventario() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <DotEstado estado={estadoStock(i)} />
                       <p className="font-dm font-semibold text-on-surface leading-tight">{i.nombre}</p>
-                      <BadgeStock estado={estadoStock(i)} />
+                      <BadgeStock estado={estadoStock(i)} agotado={(i.cantidad || 0) <= 0} />
                     </div>
                     <p className="text-[11px] text-on-surface-variant font-dm mt-0.5">
                       {clp(i.precio)}/{tipoLabel(i.tipo)}{i.proveedorId && ` · ${provNombre(i.proveedorId)}`}
-                      {(i.stockMinimo || 0) > 0 && ` · mín. ${i.stockMinimo}`}
+                      {((i.stockVerde || 0) > 0 || (i.stockMinimo || 0) > 0) && ` · 🟢${i.stockVerde || '—'} 🔴${i.stockMinimo || '—'}`}
                     </p>
                     {i.nota && <p className="text-[11px] text-on-surface-variant/80 font-dm mt-0.5">{i.nota}</p>}
                   </div>
@@ -303,7 +357,7 @@ export default function Inventario() {
                 <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-white/50">
                   <div className="flex items-center gap-2">
                     <button onClick={() => ajustarStock(i, -1)} className="w-7 h-7 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant active:bg-white/70"><Minus size={13} /></button>
-                    <span className={`font-barlow text-lg font-bold min-w-[3rem] text-center ${estadoStock(i) === 'sin' ? 'text-red-600' : estadoStock(i) === 'bajo' ? 'text-amber-600' : 'text-on-surface'}`}>{i.cantidad ?? 0} <span className="text-xs font-dm text-on-surface-variant">{tipoLabel(i.tipo)}</span></span>
+                    <span className={`font-barlow text-lg font-bold min-w-[3rem] text-center ${colorEstado(estadoStock(i))}`}>{i.cantidad ?? 0} <span className="text-xs font-dm text-on-surface-variant">{tipoLabel(i.tipo)}</span></span>
                     <button onClick={() => ajustarStock(i, 1)} className="w-7 h-7 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant active:bg-white/70"><PlusIcon size={13} /></button>
                   </div>
                   <span className="text-sm font-dm font-bold text-green-700">{clp((i.cantidad || 0) * (i.precio || 0))}</span>
@@ -330,8 +384,9 @@ export default function Inventario() {
                   <tr key={i.id} className="border-b border-white/50 hover:bg-white/50">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
+                        <DotEstado estado={estadoStock(i)} />
                         <p className="font-medium text-on-surface">{i.nombre}</p>
-                        <BadgeStock estado={estadoStock(i)} />
+                        <BadgeStock estado={estadoStock(i)} agotado={(i.cantidad || 0) <= 0} />
                       </div>
                       {i.nota && <p className="text-[11px] text-on-surface-variant">{i.nota}</p>}
                     </td>
@@ -340,7 +395,7 @@ export default function Inventario() {
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-center gap-1.5">
                         <button onClick={() => ajustarStock(i, -1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><Minus size={12} /></button>
-                        <span className={`font-medium min-w-[3.5rem] text-center ${estadoStock(i) === 'sin' ? 'text-red-600' : estadoStock(i) === 'bajo' ? 'text-amber-600' : 'text-on-surface'}`}>{i.cantidad ?? 0} {tipoLabel(i.tipo)}</span>
+                        <span className={`font-medium min-w-[3.5rem] text-center ${colorEstado(estadoStock(i))}`}>{i.cantidad ?? 0} {tipoLabel(i.tipo)}</span>
                         <button onClick={() => ajustarStock(i, 1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><PlusIcon size={12} /></button>
                       </div>
                     </td>
