@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { createHandler, credentialDiagnostics } = require('../api/external/cotizaciones.js')
+const { createHandler } = require('../api/external/cotizaciones.js')
 const { DomainError } = require('../server/cotizaciones/domain.cjs')
 
 const API_KEY = 'test-key-with-at-least-thirty-two-bytes'
@@ -140,22 +140,6 @@ test('logs bounded diagnostic metadata for unexpected failures', async () => {
   assert.match(entries[0][1].error_stack, /^Error: database detail/)
   assert.doesNotMatch(entries[0][1].error_stack, /[\r\n]/)
   assert.doesNotMatch(JSON.stringify(res.body), /database detail/)
-})
-
-test('reports only credential fingerprints and shape metadata', () => {
-  const pem = '-----BEGIN PRIVATE KEY-----\nprivate-data\n-----END PRIVATE KEY-----'
-  const diagnostics = credentialDiagnostics({
-    FIREBASE_PROJECT_ID: 'project-id',
-    FIREBASE_CLIENT_EMAIL: 'service@example.iam.gserviceaccount.com',
-    FIREBASE_PRIVATE_KEY_BASE64: Buffer.from(pem).toString('base64'),
-  })
-
-  assert.equal(diagnostics.project_id_length, 10)
-  assert.equal(diagnostics.client_email_length, 39)
-  assert.equal(diagnostics.private_key_decoded_length, pem.length)
-  assert.equal(diagnostics.private_key_pem_valid, true)
-  assert.match(diagnostics.private_key_fingerprint, /^[a-f0-9]{12}$/)
-  assert.doesNotMatch(JSON.stringify(diagnostics), /project-id|service@example|private-data/)
 })
 
 test('passes through a successful idempotent replay', async () => {
