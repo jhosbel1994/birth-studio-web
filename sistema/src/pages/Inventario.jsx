@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import {
   subscribeInventario, saveInventarioItem, deleteInventarioItem, subscribeProveedores,
   registrarMovimiento, subscribeMovimientosItem,
@@ -203,7 +203,7 @@ function KardexModal({ item, onClose }) {
 
 // ─── MODAL CREAR/EDITAR ÍTEM ──────────────────────────────────────────────────
 function Modal({ item, proveedores, gruposExistentes = [], onClose, onSave }) {
-  const [form, setForm] = useState(item?.id ? { ...EMPTY, ...item } : { ...EMPTY })
+  const [form, setForm] = useState({ ...EMPTY, ...(item || {}) })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   // Materiales de todos los proveedores, en una lista plana para el selector.
@@ -358,7 +358,8 @@ export default function Inventario() {
   const [busqueda, setBusqueda] = useState('')
   const [soloBajo, setSoloBajo] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
-  const [expandidos, setExpandidos] = useState(() => new Set()) // grupos abiertos
+  const [expandidos, setExpandidos] = useState(() => new Set()) // grupos abiertos (móvil)
+  const [categoriaSel, setCategoriaSel] = useState('Todos') // categoría activa (escritorio)
 
   useEffect(() => {
     const u1 = subscribeInventario(setItems)
@@ -407,6 +408,14 @@ export default function Inventario() {
     return next
   })
 
+  // Master-detail (escritorio): categoría activa y sus materiales. Si la
+  // categoría elegida desaparece del filtro, cae a "Todos".
+  const totalItems = grupos.reduce((s, g) => s + g.items.length, 0)
+  const catSel = (categoriaSel !== 'Todos' && grupos.some(g => g.grupo === categoriaSel)) ? categoriaSel : 'Todos'
+  const contentGrupos = catSel === 'Todos' ? grupos : grupos.filter(g => g.grupo === catSel)
+  const contentCount = contentGrupos.reduce((s, g) => s + g.items.length, 0)
+  const grupoAlerta = (g) => g.items.some(i => { const e = estadoStock(i); return e === 'rojo' || e === 'amarillo' })
+
   // El +/- rápido también queda registrado en el kardex como entrada/salida.
   const ajustarStock = (item, delta) => {
     registrarMovimiento({
@@ -440,7 +449,7 @@ export default function Inventario() {
     <div className="px-2.5 py-3 md:p-6 lg:p-8">
       {modal && (
         <Modal
-          item={modal.id ? modal : null}
+          item={modal}
           proveedores={proveedores}
           gruposExistentes={gruposExistentes}
           onClose={() => setModal(null)}
@@ -528,7 +537,9 @@ export default function Inventario() {
           {items.length === 0 ? 'Sin materiales en el inventario. Agrega el primero.' : 'Sin resultados.'}
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <>
+        {/* Móvil: acordeón de grupos */}
+        <div className="md:hidden space-y-2.5">
           {grupos.map(({ grupo, items: itemsGrupo }) => {
             const abierto = mostrarTodo || expandidos.has(grupo)
             const alerta = itemsGrupo.some(i => { const e = estadoStock(i); return e === 'rojo' || e === 'amarillo' })
@@ -576,6 +587,93 @@ export default function Inventario() {
             )
           })}
         </div>
+
+        {/* Escritorio: panel de categorías + tabla (master-detail) */}
+        <div className="hidden md:flex gap-4 items-start">
+          <div className="w-56 shrink-0 glass-panel rounded-widget p-2 sticky top-4">
+            <button type="button" onClick={() => setCategoriaSel('Todos')}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm font-dm transition-colors ${catSel === 'Todos' ? 'bg-primary/10 text-on-surface font-semibold' : 'text-on-surface-variant hover:bg-white/50'}`}>
+              <span className="flex-1 truncate">Todos</span>
+              <span className="text-xs opacity-70">{totalItems}</span>
+            </button>
+            <div className="my-1 border-t border-white/40" />
+            {grupos.map(g => (
+              <button key={g.grupo} type="button" onClick={() => setCategoriaSel(g.grupo)}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm font-dm transition-colors ${catSel === g.grupo ? 'bg-primary/10 text-on-surface font-semibold' : 'text-on-surface-variant hover:bg-white/50'}`}>
+                <span className="flex-1 truncate">{g.grupo}</span>
+                {grupoAlerta(g) && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Hay material por reponer" />}
+                <span className="text-xs opacity-70">{g.items.length}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex-1 min-w-0 glass-panel rounded-widget overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/50">
+              <div>
+                <h2 className="font-barlow font-bold text-on-surface tracking-wide text-lg leading-tight">{catSel}</h2>
+                <p className="text-[11px] text-on-surface-variant font-dm">{contentCount} {contentCount === 1 ? 'material' : 'materiales'}</p>
+              </div>
+              <button onClick={() => setModal({ grupo: catSel === 'Todos' ? '' : catSel })}
+                className="flex items-center gap-2 bg-primary text-on-primary px-3.5 py-2 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
+                <Plus size={15} /> Nuevo
+              </button>
+            </div>
+            <table className="w-full text-sm font-dm">
+              <thead>
+                <tr className="border-b border-white/50 text-xs text-on-surface-variant uppercase tracking-wider">
+                  <th className="text-left px-4 py-2.5 font-medium">Material</th>
+                  <th className="text-left px-3 py-2.5 font-medium">Unidad</th>
+                  <th className="text-center px-3 py-2.5 font-medium">Stock</th>
+                  <th className="px-4 py-2.5"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {contentGrupos.map(g => (
+                  <Fragment key={g.grupo}>
+                    {catSel === 'Todos' && (
+                      <tr className="bg-white/40">
+                        <td colSpan={4} className="px-4 py-1.5 font-barlow font-bold text-on-surface tracking-wide text-[11px] uppercase">
+                          {g.grupo} <span className="text-on-surface-variant font-dm normal-case">· {g.items.length}</span>
+                        </td>
+                      </tr>
+                    )}
+                    {g.items.map(i => {
+                      const e = estadoStock(i)
+                      return (
+                        <tr key={i.id} className="border-b border-white/40 hover:bg-white/40">
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <DotEstado estado={e} />
+                              <span className="text-on-surface truncate">{i.nombre}</span>
+                              <BadgeStock estado={e} agotado={(i.cantidad || 0) <= 0} />
+                            </div>
+                            {i.nota && <p className="text-[11px] text-on-surface-variant truncate">{i.nota}</p>}
+                          </td>
+                          <td className="px-3 py-2.5 text-on-surface-variant whitespace-nowrap">{tipoLabel(i.tipo)}</td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button onClick={() => ajustarStock(i, -1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><Minus size={12} /></button>
+                              <span className={`font-semibold min-w-[3rem] text-center ${colorEstado(e)}`}>{i.cantidad ?? 0}</span>
+                              <button onClick={() => ajustarStock(i, 1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><PlusIcon size={12} /></button>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button onClick={() => setMovModal(i)} title="Movimientos" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><History size={14} /></button>
+                              <button onClick={() => setModal({ ...i })} title="Editar" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><Edit2 size={14} /></button>
+                              <button onClick={() => setConfirmDelete(i)} title="Eliminar" className="p-1.5 rounded border border-red-200 text-primary hover:border-primary hover:bg-red-50"><Trash2 size={14} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </>
       )}
     </div>
   )
