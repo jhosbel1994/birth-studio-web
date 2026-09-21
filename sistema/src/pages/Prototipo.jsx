@@ -1,11 +1,13 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import * as THREE from "three";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { MOUNTING_ENVIRONMENTS, compatibleSurfaces, reconcileMounting } from "../utils/prototipoMounting";
 import "./PrototipoMounting.css";
 import { lightingLevel, haloRadius } from "../utils/prototipoLighting";
 import { MIN_DIM_M, MAX_DIM_M, formatDimension, parseDimension, fitAvailableSpace } from "../utils/prototipoMeasures";
 import { guardarPrototipo } from "../utils/prototipoStore";
+import { getCotizaciones, saveCotizacion } from "../utils/storage";
 import { obtenerMockupVitrinaParaPrototipo, limpiarMockupVitrinaParaPrototipo } from "../utils/mockupVitrinaBridge";
 
 const SRGB = THREE.SRGBColorSpace;
@@ -730,24 +732,6 @@ function fitCoverTexture(tex, imgAspect, planeAspect) {
     tex.repeat.set(1, sc); tex.offset.set(0, (1 - sc) / 2);
   }
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-}
-
-/* Degradado radial blanco->transparente, reutilizable para el resplandor
-   nocturno sobre la foto (se tine con el color del LED al usarlo). */
-let _glowTex = null;
-function glowTexture() {
-  if (_glowTex) return _glowTex;
-  const S = 512;
-  const c = document.createElement("canvas");
-  c.width = S; c.height = S;
-  const g = c.getContext("2d");
-  const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
-  grad.addColorStop(0, "rgba(255,255,255,0.95)");
-  grad.addColorStop(0.45, "rgba(255,255,255,0.4)");
-  grad.addColorStop(1, "rgba(255,255,255,0)");
-  g.fillStyle = grad; g.fillRect(0, 0, S, S);
-  _glowTex = c;
-  return c;
 }
 
 function glassMat(night) {
@@ -1919,6 +1903,7 @@ function NumField({ id, label, value, onChange, unit, numberDrafts, setNumberDra
 }
 
 export default function Prototipo() {
+  const navigate = useNavigate();
   const mountRef = useRef(null);
   const S = useRef({});
   // Etapa 3: overlay de cotas (medidas que siguen al letrero).
@@ -1932,7 +1917,6 @@ export default function Prototipo() {
   const [fileName, setFileName] = useState(null);
   const [logoQueue, setLogoQueue] = useState([]);
   const [placedLogos, setPlacedLogos] = useState([]);
-  const [activeLogoId, setActiveLogoId] = useState(null);
   const [activePlacementId, setActivePlacementId] = useState(null);
   const [numberDrafts, setNumberDrafts] = useState({});
   const [product, setProduct] = useState("letters");
@@ -2024,6 +2008,10 @@ export default function Prototipo() {
   const [err, setErr] = useState(null);
   const [ready, setReady] = useState(false);
   const [sent, setSent] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [attachImage, setAttachImage] = useState(null);
+  const [attachQuotes, setAttachQuotes] = useState([]);
+  const [attachLoading, setAttachLoading] = useState(false);
 
   // Layout responsive: en pantallas angostas el panel lateral (208px) y
   // la barra de herramientas ya no caben junto al visor — se apilan.
@@ -2686,18 +2674,9 @@ export default function Prototipo() {
       S.current.haloBase = haloMat.opacity;
     }
 
-    // Luz REAL que emana del letrero encendido hacia el muro. Va como hijo
-    // del letrero (sign), asi lo sigue al girar/mover y no deja un charco
-    // suelto. Es lo que hace que de verdad "alumbre" y no solo brille la cara.
-    if ((litFront || mode === "back") && sil) {
-      const sl = new THREE.PointLight(new THREE.Color(ledColor), 0, Math.max(realW, realH) * 5 + 1.5, 2);
-      sl.intensity = (mode === "back" ? (night ? 3.4 : 2.0)
-        : mode === "both" ? (night ? 3.0 : 1.8)
-        : (night ? 2.4 : 1.5)) * litK;
-      sl.position.set(sil.offX || 0, sil.offY || 0, -standoff * 0.5);
-      sl.castShadow = false;
-      sign.add(sl);
-    }
+    // No se usa una PointLight centrada: produciria un unico charco circular.
+    // La cara emisiva y el plano de halo con mascara iluminan cada figura con
+    // la misma intensidad, incluso cuando el logo tiene letras separadas.
 
     // Sombra de contacto contra el muro — SIEMPRE presente (no solo en
     // modo retroiluminado). Sin esto el letrero se ve pegado/flotando
@@ -2908,17 +2887,8 @@ export default function Prototipo() {
       } else if (kind === "letters" && cached?.imageData) {
         const grp = buildCorporeo(cached.imageData, cached.tex, wTarget);
         plane.add(grp || flatArt(cached.tex));
-        // Iluminación FRONTAL: un foco por DELANTE que roza las caras y el
-        // canto (resalta el relieve y da reflejo en el acrílico), sin lavar
-        // el muro de atrás — eso se leería como retroiluminado. Neutro para
-        // no teñir el arte; la emisión de la cara ya aporta el color del LED.
-        if (grp && (litFront || mode === "back")) {
-          const front = new THREE.PointLight(litFront ? 0xffffff : new THREE.Color(ledColor),
-            (mode === "back" ? (night ? 3.4 : 2) : mode === "both" ? 0.5 : 0.85) * litK, wTarget * 6, 2);
-          front.position.set(0, litFront ? wTarget * 0.15 : 0, litFront ? Math.max(0.28, wTarget * 0.45) : -depth - standoff * 0.5);
-          front.raycast = () => {};
-          plane.add(front);
-        }
+        // Sin foco puntual central. La emision de las caras y el halo basado
+        // en la mascara conservan la luz uniforme letra por letra.
       } else {
         const texExtra = cached?.tex || new THREE.TextureLoader().load(item.dataUrl);
         texExtra.colorSpace = SRGB; texExtra.anisotropy = 8;
@@ -3148,24 +3118,8 @@ export default function Prototipo() {
       photoGroup.add(plane);
       S.current.photoPlane = plane;
 
-      // Resplandor nocturno sobre la foto: lo que "vende" el retroiluminado.
-      // Se agrega a "rig" (NO a photoGroup): rig es el mismo grupo que
-      // gira con el letrero al arrastrar, asi el resplandor sigue al
-      // letrero durante el giro en vez de quedar fijo como la foto.
-      if (night && (mode === "back" || mode === "both")) {
-        const gtex = new THREE.CanvasTexture(glowTexture());
-        gtex.colorSpace = SRGB;
-        const glowSize = Math.max(realW, realH) * (photoCalib?.scaleFactor || 1) * 3.2;
-        const glow = new THREE.Mesh(
-          new THREE.PlaneGeometry(glowSize, glowSize),
-          new THREE.MeshBasicMaterial({
-            map: gtex, color: new THREE.Color(ledColor), transparent: true,
-            opacity: 1 - Math.exp(-0.65 * litK), blending: THREE.AdditiveBlending, depthWrite: false,
-          })
-        );
-        glow.position.set(sign.position.x, sign.position.y, photoZ + 0.02);
-        rig.add(glow);
-      }
+      // Sin foco radial independiente sobre la foto: el halo se genera desde
+      // la mascara real de cada letra/figura y queda repartido por la silueta.
 
       // Marcadores de los puntos de calibracion ya tomados (0, 1 o 2).
       const dotMat = new THREE.MeshBasicMaterial({ color: 0xff5a3c, depthTest: false });
@@ -3489,26 +3443,6 @@ export default function Prototipo() {
     }
   }, [cargarFotoCanvas]);
 
-  const loadFromDataUrl = useCallback((dataUrl, name) => {
-    setBusy(true);
-    const img = new Image();
-    img.onload = () => {
-      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-      if (!iw || !ih) { setErr("La imagen no tiene dimensiones legibles."); setBusy(false); return; }
-      const targetW = 1000;
-      const targetH = Math.max(1, Math.round((ih / iw) * targetW));
-      const c = document.createElement("canvas");
-      c.width = targetW; c.height = targetH;
-      const ctx = c.getContext("2d", { willReadFrequently: true });
-      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-      ctx.clearRect(0, 0, targetW, targetH);
-      ctx.drawImage(img, 0, 0, targetW, targetH);
-      loadCanvas(c, name);
-    };
-    img.onerror = () => { setErr("El navegador no pudo abrir la imagen."); setBusy(false); };
-    img.src = dataUrl;
-  }, [loadCanvas]);
-
   const readImageAspect = useCallback((dataUrl) => new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve((img.naturalWidth || img.width || 1) / Math.max(1, img.naturalHeight || img.height || 1));
@@ -3543,12 +3477,6 @@ export default function Prototipo() {
       reader.readAsDataURL(file);
     }
   }).then(async (asset) => ({ ...asset, aspect: await readImageAspect(asset.dataUrl) })), [readImageAspect]);
-
-  const loadLogoAsset = useCallback((asset) => {
-    if (!asset) return;
-    setActiveLogoId(asset.id);
-    loadFromDataUrl(asset.dataUrl, asset.name);
-  }, [loadFromDataUrl]);
 
   const surfaceDefaults = useCallback((surface = "wall", idx = 0, total = 1) => {
     const base = PLACEMENT_SURFACES.find((x) => x.id === surface) || PLACEMENT_SURFACES[0];
@@ -3614,9 +3542,14 @@ export default function Prototipo() {
   }, []);
 
   const addLogoToMockup = useCallback((asset) => {
+    if (!asset) return;
     const placement = createPlacement(asset, 0, 1);
-    setPlacedLogos((items) => [...items, placement]);
+    // La capa nueva entra detras de las existentes; el usuario puede cambiar
+    // el orden con las flechas del arbol.
+    setPlacedLogos((items) => [placement, ...items]);
     setActivePlacementId(placement.id);
+    setFileName(asset.name);
+    setSourceType("logo");
   }, [createPlacement]);
 
   const handleFiles = useCallback(async (files) => {
@@ -3628,16 +3561,63 @@ export default function Prototipo() {
     setBusy(true);
     try {
       const assets = await Promise.all(list.map(readLogoFile));
+      // Subir solo agrega archivos a la biblioteca. Nada aparece en el
+      // mockup hasta que el usuario pulse "+ Capa".
       setLogoQueue((prev) => [...prev, ...assets]);
-      const placements = assets.map((asset, idx) => createPlacement(asset, idx, assets.length));
-      setPlacedLogos((prev) => [...prev, ...placements]);
-      setActivePlacementId(placements[placements.length - 1]?.id || null);
-      loadLogoAsset(assets[0]);
+      setBusy(false);
     } catch {
       setErr("No se pudieron leer algunos logos.");
       setBusy(false);
     }
-  }, [createPlacement, loadLogoAsset, readLogoFile]);
+  }, [readLogoFile]);
+
+  const clearLogoScene = useCallback(() => {
+    S.current.logoTex?.dispose();
+    S.current.logoTex = null;
+    S.current.imageData = null;
+    S.current.srcCanvas = null;
+    S.current.originalCanvas = null;
+    setPlacedLogos([]);
+    setActivePlacementId(null);
+    setFileName(null);
+    setSourceType(null);
+    setSuggested(null);
+    setInfo(null);
+    setGenSeq((n) => n + 1);
+  }, []);
+
+  const removePlacement = useCallback((id) => {
+    const remaining = placedLogos.filter((item) => item.id !== id);
+    if (!remaining.length) {
+      clearLogoScene();
+      return;
+    }
+    setPlacedLogos(remaining);
+    if (activePlacementId === id) {
+      const next = remaining[remaining.length - 1];
+      setActivePlacementId(next.id);
+      setFileName(next.name);
+    }
+  }, [activePlacementId, clearLogoScene, placedLogos]);
+
+  const removeLogoAsset = useCallback((asset) => {
+    if (!asset) return;
+    setLogoQueue((items) => items.filter((item) => item.id !== asset.id));
+    const remaining = placedLogos.filter((item) => item.assetId !== asset.id);
+    const cached = S.current.placedCache?.get(asset.dataUrl);
+    cached?.tex?.dispose?.();
+    S.current.placedCache?.delete(asset.dataUrl);
+    if (!remaining.length) {
+      clearLogoScene();
+      return;
+    }
+    setPlacedLogos(remaining);
+    const nextActive = remaining.some((item) => item.id === activePlacementId)
+      ? activePlacementId : remaining[remaining.length - 1].id;
+    setActivePlacementId(nextActive);
+    const active = remaining.find((item) => item.id === nextActive) || remaining[remaining.length - 1];
+    setFileName(active.name);
+  }, [activePlacementId, clearLogoScene, placedLogos]);
 
   const loadSample = useCallback(() => {
     const c = document.createElement("canvas");
@@ -3754,14 +3734,41 @@ export default function Prototipo() {
     a.click();
   }, [captureOriented]);
 
-  const enviarACotizacion = useCallback(() => {
-    const url = captureOriented("image/jpeg", 0.82, 1400);
+  const abrirAdjuntarCotizacion = useCallback(async () => {
+    const url = captureOriented("image/jpeg", 0.76, 1200);
     if (!url) { setErr("No se pudo preparar la imagen."); return; }
-    const ok = guardarPrototipo(url);
-    if (!ok) { setErr("No se pudo guardar el prototipo en este navegador."); return; }
-    setSent(true);
-    setTimeout(() => setSent(false), 2400);
+    setAttachImage(url);
+    setAttachOpen(true);
+    setAttachLoading(true);
+    try { setAttachQuotes(await getCotizaciones()); }
+    catch { setAttachQuotes([]); }
+    finally { setAttachLoading(false); }
   }, [captureOriented]);
+
+  const crearCotizacionConPrototipo = useCallback(() => {
+    if (!attachImage || !guardarPrototipo(attachImage)) {
+      setErr("No se pudo guardar el prototipo en este navegador.");
+      return;
+    }
+    setAttachOpen(false);
+    navigate("/cotizador");
+  }, [attachImage, navigate]);
+
+  const adjuntarACotizacionExistente = useCallback(async (cotizacion) => {
+    if (!attachImage || !cotizacion) return;
+    setAttachLoading(true);
+    try {
+      await saveCotizacion({ ...cotizacion, prototipoImg: attachImage });
+      guardarPrototipo(attachImage);
+      setAttachOpen(false);
+      setSent(true);
+      setTimeout(() => setSent(false), 2400);
+    } catch {
+      setErr("No se pudo adjuntar la imagen a esa cotización.");
+    } finally {
+      setAttachLoading(false);
+    }
+  }, [attachImage]);
 
   // Aluminio para caja de luz, PVC oscuro para corporeas
   useEffect(() => {
@@ -4474,7 +4481,7 @@ export default function Prototipo() {
             {scene === "interior" && (
               <>
                 <div style={s.pLabel}>¿Qué quieres editar?</div>
-                <Seg items={[{ id: "pared", label: "Pared" }, { id: "escritorio", label: "Escritorio" }, { id: "piso", label: "Piso" }]}
+                <Seg items={[{ id: "pared", label: "Pared" }, { id: "escritorio", label: "Mesón / mueble" }, { id: "piso", label: "Piso" }]}
                   value={interiorArea} onPick={(a) => setInteriorArea(a.id)} cols={3} />
               </>
             )}
@@ -4503,11 +4510,12 @@ export default function Prototipo() {
             )}
             {scene === "interior" && interiorArea === "escritorio" && (
               <>
-                <div style={s.pLabel}>Modelo de escritorio</div>
+                <div style={s.pTitle}>Personalizar fachada del mesón</div>
+                <div style={s.pLabel}>Modelo del mesón o mueble</div>
                 <Seg items={DESK_STYLES} value={deskStyle} onPick={(m) => setDeskStyle(m.id)} cols={2} />
                 {(deskStyle === "moderno" || deskStyle === "vidrio") && (
                   <label style={s.colorRow}>
-                    <span style={s.fieldLabel}>Color</span>
+                    <span style={s.fieldLabel}>Color de la fachada</span>
                     <input type="color" value={deskColor} style={s.colorInput}
                       onChange={(e) => setDeskColor(e.target.value)} />
                     <span style={s.fieldUnit}>{deskColor}</span>
@@ -4576,12 +4584,12 @@ export default function Prototipo() {
         ) : (
           <>
             <div style={s.pHint}>Solo si el logo no se detecta bien.</div>
-            <div style={s.pLabel}>Que tomar como letra</div>
+            <div style={s.pLabel}>Qué parte del archivo fabricar</div>
             <Stack
               items={[
-                { id: "alpha", label: "Fondo transparente" },
-                { id: "dark", label: "Lo oscuro" },
-                { id: "light", label: "Lo claro" },
+                { id: "alpha", label: "Figura sin fondo", desc: "Usa todo lo visible del PNG o SVG transparente." },
+                { id: "dark", label: "Tonos oscuros", desc: "Convierte en letras las zonas negras u oscuras." },
+                { id: "light", label: "Tonos claros", desc: "Convierte en letras las zonas blancas o claras." },
               ]}
               value={detect} onPick={(d) => setDetect(d.id)} />
             <Slider label="Sensibilidad" value={threshold} unit="" min={30} max={240} step={5} onChange={setThreshold} />
@@ -4595,6 +4603,33 @@ export default function Prototipo() {
 
   return (
     <div style={s.appWrap}>
+      {attachOpen && (
+        <div style={s.attachBackdrop} role="dialog" aria-modal="true" aria-label="Adjuntar prototipo a cotización">
+          <div style={s.attachModal}>
+            <div style={s.attachHead}>
+              <div>
+                <div style={s.panelCardTitle}>Adjuntar a cotización</div>
+                <div style={s.panelCardSub}>La imagen actual se incluirá en el PDF.</div>
+              </div>
+              <button type="button" onClick={() => setAttachOpen(false)} style={s.treeOp} aria-label="Cerrar">&#10005;</button>
+            </div>
+            <button type="button" onClick={crearCotizacionConPrototipo} style={s.attachPrimary}>
+              Crear cotización nueva
+            </button>
+            <div style={s.treeSub}>O adjuntar a una cotización existente</div>
+            <div style={s.attachList}>
+              {attachLoading && <div style={s.treeEmpty}>Cargando cotizaciones…</div>}
+              {!attachLoading && attachQuotes.length === 0 && <div style={s.treeEmpty}>No hay cotizaciones guardadas.</div>}
+              {!attachLoading && attachQuotes.map((cot) => (
+                <button key={cot.id} type="button" onClick={() => adjuntarACotizacionExistente(cot)} style={s.attachQuote}>
+                  <span style={{ color: TXT, fontWeight: 700 }}>#{cot.numero || "sin número"}</span>
+                  <span style={{ color: DIM }}>{cot.clienteNombre || cot.descripcion || "Cotización"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <div style={s.app}>
         {/* ===== BARRA SUPERIOR ===== */}
         <header style={s.top}>
@@ -4612,7 +4647,7 @@ export default function Prototipo() {
               <input type="file" multiple accept="image/*,.svg" style={{ display: "none" }}
                 onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
               <Icon name="upload" size={14} />
-              <span style={{ fontWeight: 600 }}>{logoQueue.length > 1 ? `${logoQueue.length} logos` : "Subir Logo"}</span>
+              <span style={{ fontWeight: 600 }}>Subir Logo</span>
               <span style={s.badge}>AI/SVG</span>
             </label>
             <button onClick={loadSample} style={s.ghostBtn}>Ejemplo</button>
@@ -4628,7 +4663,7 @@ export default function Prototipo() {
                 <Icon name="ruler" size={14} /><span>Cotas</span><kbd style={viewTool === "cotas" ? s.kbdOn : s.kbd}>D</kbd></button>
               <div style={s.toolSep} />
               <button onClick={() => setAutoRotate((v) => !v)} style={{ ...s.toolIcon, ...(autoRotate ? s.toolBtnOn : {}) }} title="Órbita 3D / giro automático"><Icon name="orbit" size={14} /></button>
-              <button onClick={() => setTool("luz")} style={s.toolIcon} title="Iluminación (L)"><Icon name="light" size={14} /></button>
+              <button onClick={() => setRightTab("luz")} style={s.toolIcon} title="Abrir ajustes de iluminación"><Icon name="light" size={14} /></button>
             </nav>
           )}
 
@@ -4644,9 +4679,9 @@ export default function Prototipo() {
               <div style={s.zSep} />
               <button onClick={resetView} style={s.zoomBtn} title="Encuadrar"><Icon name="reset" size={13} /></button>
             </div>
-            <button onClick={enviarACotizacion} disabled={!fileName}
+            <button onClick={abrirAdjuntarCotizacion} disabled={!fileName}
               style={{ ...s.secondaryBtn, ...(sent ? s.secondaryBtnOk : {}), ...(!fileName ? s.btnOff : {}) }}>
-              <Icon name="send" size={14} /> {!narrow && (sent ? "Enviado" : "Cotizar")}
+              <Icon name="send" size={14} /> {!narrow && (sent ? "Adjuntado" : "Adjuntar a cotización")}
             </button>
             <button onClick={download} disabled={!fileName}
               style={{ ...s.primaryBtn, ...(!fileName ? s.btnOff : {}) }}>
@@ -4695,7 +4730,7 @@ export default function Prototipo() {
                   const kind = item.kind || "original";
                   return (
                     <div key={item.id} style={{ ...s.treeRow, ...(on ? s.treeRowOn : {}) }}>
-                      <button type="button" onClick={() => setActivePlacementId(item.id)} style={s.treePick}>
+                      <button type="button" onClick={() => { setActivePlacementId(item.id); setFileName(item.name); }} style={s.treePick}>
                         <Icon name="product" size={13} />
                         <span style={s.treeName}>{item.name || "Capa"}</span>
                         <span style={s.treeTag}>{kind === "letters" ? "Corpórea" : kind === "lightbox" ? "Caja" : "Logo"}</span>
@@ -4705,24 +4740,24 @@ export default function Prototipo() {
                           style={{ ...s.treeOp, ...(idx === placedLogos.length - 1 ? s.treeOpOff : {}) }}><Icon name="chevUp" size={13} /></button>
                         <button type="button" title="Enviar atrás" onClick={() => movePlacementLayer(item.id, "down")}
                           style={{ ...s.treeOp, ...(idx === 0 ? s.treeOpOff : {}) }}><Icon name="chevDown" size={13} /></button>
-                        <button type="button" title="Quitar capa" onClick={() => setPlacedLogos((items) => items.filter((x) => x.id !== item.id))}
+                        <button type="button" title="Eliminar capa" onClick={() => removePlacement(item.id)}
                           style={s.treeOp}><Icon name="trash" size={13} /></button>
                       </div>
                     </div>
                   );
                 })}
 
-                {/* Logos disponibles: colocar cada uno como capa nueva o quitarlo */}
                 {logoQueue.length > 0 && (
                   <>
                     <div style={s.treeSub}>Logos disponibles</div>
                     {logoQueue.map((asset) => (
                       <div key={asset.id} style={s.treeRow}>
                         <span style={s.treeName}>{asset.name}</span>
-                        <button type="button" onClick={() => addLogoToMockup(asset)} style={s.treeAdd} title="Colocar como nueva capa">+ Capa</button>
-                        <button type="button" title="Quitar de disponibles"
-                          onClick={() => setLogoQueue((prev) => prev.filter((x) => x.id !== asset.id))}
-                          style={s.treeOp}><Icon name="trash" size={13} /></button>
+                        <button type="button" onClick={() => addLogoToMockup(asset)} style={s.treeAdd} title="Agregar una capa al mockup">+ Capa</button>
+                        <button type="button" title="Eliminar logo y sus capas"
+                          onClick={() => removeLogoAsset(asset)} style={s.treeOp}>
+                          <Icon name="trash" size={13} />
+                        </button>
                       </div>
                     ))}
                   </>
@@ -4730,6 +4765,11 @@ export default function Prototipo() {
 
                 {(placedLogos.length > 0 || fileName) && (
                   <div style={s.treeHint}>Click sobre un logo = moverlo · Click fuera = girar · Tecla <b style={{ color: TXT }}>H</b> + arrastrar = desplazar la escena</div>
+                )}
+                {placedLogos.length > 1 && (
+                  <button type="button" onClick={clearLogoScene} style={{ ...s.flatBtn, marginTop: 7, color: "#fda4af" }}>
+                    Eliminar todas las capas
+                  </button>
                 )}
               </div>
 
@@ -4778,8 +4818,8 @@ export default function Prototipo() {
                 </div>
                 {!fileName && !busy && (
                   <div style={s.overlay}>
-                    <div style={s.emptyTitle}>Sube tu logo</div>
-                    <div style={s.emptyText}>Arrástralo aquí o usa "Subir Logo"</div>
+                    <div style={s.emptyTitle}>{logoQueue.length ? "Agrega una capa" : "Sube tu logo"}</div>
+                    <div style={s.emptyText}>{logoQueue.length ? "Pulsa + Capa junto al logo que quieras colocar" : "Arrástralo aquí o usa \"Subir Logo\""}</div>
                   </div>
                 )}
                 {fileName && scene === "foto" && !photoImg && !busy && (
@@ -4858,11 +4898,11 @@ export default function Prototipo() {
               </div>
             </div>
             <div style={s.priceFoot}>
-              <button onClick={enviarACotizacion} disabled={!fileName}
+              <button onClick={abrirAdjuntarCotizacion} disabled={!fileName}
                 style={{ ...s.cotizarBtn, ...(sent ? s.secondaryBtnOk : {}), ...(!fileName ? s.btnOff : {}) }}>
-                <Icon name="send" size={14} /> {sent ? "✓ Imagen enviada a cotización" : "Enviar a cotización"}
+                <Icon name="send" size={14} /> {sent ? "✓ Imagen adjuntada" : "Adjuntar a cotización"}
               </button>
-              <div style={s.priceHint}>Se adjunta automáticamente la imagen actual del letrero (como se ve ahora) al PDF de la cotización.</div>
+              <div style={s.priceHint}>Elige una cotización existente o crea una nueva. La imagen quedará guardada en su PDF.</div>
             </div>
           </aside>
         </div>
@@ -5003,6 +5043,12 @@ const s = {
   priceDivider: { height: 1, background: LINE },
   cotizarBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, background: BLUE, border: "none", color: "#fff", borderRadius: 9, padding: "10px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" },
   priceHint: { fontSize: 10, color: DIM, lineHeight: 1.4 },
+  attachBackdrop: { position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.68)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 },
+  attachModal: { width: "min(440px, 100%)", maxHeight: "min(620px, 88vh)", overflow: "hidden", display: "flex", flexDirection: "column", gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 14, padding: 14, boxShadow: "0 24px 80px rgba(0,0,0,.55)" },
+  attachHead: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, paddingBottom: 4 },
+  attachPrimary: { background: BLUE, color: "#fff", border: "none", borderRadius: 9, padding: "11px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" },
+  attachList: { display: "flex", flexDirection: "column", gap: 5, overflowY: "auto", minHeight: 50, maxHeight: 360 },
+  attachQuote: { display: "flex", justifyContent: "space-between", gap: 12, background: CARD2, border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 10px", fontSize: 11, cursor: "pointer", textAlign: "left" },
 
   /* ================= CONTROLES (reusados, oscurecidos) ================= */
   flatBtn: { background: CARD2, border: `1px solid ${LINE}`, color: TXT, borderRadius: 8, padding: "7px 10px", fontSize: 10, cursor: "pointer" },
