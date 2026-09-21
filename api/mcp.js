@@ -8,6 +8,10 @@
 
 const crypto = require('node:crypto')
 const gastos = require('../server/gastos/gastos-repository.cjs')
+const ingresos = require('../server/finanzas/ingresos-repository.cjs')
+const consultasCot = require('../server/cotizaciones/consultas.cjs')
+const inventario = require('../server/inventario/inventario-repository.cjs')
+const precios = require('../server/cotizador/precios-repository.cjs')
 
 const PROTOCOL_VERSION = '2025-06-18'
 const SERVER_NAME = 'birth-studio-cotizaciones'
@@ -130,6 +134,101 @@ const TOOL_CONSULTAR_BALANCE = {
   },
 }
 
+const TOOL_REGISTRAR_INGRESO = {
+  name: 'registrar_ingreso',
+  description:
+    'Registra un ingreso (pago recibido) en Birth Studio; queda en Gastos & Finanzas. Úsalo cuando el ' +
+    'usuario reciba dinero: un abono/anticipo, el saldo o el pago total de una cotización, o cualquier otro ' +
+    'ingreso. Montos en pesos chilenos enteros. Muestra un resumen y pide confirmación antes de registrar. ' +
+    'Para vincularlo a una cotización usa su folio (solo en ámbito Birth).',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      monto: { type: 'integer', description: 'Monto recibido en pesos chilenos, entero, sin puntos ni símbolos' },
+      fecha: { type: 'string', description: 'Fecha del pago en formato YYYY-MM-DD' },
+      tipo: {
+        type: 'string',
+        enum: ['anticipo', 'saldo', 'total', 'otro'],
+        description: 'Tipo de ingreso. Por defecto "otro".',
+      },
+      folio: {
+        type: 'string',
+        description: 'Folio de la cotización a la que corresponde el pago (ej: "00312" o "312"). Opcional; solo aplica en ámbito Birth.',
+      },
+      ambito: {
+        type: 'string',
+        enum: ['birth', 'personal'],
+        description: 'Bolsillo al que entra el dinero. Por defecto "birth".',
+      },
+      origen_birth: {
+        type: 'boolean',
+        description: 'Solo si ambito="personal": el dinero PROVIENE de Birth (retiro). Descuenta de Birth y suma a Personal.',
+      },
+      notas: { type: 'string', description: 'Notas opcionales (ej: medio de pago, N° de comprobante)' },
+    },
+    required: ['monto', 'fecha'],
+  },
+}
+
+const TOOL_CONSULTAR_COTIZACIONES = {
+  name: 'consultar_cotizaciones',
+  description:
+    'Consulta las cotizaciones de Birth Studio y el estado de cada una (por aceptar, aceptada, terminada, ' +
+    'rechazada). Solo lectura. Filtra por estado, nombre de empresa, nombre de persona, RUT o folio. Usa ' +
+    'estado="pendientes" para ver los trabajos aceptados que aún NO se terminan. Devuelve folio, cliente, ' +
+    'estado, total y saldo pendiente (calculado con los pagos ya registrados).',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      estado: {
+        type: 'string',
+        enum: ['todas', 'por_aceptar', 'aceptada', 'terminada', 'rechazada', 'pendientes'],
+        description: 'Filtra por estado. "pendientes" = aceptadas sin terminar. Por defecto "todas".',
+      },
+      empresa: { type: 'string', description: 'Filtra por nombre de empresa (coincidencia parcial)' },
+      nombre: { type: 'string', description: 'Filtra por nombre de la persona o empresa (coincidencia parcial)' },
+      rut: { type: 'string', description: 'Filtra por RUT de la persona o empresa' },
+      folio: { type: 'string', description: 'Folio exacto de la cotización (ej: "00312" o "312")' },
+      busqueda: { type: 'string', description: 'Texto libre: busca en cliente, empresa, folio o descripción' },
+      limite: { type: 'integer', description: 'Máximo de cotizaciones a devolver (1 a 100). Por defecto 20.' },
+    },
+  },
+}
+
+const TOOL_CONSULTAR_INVENTARIO = {
+  name: 'consultar_inventario',
+  description:
+    'Consulta el inventario de materiales de Birth Studio (stock actual con semáforo verde/amarillo/rojo). ' +
+    'Solo lectura. Útil para "¿qué tengo en inventario?", "¿qué está por agotarse?". Filtra por nombre; con ' +
+    'solo_bajo_stock=true muestra únicamente lo que está bajo (amarillo) o crítico/agotado (rojo).',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      busqueda: { type: 'string', description: 'Filtra materiales cuyo nombre contenga este texto' },
+      solo_bajo_stock: { type: 'boolean', description: 'Si es true, solo materiales bajo stock o agotados' },
+      limite: { type: 'integer', description: 'Máximo de materiales a devolver (1 a 200). Por defecto 50.' },
+    },
+  },
+}
+
+const TOOL_CONSULTAR_PRECIO = {
+  name: 'consultar_precio',
+  description:
+    'Consulta los precios del cotizador de Birth Studio (telas, acrílico, sintra, LED, pendones, tarjetas, ' +
+    'volantes, bastidores, etc.). Solo lectura. Busca por texto (ej: "acrílico 3mm", "led", "pendón 2.0") o ' +
+    'por categoría; sin criterio devuelve la lista de categorías. IMPORTANTE: los ítems marcados "aplica ' +
+    'multiplicador" son PRECIO DE PROVEEDOR; el precio final se multiplica por el nivel de instalación ' +
+    '(×2 sin instalación, ×3 con instalación sin andamio, ×4 con andamio).',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      busqueda: { type: 'string', description: 'Texto a buscar en los productos (nombre o material)' },
+      categoria: { type: 'string', description: 'Nombre de una categoría para listar sus precios (ej: "Sintra", "Iluminación LED")' },
+      limite: { type: 'integer', description: 'Máximo de resultados (1 a 60). Por defecto 30.' },
+    },
+  },
+}
+
 // Formatea pesos chilenos: 808200 -> "$808.200"
 function clp(n) {
   const v = Number(n) || 0
@@ -230,6 +329,89 @@ async function consultarBalanceTool(args = {}) {
   return { isError: false, text }
 }
 
+// Registra un ingreso y devuelve texto para Claude.
+async function registrarIngresoTool(args = {}) {
+  const r = await ingresos.registrarIngreso(args)
+  if (!r.ok) return { isError: true, text: `⚠️ ${r.message}` }
+  const p = r.pago
+  let text =
+    `✅ Ingreso registrado.\n` +
+    `• Monto: ${clp(p.monto)}\n` +
+    `• Fecha: ${p.fecha}\n` +
+    `• Tipo: ${p.tipo}\n` +
+    `• Ámbito: ${p.ambito === 'personal' ? 'Personal' : 'Birth'}`
+  if (r.cotizacion) text += `\n• Vinculado a: #${r.cotizacion.numero} — ${r.cotizacion.clienteNombre || 'cliente'}`
+  if (p.origenBirth) text += `\n• Retiro desde Birth (se descontó de Birth y sumó a Personal)`
+  if (p.notas) text += `\n• Notas: ${p.notas}`
+  return { isError: false, text }
+}
+
+// Consulta cotizaciones y su estado; devuelve texto para Claude.
+async function consultarCotizacionesTool(args = {}) {
+  const r = await consultasCot.consultarCotizaciones(args)
+  if (!r.items.length) {
+    return { isError: false, text: 'No se encontraron cotizaciones con esos filtros.' }
+  }
+  const lineas = r.items.map(c => {
+    const emp = c.empresa ? ` (${c.empresa})` : ''
+    const saldo = c.saldoPendiente > 0 ? ` · saldo ${clp(c.saldoPendiente)}` : ' · pagada'
+    return `• ${c.folio} · ${c.estadoEtiqueta} · ${c.cliente}${emp} · total ${clp(c.total)}${saldo}`
+  })
+  const cabecera = r.truncado ? `${r.total} (mostrando ${r.items.length})` : `${r.total}`
+  const text =
+    `📋 Cotizaciones — ${cabecera}\n` +
+    `Por aceptar: ${r.conteos.por_aceptar} · Aceptadas: ${r.conteos.aceptada} · ` +
+    `Terminadas: ${r.conteos.terminada} · Rechazadas: ${r.conteos.rechazada}\n` +
+    lineas.join('\n')
+  return { isError: false, text }
+}
+
+// Consulta el inventario; devuelve texto para Claude.
+async function consultarInventarioTool(args = {}) {
+  const r = await inventario.consultarInventario(args)
+  const emoji = e => (e === 'rojo' ? '🔴' : e === 'amarillo' ? '🟡' : e === 'verde' ? '🟢' : '⚪')
+  if (!r.items.length) {
+    return { isError: false, text: 'No se encontraron materiales con esos filtros.' }
+  }
+  const lineas = r.items.map(i =>
+    `${emoji(i.estado)} ${i.nombre}: ${i.cantidad} ${i.unidad}${i.valor ? ` · valor ${clp(i.valor)}` : ''}`)
+  const alerta = r.resumen.bajoStock
+    ? `⚠️ ${r.resumen.bajoStock} bajo stock${r.resumen.agotados ? `, ${r.resumen.agotados} agotados` : ''}\n`
+    : ''
+  const text =
+    `📦 Inventario — ${r.resumen.items} ítems · valor ${clp(r.resumen.valorTotal)}\n` +
+    alerta +
+    lineas.join('\n')
+  return { isError: false, text }
+}
+
+// Consulta precios del cotizador; devuelve texto para Claude.
+async function consultarPrecioTool(args = {}) {
+  const r = precios.buscarPrecios(args)
+  if (r.modo === 'categorias') {
+    return {
+      isError: false,
+      text:
+        `Categorías del cotizador:\n${r.categorias.map(c => `• ${c}`).join('\n')}\n\n` +
+        `Dime una categoría o busca por texto (ej: "acrílico 3mm", "led", "pendón").`,
+    }
+  }
+  if (!r.resultados.length) {
+    return { isError: false, text: 'No encontré precios para esa búsqueda. Prueba otra palabra o pide la lista de categorías.' }
+  }
+  const lineas = r.resultados.map(f => {
+    const mult = f.aplicaMultiplicador ? ' (precio proveedor ×mult)' : ''
+    const nota = f.nota ? ` — ${f.nota}` : ''
+    return `• ${f.nombre}: ${clp(f.precio)}/${f.unidad}${mult}${nota}`
+  })
+  const mult = r.multiplicadores.map(m => `${m.label} ×${m.valor}`).join(' · ')
+  const cabecera = r.truncado ? `${r.total} (mostrando ${r.resultados.length})` : `${r.total}`
+  const text =
+    `💲 Precios del cotizador — ${cabecera}\n${lineas.join('\n')}\n\n` +
+    `Multiplicadores de instalación: ${mult}. Los ítems "(precio proveedor ×mult)" se multiplican por el nivel de instalación.`
+  return { isError: false, text }
+}
+
 // ─── Protocolo MCP (JSON-RPC 2.0 sobre Streamable HTTP) ───────────────────────
 
 function rpcResult(id, result) {
@@ -251,7 +433,17 @@ async function handleRpc(msg) {
       })
 
     case 'tools/list':
-      return rpcResult(id, { tools: [TOOL_CREAR_COTIZACION, TOOL_REGISTRAR_GASTO, TOOL_CONSULTAR_BALANCE] })
+      return rpcResult(id, {
+        tools: [
+          TOOL_CREAR_COTIZACION,
+          TOOL_REGISTRAR_GASTO,
+          TOOL_CONSULTAR_BALANCE,
+          TOOL_REGISTRAR_INGRESO,
+          TOOL_CONSULTAR_COTIZACIONES,
+          TOOL_CONSULTAR_INVENTARIO,
+          TOOL_CONSULTAR_PRECIO,
+        ],
+      })
 
     case 'tools/call': {
       const name = params && params.name
@@ -261,6 +453,10 @@ async function handleRpc(msg) {
         if (name === 'crear_cotizacion') out = await crearCotizacion(args)
         else if (name === 'registrar_gasto') out = await registrarGastoTool(args)
         else if (name === 'consultar_balance') out = await consultarBalanceTool(args)
+        else if (name === 'registrar_ingreso') out = await registrarIngresoTool(args)
+        else if (name === 'consultar_cotizaciones') out = await consultarCotizacionesTool(args)
+        else if (name === 'consultar_inventario') out = await consultarInventarioTool(args)
+        else if (name === 'consultar_precio') out = await consultarPrecioTool(args)
         else return rpcError(id, -32602, `Herramienta desconocida: ${name}`)
         return rpcResult(id, { content: [{ type: 'text', text: out.text }], isError: out.isError })
       } catch {
