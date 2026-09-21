@@ -158,12 +158,26 @@ export async function updateCotizacionEstado(cotizacion, estado) {
     throw new Error('Solo una cotización aceptada puede marcarse como trabajo terminado')
   }
   const now = new Date().toISOString()
+  // Al terminar el trabajo, la fase de seguimiento pasa a "entregado" sola (con
+  // fecha/hora, y token si no existía), aunque el usuario no haya tocado Fases.
+  let faseAlTerminar = {}
+  if (estado === 'terminada' && cotizacion.fase !== 'entregado') {
+    const historial = Array.isArray(cotizacion.faseHistorial) ? [...cotizacion.faseHistorial] : []
+    historial.push({ fase: 'entregado', at: now })
+    faseAlTerminar = {
+      fase: 'entregado',
+      faseHistorial: historial,
+      entregaAt: now,
+      seguimientoToken: cotizacion.seguimientoToken || crypto.randomUUID().replace(/-/g, ''),
+    }
+  }
   const next = {
     ...cotizacion,
     estado,
     ...(estado === 'aceptada' && !cotizacion.acceptedAt ? { acceptedAt: now } : {}),
     ...(estado === 'terminada' && !cotizacion.completedAt ? { completedAt: now } : {}),
     ...(estado !== 'rechazada' ? { rechazoAutomaticoAt: null, rechazoMotivo: null } : {}),
+    ...faseAlTerminar,
   }
   const saved = await saveCotizacion(next)
   const anticipo = ['aceptada', 'terminada'].includes(estado) ? await ensureAcceptedDeposit(saved) : null
