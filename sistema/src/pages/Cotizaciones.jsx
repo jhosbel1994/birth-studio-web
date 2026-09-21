@@ -1753,6 +1753,12 @@ export default function Cotizaciones() {
                               <CheckCircle size={13} /> <span>Terminar</span>
                             </button>
                           )}
+                          {['aceptada', 'terminada'].includes(c.estado) && (
+                            <button type="button" onClick={() => setSegCot(c)} title="Fases y seguimiento del cliente (QR/link)"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-primary hover:text-primary transition-colors text-[11px] font-dm">
+                              <QrCode size={13} /> <span>Fases</span>
+                            </button>
+                          )}
                           <button onClick={() => setResumen(c)} title="Ver resumen"
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors text-[11px] font-dm">
                             <Eye size={13} /> <span>Resumen</span>
