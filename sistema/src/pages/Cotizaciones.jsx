@@ -10,7 +10,7 @@ import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { FASES, faseInfo, faseLabel, urlSeguimiento } from '../utils/fases'
 import QRCode from 'qrcode'
 import { generarCotizacionPDF } from '../utils/pdf'
-import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, formatEmailJSError } from '../utils/email'
+import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, formatEmailJSError, buildSeguimientoWhatsAppUrl, buildSeguimientoGmailUrl } from '../utils/email'
 import { CATEGORIAS, PRODUCTOS } from '../data/productos'
 import { useLocation } from 'react-router-dom'
 import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
@@ -1161,7 +1161,7 @@ function MaterialesTrabajoModal({ cot, onClose }) {
 // Define el avance del trabajo (inicial → mitad → término → entregado) y genera
 // el link/QR público que el cliente escanea para ver el avance en vivo. El
 // cliente NO ve precios, RUT ni datos internos (la página pública filtra eso).
-function SeguimientoModal({ cotizacion, onClose }) {
+function SeguimientoModal({ cotizacion, cliente, onClose }) {
   const [cot, setCot] = useState(cotizacion)
   const [guardando, setGuardando] = useState(false)
   const [qr, setQr] = useState('')
@@ -1262,6 +1262,26 @@ function SeguimientoModal({ cotizacion, onClose }) {
                   </a>
                 </div>
               )}
+
+              <div className="pt-1">
+                <label className="block text-xs text-on-surface-variant mb-2 font-dm uppercase tracking-wider">Avisar al cliente</label>
+                <div className="flex gap-2">
+                  <button type="button"
+                    onClick={() => window.open(buildSeguimientoWhatsAppUrl(cot, cliente, cot.fase, url), '_blank')}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-full bg-[#25D366] text-white py-2.5 text-sm font-dm font-medium hover:brightness-95 transition">
+                    <MessageCircle size={16} /> WhatsApp
+                  </button>
+                  <button type="button"
+                    onClick={() => window.open(buildSeguimientoGmailUrl(cot, cliente, cot.fase, url), '_blank')}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-full border border-white/60 bg-white/60 text-on-surface py-2.5 text-sm font-dm font-medium hover:border-primary transition">
+                    <Mail size={16} /> Correo
+                  </button>
+                </div>
+                <p className="text-[11px] text-on-surface-variant font-dm mt-2 text-center">
+                  Se abre con el mensaje y el link ya escritos{cliente?.telefono ? '' : ' (sin teléfono guardado: elige el contacto en WhatsApp)'}. Tú aprietas enviar.
+                </p>
+              </div>
+
               <p className="text-[11px] text-on-surface-variant font-dm text-center">
                 El cliente solo verá el avance del proyecto. No se muestran precios, RUT ni datos internos.
               </p>
@@ -1546,7 +1566,7 @@ export default function Cotizaciones() {
       )}
 
       {segCot && (
-        <SeguimientoModal cotizacion={segCot} onClose={() => setSegCot(null)} />
+        <SeguimientoModal cotizacion={segCot} cliente={clienteLocal(segCot.clienteId)} onClose={() => setSegCot(null)} />
       )}
 
       {cotMenu && (

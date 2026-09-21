@@ -213,3 +213,37 @@ export function buildWhatsAppUrl(cotizacion, cliente) {
   )
   return telWA ? `https://wa.me/${telWA}?text=${texto}` : `https://wa.me/?text=${texto}`
 }
+
+// ─── AVISO DE AVANCE DE FASE (seguimiento del cliente) ───────────────────────
+// Texto amable con la fase actual + el link de seguimiento. Lo envía el usuario
+// (aprieta "enviar" en WhatsApp/correo) = su autorización.
+function mensajeSeguimiento(cotizacion, cliente, faseId, url) {
+  const nombre = cliente?.nombre || cotizacion.clienteNombre || ''
+  const estado = {
+    inicial: 'ya está en marcha — fase inicial 🟡',
+    mitad: 'va a mitad de proceso 🟠',
+    termino: 'está en su fase final ✅ (en término)',
+    entregado: '¡ya está listo y entregado! 🎉',
+  }[faseId] || 'tiene una actualización'
+
+  const lineas = [`Hola ${nombre} 👋, tu proyecto #${cotizacion.numero} en Birth Studio ${estado}.`]
+  if (url) lineas.push(`Sigue el avance en vivo aquí: ${url}`)
+  lineas.push('Cualquier duda, feliz te ayudamos. — Birth Studio')
+  return lineas.join('\n')
+}
+
+// Abre WhatsApp (teléfono o WhatsApp Web) con el aviso ya escrito al cliente.
+export function buildSeguimientoWhatsAppUrl(cotizacion, cliente, faseId, url) {
+  const tel = cliente?.telefono?.replace(/\D/g, '') || ''
+  const telWA = tel.startsWith('56') ? tel : tel ? `56${tel}` : ''
+  const texto = encodeURIComponent(mensajeSeguimiento(cotizacion, cliente, faseId, url))
+  return telWA ? `https://wa.me/${telWA}?text=${texto}` : `https://wa.me/?text=${texto}`
+}
+
+// Abre Gmail con el aviso ya escrito al correo del cliente.
+export function buildSeguimientoGmailUrl(cotizacion, cliente, faseId, url) {
+  const asunto = `Avance de tu proyecto #${cotizacion.numero} — Birth Studio`
+  const cuerpo = mensajeSeguimiento(cotizacion, cliente, faseId, url)
+  const to = cliente?.correo || ''
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+}
