@@ -53,35 +53,34 @@ function pagina({ titulo, cuerpo, status = 200 }) {
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
-  body { margin:0; background:#f4f4f5; color:#0a0a0a; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; }
-  .wrap { max-width:520px; margin:0 auto; padding:0 16px 48px; }
-  .card { background:#fff; border:1px solid #e6e6e6; border-radius:18px; overflow:hidden; margin-top:20px; box-shadow:0 6px 24px rgba(0,0,0,.05); }
-  .top { background:#0a0a0a; color:#fff; padding:22px 22px 20px; }
-  .brand { font-size:20px; font-weight:800; letter-spacing:1px; }
-  .sub { font-size:11px; text-transform:uppercase; letter-spacing:2px; color:rgba(255,255,255,.5); margin-top:2px; }
+  body { margin:0; background:#fafafa; color:#111; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; }
+  .wrap { max-width:480px; margin:0 auto; padding:0 20px 48px; }
+  .card { background:#fff; border:1px solid #ededed; border-radius:16px; overflow:hidden; margin-top:24px; box-shadow:0 4px 18px rgba(0,0,0,.04); }
+  .top { background:#0a0a0a; color:#fff; padding:22px 24px 20px; }
+  .brand { font-size:19px; font-weight:800; letter-spacing:1.5px; }
+  .sub { font-size:10px; text-transform:uppercase; letter-spacing:2px; color:rgba(255,255,255,.45); margin-top:3px; }
   .folio { float:right; text-align:right; }
-  .folio .n { font-size:22px; font-weight:800; color:#e8000d; line-height:1; }
-  .body { padding:22px; }
-  .cliente { font-size:16px; font-weight:700; }
-  .proyecto { font-size:14px; color:#666; margin:4px 0 20px; line-height:1.5; }
+  .folio .n { font-size:19px; font-weight:800; color:#fff; line-height:1.1; }
+  .body { padding:24px; }
+  .cliente { font-size:16px; font-weight:700; color:#111; }
+  .proyecto { font-size:13.5px; color:#8a8a8a; margin:4px 0 22px; line-height:1.5; }
   .steps { list-style:none; margin:0; padding:0; }
-  .step { display:flex; gap:14px; padding:0; position:relative; }
+  .step { display:flex; gap:14px; }
   .rail { display:flex; flex-direction:column; align-items:center; }
-  .dot { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex-shrink:0; border:2px solid #e0e0e0; background:#fff; color:#bbb; }
-  .step.done .dot { background:#16a34a; border-color:#16a34a; color:#fff; }
-  .step.current .dot { background:#e8000d; border-color:#e8000d; color:#fff; box-shadow:0 0 0 4px rgba(232,0,13,.15); }
-  .line { width:2px; flex:1; background:#e6e6e6; min-height:26px; }
-  .step.done .line { background:#16a34a; }
-  .txt { padding-bottom:22px; padding-top:2px; }
+  .dot { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; border:1.5px solid #dcdcdc; background:#fff; color:#bbb; }
+  .step.done .dot { background:#111; border-color:#111; color:#fff; }
+  .step.current .dot { background:#111; border-color:#111; color:#fff; box-shadow:0 0 0 4px rgba(0,0,0,.07); }
+  .line { width:2px; flex:1; background:#ececec; min-height:22px; }
+  .step.done .line { background:#111; }
+  .txt { padding:1px 0 24px; }
   .step:last-child .txt { padding-bottom:0; }
-  .lab { font-size:15px; font-weight:700; }
-  .step.pending .lab { color:#999; font-weight:600; }
-  .date { font-size:12.5px; color:#888; margin-top:2px; }
-  .current .lab { color:#e8000d; }
-  .banner { margin:20px 0 0; background:#ecfdf3; border:1px solid #b7f0cd; color:#127a3a; border-radius:12px; padding:12px 14px; font-size:14px; font-weight:600; text-align:center; }
-  .foot { text-align:center; color:#9a9a9a; font-size:12px; margin-top:22px; line-height:1.6; }
-  .foot a { color:#666; text-decoration:none; }
-  .empty { text-align:center; padding:40px 22px; color:#666; }
+  .lab { font-size:15px; font-weight:600; color:#111; }
+  .step.pending .lab { color:#bcbcbc; font-weight:500; }
+  .date { font-size:12px; color:#9a9a9a; margin-top:2px; }
+  .banner { margin:22px 0 0; background:#f5f5f5; border:1px solid #ececec; color:#222; border-radius:10px; padding:11px 14px; font-size:13.5px; font-weight:600; text-align:center; }
+  .foot { text-align:center; color:#b3b3b3; font-size:12px; margin-top:24px; line-height:1.7; }
+  .foot a { color:#888; text-decoration:none; }
+  .empty { text-align:center; padding:44px 24px; color:#888; }
 </style>
 </head>
 <body>
@@ -100,9 +99,10 @@ function paginaProyecto(cot) {
     return h ? h.at : ''
   }
 
+  const entregado = faseActual === 'entregado'
   const steps = FASES.map((f, i) => {
-    const done = idx >= 0 && i < idx
-    const current = i === idx
+    const done = idx >= 0 && (i < idx || (i === idx && entregado))
+    const current = i === idx && !entregado
     const estado = done ? 'done' : current ? 'current' : 'pending'
     const marca = done ? '✓' : String(i + 1)
     const fecha = fechaDe(f.id)
@@ -114,9 +114,8 @@ function paginaProyecto(cot) {
     </li>`
   }).join('')
 
-  const entregado = faseActual === 'entregado'
   const banner = entregado
-    ? `<div class="banner">✅ Proyecto entregado${cot.entregaAt ? ` · ${escapeHtml(fmtFecha(cot.entregaAt))}` : ''}</div>`
+    ? `<div class="banner">Proyecto entregado${cot.entregaAt ? ` · ${escapeHtml(fmtFecha(cot.entregaAt))}` : ''}</div>`
     : ''
 
   const cuerpo = `
