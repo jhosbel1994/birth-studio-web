@@ -1157,6 +1157,35 @@ function MaterialesTrabajoModal({ cot, onClose }) {
   )
 }
 
+// ─── MENÚ COMPACTO DE FILA (escritorio) ──────────────────────────────────────
+// Dropdown minimalista anclado al botón "Más": lista simple, sin descripciones
+// ni fondo oscuro. En móvil se sigue usando AccionesMenu (hoja inferior).
+function MenuMiniFila({ pos, acciones, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute w-52 bg-white rounded-xl border border-black/10 shadow-xl py-1.5"
+        style={{ top: pos.y, left: pos.x }} onClick={e => e.stopPropagation()}>
+        {acciones.map((it, i) => it === 'sep'
+          ? <div key={`s${i}`} className="my-1 border-t border-black/5" />
+          : (
+            <button key={i} type="button" onClick={() => { onClose(); it.onClick() }}
+              className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-[13px] font-dm hover:bg-black/5 transition-colors ${it.danger ? 'text-primary' : 'text-on-surface'}`}>
+              <it.icon size={15} className={it.danger ? '' : 'text-on-surface-variant'} />
+              <span>{it.label}</span>
+            </button>
+          )
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── MODAL DE FASES / SEGUIMIENTO ────────────────────────────────────────────
 // Define el avance del trabajo (inicial → mitad → término → entregado) y genera
 // el link/QR público que el cliente escanea para ver el avance en vivo. El
@@ -1314,6 +1343,7 @@ export default function Cotizaciones() {
   const [confirmDelete, setConfirmDelete] = useState([])
   const [matModal, setMatModal] = useState(null) // id de la cotización cuyos materiales se editan
   const [segCot, setSegCot] = useState(null) // cotización cuyo modal de fases/seguimiento está abierto
+  const [menuFila, setMenuFila] = useState(null) // { cot, x, y } — dropdown compacto de "Más" (escritorio)
   const [selectedIds, setSelectedIds] = useState(() => new Set())
   const [deleting, setDeleting] = useState(false)
   const [cotizacionesCargadas, setCotizacionesCargadas] = useState(false)
@@ -1371,7 +1401,35 @@ export default function Cotizaciones() {
     if (saved.estado === 'terminada') await ensureCompletedPayment(saved)
     setModal(null)
   }
-  const handleDelete = (cot) => { setMenuAbierto(null); setConfirmDelete([cot]) }
+  const handleDelete = (cot) => { setMenuAbierto(null); setMenuFila(null); setConfirmDelete([cot]) }
+
+  // Abre el dropdown compacto anclado al botón "Más" (escritorio). Lo mantiene
+  // dentro de la pantalla aunque la fila esté abajo.
+  const abrirMenuFila = (e, cot) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const ancho = 208, alto = 360
+    const left = Math.max(8, r.right - ancho)
+    let top = r.bottom + 6
+    if (top + alto > window.innerHeight) top = Math.max(8, window.innerHeight - alto - 8)
+    setMenuFila({ cot, x: left, y: top })
+  }
+
+  // Acciones del dropdown compacto (mismas del menú, sin descripciones).
+  const accionesFila = (c) => [
+    { icon: Eye, label: 'Ver resumen', onClick: () => setResumen(c) },
+    { icon: Wallet, label: 'Finanzas', onClick: () => setFinanzas(c) },
+    { icon: FileText, label: 'Ver PDF', onClick: () => handlePDF(c, 'preview') },
+    { icon: Download, label: 'Descargar PDF', onClick: () => handlePDF(c, 'download') },
+    'sep',
+    { icon: Mail, label: 'Enviar por email', onClick: () => handleEnviarEmail(c) },
+    { icon: MessageCircle, label: 'Enviar por WhatsApp', onClick: () => handleEnviarWhatsApp(c) },
+    'sep',
+    c.estado === 'aceptada' && { icon: CheckCircle, label: 'Trabajo terminado', onClick: () => handleEstado(c, 'terminada') },
+    ['aceptada', 'terminada'].includes(c.estado) && { icon: QrCode, label: 'Fases / Seguimiento', onClick: () => setSegCot(c) },
+    ['aceptada', 'terminada'].includes(c.estado) && { icon: Boxes, label: 'Materiales', onClick: () => setMatModal(c.id) },
+    { icon: Edit2, label: 'Editar', onClick: () => setModal({ ...c }) },
+    { icon: Trash2, label: 'Eliminar', onClick: () => handleDelete(c), danger: true },
+  ].filter(Boolean)
   const handleConfirmDelete = async () => {
     if (!confirmDelete.length) return
     setDeleting(true)
@@ -1569,6 +1627,14 @@ export default function Cotizaciones() {
         <SeguimientoModal cotizacion={segCot} cliente={clienteLocal(segCot.clienteId)} onClose={() => setSegCot(null)} />
       )}
 
+      {menuFila && (
+        <MenuMiniFila
+          pos={{ x: menuFila.x, y: menuFila.y }}
+          acciones={accionesFila(menuFila.cot)}
+          onClose={() => setMenuFila(null)}
+        />
+      )}
+
       {cotMenu && (
         <AccionesMenu
           cotizacion={cotMenu}
@@ -1757,7 +1823,7 @@ export default function Cotizaciones() {
                               <QrCode size={13} /> <span>Fases</span>
                             </button>
                           )}
-                          <button type="button" onClick={() => setMenuAbierto(c.id)} title="Más acciones"
+                          <button type="button" onClick={(e) => abrirMenuFila(e, c)} title="Más acciones"
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors text-[11px] font-dm">
                             <MoreHorizontal size={14} /> <span>Más</span>
                           </button>
