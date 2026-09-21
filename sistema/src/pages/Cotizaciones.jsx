@@ -1432,17 +1432,20 @@ export default function Cotizaciones() {
   ].filter(Boolean)
   const handleConfirmDelete = async () => {
     if (!confirmDelete.length) return
-    setDeleting(true)
+    const ids = confirmDelete.map(c => c.id)
+    // Cierre optimista: la lista se actualiza sola (onSnapshot quita la fila al
+    // instante) y el borrado ocurre por detrás, sin esperar a la base de datos.
+    setSelectedIds(current => {
+      const next = new Set(current)
+      ids.forEach(id => next.delete(id))
+      return next
+    })
+    setConfirmDelete([])
     try {
-      const ids = confirmDelete.map(c => c.id)
       await deleteCotizaciones(ids)
-      setSelectedIds(current => {
-        const next = new Set(current)
-        ids.forEach(id => next.delete(id))
-        return next
-      })
-      setConfirmDelete([])
-    } finally { setDeleting(false) }
+    } catch {
+      setEnvioEstado({ tipo: 'error', mensaje: 'No se pudo eliminar. Revisa tu conexión e intenta de nuevo.' })
+    }
   }
 
   const handlePDF = async (cot, modo = 'download') => {

@@ -1,7 +1,10 @@
 import { auth } from '../firebase'
 
-const MAX_SIDE = 1800
-const JPEG_QUALITY = 0.84
+// 1568px = lado máximo que Anthropic conserva (arriba de eso la IA la reduce
+// igual). Enviar a este tamaño acelera la subida y el análisis sin perder
+// legibilidad del texto de la boleta.
+const MAX_SIDE = 1568
+const JPEG_QUALITY = 0.8
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
