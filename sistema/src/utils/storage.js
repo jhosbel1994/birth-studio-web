@@ -177,6 +177,30 @@ export async function getCotizacionById(id) {
   return snapToObj(snap)
 }
 
+// ─── FASES / SEGUIMIENTO DEL TRABAJO ─────────────────────────────────────────
+// Actualiza la fase de avance de un trabajo (inicial → mitad → término →
+// entregado). Genera un token público la primera vez (para el link/QR que ve
+// el cliente) y guarda el historial con fecha y hora de cada cambio. Usa merge
+// para NO pisar estado, pagos ni otros campos de la cotización.
+export async function actualizarFaseCotizacion(cotizacion, faseId) {
+  if (!cotizacion?.id) throw new Error('Cotización inválida')
+  const now = new Date().toISOString()
+  const historial = Array.isArray(cotizacion.faseHistorial) ? [...cotizacion.faseHistorial] : []
+  const ultima = historial[historial.length - 1]
+  if (!ultima || ultima.fase !== faseId) historial.push({ fase: faseId, at: now })
+
+  const token = cotizacion.seguimientoToken || crypto.randomUUID().replace(/-/g, '')
+  const patch = {
+    fase: faseId,
+    faseHistorial: historial,
+    seguimientoToken: token,
+    updatedAt: now,
+    ...(faseId === 'entregado' ? { entregaAt: now } : {}),
+  }
+  await setDoc(doc(db, 'cotizaciones', cotizacion.id), patch, { merge: true })
+  return { ...cotizacion, ...patch }
+}
+
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
 export async function getContratos() {
   const snap = await getDocs(query(collection(db, 'contratos'), orderBy('createdAt', 'desc')))

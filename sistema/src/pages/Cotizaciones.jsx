@@ -4,9 +4,11 @@ import {
   subscribeCotizaciones, subscribeClientes, syncPublicStats,
   saveGasto, deleteGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos,
   subscribeInventario, saveInventarioItem, updateCotizacionEstado, ensureAcceptedDeposit, ensureCompletedPayment,
-  descontarMaterialesTrabajo, revertirMaterialesTrabajo,
+  descontarMaterialesTrabajo, revertirMaterialesTrabajo, actualizarFaseCotizacion,
 } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
+import { FASES, faseInfo, faseLabel, urlSeguimiento } from '../utils/fases'
+import QRCode from 'qrcode'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, formatEmailJSError } from '../utils/email'
 import { CATEGORIAS, PRODUCTOS } from '../data/productos'
@@ -19,6 +21,7 @@ import {
   Plus, Download, Trash2, Edit2, X, Search,
   Eye, Mail, MessageCircle, FileText, MoreHorizontal, CheckCircle, AlertCircle, Loader2,
   BookOpen, Wallet, Boxes, ArrowUpFromLine, ArrowDownToLine,
+  QrCode, Copy, Check, Link2,
 } from 'lucide-react'
 
 // Catálogo plano para el selector — excluye calculadoras complejas
@@ -294,7 +297,7 @@ function ActionPill({ icon: Icon, label, tone = 'neutral', onClick, disabled }) 
 }
 
 // ─── MENÚ DE ACCIONES ─────────────────────────────────────────────────────────
-function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onFinanzas, onTerminar, onMateriales, onClose }) {
+function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onFinanzas, onTerminar, onMateriales, onSeguimiento, onClose }) {
   const cliente = clientes.find(c => c.id === cotizacion.clienteId) || null
 
   const acciones = [
@@ -318,6 +321,7 @@ function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, 
       grupo: 'Gestión',
       items: [
         cotizacion.estado === 'aceptada' && { icon: CheckCircle, label: 'Trabajo terminado', desc: 'Registrar saldo pendiente', onClick: onTerminar },
+        ['aceptada', 'terminada'].includes(cotizacion.estado) && { icon: QrCode, label: 'Fases / Seguimiento', desc: cotizacion.fase ? `Avance: ${faseLabel(cotizacion.fase)}` : 'Compartir avance con el cliente', onClick: onSeguimiento },
         ['aceptada', 'terminada'].includes(cotizacion.estado) && { icon: Boxes, label: 'Materiales del trabajo', desc: cotizacion.materialesDescontados ? 'Descontados del inventario' : 'Descontar del inventario', onClick: onMateriales },
         { icon: Edit2, label: 'Editar', desc: '', onClick: onEditar },
         { icon: Trash2, label: 'Eliminar', desc: '', onClick: onEliminar, danger: true },
@@ -1153,6 +1157,128 @@ function MaterialesTrabajoModal({ cot, onClose }) {
   )
 }
 
+// ─── MODAL DE FASES / SEGUIMIENTO ────────────────────────────────────────────
+// Define el avance del trabajo (inicial → mitad → término → entregado) y genera
+// el link/QR público que el cliente escanea para ver el avance en vivo. El
+// cliente NO ve precios, RUT ni datos internos (la página pública filtra eso).
+function SeguimientoModal({ cotizacion, onClose }) {
+  const [cot, setCot] = useState(cotizacion)
+  const [guardando, setGuardando] = useState(false)
+  const [qr, setQr] = useState('')
+  const [copiado, setCopiado] = useState(false)
+
+  const token = cot.seguimientoToken || ''
+  const url = token ? urlSeguimiento(token) : ''
+
+  useEffect(() => {
+    if (!url) { setQr(''); return }
+    let vivo = true
+    QRCode.toDataURL(url, { width: 240, margin: 2, color: { dark: '#0a0a0a', light: '#ffffff' } })
+      .then(d => { if (vivo) setQr(d) })
+      .catch(() => { if (vivo) setQr('') })
+    return () => { vivo = false }
+  }, [url])
+
+  const setFase = async (faseId) => {
+    if (guardando) return
+    setGuardando(true)
+    try {
+      const upd = await actualizarFaseCotizacion(cot, faseId)
+      setCot(upd)
+    } catch (e) {
+      window.alert(e.message || 'No se pudo actualizar la fase')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const copiar = async () => {
+    if (!url) return
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      window.prompt('Copia el link de seguimiento:', url)
+    }
+  }
+
+  const idxActual = FASES.findIndex(f => f.id === cot.fase)
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4" onClick={onClose}>
+      <div className="glass-panel bg-white/95 rounded-t-[32px] md:rounded-widget w-full max-w-md shadow-xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-white/40 sticky top-0 bg-white/95 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
+          <div>
+            <h2 className="font-barlow text-xl font-bold tracking-wide">FASES DEL TRABAJO</h2>
+            <p className="text-xs text-on-surface-variant font-dm">#{cot.numero} · {cot.clienteNombre || '—'}</p>
+          </div>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
+        </div>
+
+        <div className="p-5 md:p-6 space-y-5">
+          <div>
+            <label className="block text-xs text-on-surface-variant mb-2 font-dm uppercase tracking-wider">Avance actual</label>
+            <div className="space-y-2">
+              {FASES.map((f, i) => {
+                const activa = i === idxActual
+                const hecha = idxActual >= 0 && i < idxActual
+                return (
+                  <button key={f.id} type="button" disabled={guardando} onClick={() => setFase(f.id)}
+                    className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors disabled:opacity-50 ${activa ? 'border-primary bg-primary/10' : hecha ? 'border-green-200 bg-green-50' : 'border-white/60 bg-white/50 hover:border-primary'}`}>
+                    <span className="text-lg">{f.emoji}</span>
+                    <span className="flex-1 text-sm font-dm font-medium text-on-surface">{f.label}</span>
+                    {activa && <span className="text-[10px] font-dm font-semibold text-primary uppercase tracking-wider">Actual</span>}
+                    {hecha && <Check size={16} className="text-green-600" />}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[11px] text-on-surface-variant font-dm mt-2">
+              Toca una fase para actualizar el avance. Se guarda con fecha y hora, y el cliente lo ve al instante.
+            </p>
+          </div>
+
+          {url ? (
+            <div className="border-t border-white/50 pt-4 space-y-3">
+              <label className="block text-xs text-on-surface-variant font-dm uppercase tracking-wider">Link para el cliente</label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2 border border-white/60 bg-white/70 rounded-lg px-3 py-2 min-w-0">
+                  <Link2 size={14} className="text-on-surface-variant shrink-0" />
+                  <span className="text-xs font-dm text-on-surface truncate">{url}</span>
+                </div>
+                <button type="button" onClick={copiar}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-on-primary text-xs font-dm font-medium hover:bg-primary-container transition-colors">
+                  {copiado ? <><Check size={14} /> Copiado</> : <><Copy size={14} /> Copiar</>}
+                </button>
+              </div>
+
+              {qr && (
+                <div className="flex flex-col items-center gap-2 pt-1">
+                  <img src={qr} alt="QR de seguimiento" width={200} height={200} className="rounded-lg border border-white/60" />
+                  <a href={qr} download={`seguimiento-${cot.numero}.png`}
+                    className="inline-flex items-center gap-1.5 text-xs font-dm text-primary hover:underline">
+                    <Download size={14} /> Descargar QR
+                  </a>
+                </div>
+              )}
+              <p className="text-[11px] text-on-surface-variant font-dm text-center">
+                El cliente solo verá el avance del proyecto. No se muestran precios, RUT ni datos internos.
+              </p>
+            </div>
+          ) : (
+            <div className="border-t border-white/50 pt-4">
+              <p className="text-xs text-on-surface-variant font-dm text-center">
+                Elige una fase para activar el seguimiento y generar el link/QR del cliente.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Cotizaciones() {
   const location = useLocation()
   const [cotizaciones, setCotizaciones] = useState([])
@@ -1167,6 +1293,7 @@ export default function Cotizaciones() {
   const [busqueda, setBusqueda] = useState('')
   const [confirmDelete, setConfirmDelete] = useState([])
   const [matModal, setMatModal] = useState(null) // id de la cotización cuyos materiales se editan
+  const [segCot, setSegCot] = useState(null) // cotización cuyo modal de fases/seguimiento está abierto
   const [selectedIds, setSelectedIds] = useState(() => new Set())
   const [deleting, setDeleting] = useState(false)
   const [cotizacionesCargadas, setCotizacionesCargadas] = useState(false)
@@ -1418,6 +1545,10 @@ export default function Cotizaciones() {
         <MaterialesTrabajoModal cot={matCot} onClose={() => setMatModal(null)} />
       )}
 
+      {segCot && (
+        <SeguimientoModal cotizacion={segCot} onClose={() => setSegCot(null)} />
+      )}
+
       {cotMenu && (
         <AccionesMenu
           cotizacion={cotMenu}
@@ -1430,6 +1561,7 @@ export default function Cotizaciones() {
           onFinanzas={() => { setFinanzas(cotMenu); setMenuAbierto(null) }}
           onTerminar={() => { setMenuAbierto(null); handleEstado(cotMenu, 'terminada') }}
           onMateriales={() => { setMatModal(cotMenu.id); setMenuAbierto(null) }}
+          onSeguimiento={() => { setSegCot(cotMenu); setMenuAbierto(null) }}
           onEditar={() => { setModal({ ...cotMenu }); setMenuAbierto(null) }}
           onEliminar={() => handleDelete(cotMenu)}
           onClose={() => setMenuAbierto(null)}
