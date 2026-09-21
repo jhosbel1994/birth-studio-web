@@ -1747,45 +1747,19 @@ export default function Cotizaciones() {
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-1.5 justify-end">
-                          {c.estado === 'aceptada' && (
-                            <button type="button" onClick={() => handleEstado(c, 'terminada')} title="Marcar trabajo terminado y registrar saldo"
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-green-300 text-green-700 hover:border-green-600 hover:bg-green-50 transition-colors text-[11px] font-dm">
-                              <CheckCircle size={13} /> <span>Terminar</span>
-                            </button>
-                          )}
+                          <button onClick={() => setResumen(c)} title="Ver resumen"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors text-[11px] font-dm">
+                            <Eye size={13} /> <span>Resumen</span>
+                          </button>
                           {['aceptada', 'terminada'].includes(c.estado) && (
                             <button type="button" onClick={() => setSegCot(c)} title="Fases y seguimiento del cliente (QR/link)"
                               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-primary hover:text-primary transition-colors text-[11px] font-dm">
                               <QrCode size={13} /> <span>Fases</span>
                             </button>
                           )}
-                          <button onClick={() => setResumen(c)} title="Ver resumen"
+                          <button type="button" onClick={() => setMenuAbierto(c.id)} title="Más acciones"
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors text-[11px] font-dm">
-                            <Eye size={13} /> <span>Resumen</span>
-                          </button>
-                          <button onClick={() => setFinanzas(c)} title="Finanzas del proyecto"
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded border transition-colors text-[11px] font-dm ${['aceptada', 'terminada'].includes(c.estado) ? 'border-green-300 text-green-700 hover:border-green-600 hover:bg-green-50' : 'border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface'}`}>
-                            <Wallet size={13} /> <span>Finanzas</span>
-                          </button>
-                          <button onClick={() => handlePDF(c, 'download')} title="Descargar PDF"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors text-[11px] font-dm">
-                            <Download size={13} /> <span>PDF</span>
-                          </button>
-                          <button onClick={() => handleEnviarWhatsApp(c)} title="WhatsApp"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-green-600 hover:text-green-600 transition-colors text-[11px] font-dm">
-                            <MessageCircle size={13} /> <span>WA</span>
-                          </button>
-                          <button onClick={() => handleEnviarEmail(c)} title="Correo"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-white/50 text-on-surface-variant hover:border-primary hover:text-primary transition-colors text-[11px] font-dm">
-                            <Mail size={13} /> <span>Correo</span>
-                          </button>
-                          <button onClick={() => setModal({ ...c })} title="Editar"
-                            className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors">
-                            <Edit2 size={14} />
-                          </button>
-                          <button onClick={() => handleDelete(c)} title="Eliminar"
-                            className="p-1.5 rounded border border-red-200 text-primary hover:border-primary hover:bg-red-50 transition-colors">
-                            <Trash2 size={14} />
+                            <MoreHorizontal size={14} /> <span>Más</span>
                           </button>
                         </div>
                       </td>
