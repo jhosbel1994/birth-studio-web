@@ -68,13 +68,14 @@ function pagina({ titulo, cuerpo, status = 200 }) {
   .step { display:flex; gap:14px; }
   .rail { display:flex; flex-direction:column; align-items:center; }
   .dot { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; border:1.5px solid #dcdcdc; background:#fff; color:#bbb; }
-  .step.done .dot { background:#111; border-color:#111; color:#fff; }
-  .step.current .dot { background:#111; border-color:#111; color:#fff; box-shadow:0 0 0 4px rgba(0,0,0,.07); }
+  .step.done .dot { background:#16a34a; border-color:#16a34a; color:#fff; }
+  .step.current .dot { background:#16a34a; border-color:#16a34a; color:#fff; box-shadow:0 0 0 4px rgba(22,163,74,.15); }
   .line { width:2px; flex:1; background:#ececec; min-height:22px; }
-  .step.done .line { background:#111; }
+  .step.done .line { background:#16a34a; }
   .txt { padding:1px 0 24px; }
   .step:last-child .txt { padding-bottom:0; }
   .lab { font-size:15px; font-weight:600; color:#111; }
+  .step.current .lab { color:#16a34a; font-weight:700; }
   .step.pending .lab { color:#bcbcbc; font-weight:500; }
   .date { font-size:12px; color:#9a9a9a; margin-top:2px; }
   .banner { margin:22px 0 0; background:#f5f5f5; border:1px solid #ececec; color:#222; border-radius:10px; padding:11px 14px; font-size:13.5px; font-weight:600; text-align:center; }
