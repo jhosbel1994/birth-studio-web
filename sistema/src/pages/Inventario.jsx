@@ -6,7 +6,7 @@ import {
 import { clp, hoy, fechaCorta } from '../utils/formatters'
 import {
   Plus, Search, Trash2, Edit2, X, Boxes, Package, Plus as PlusIcon, Minus,
-  AlertTriangle, Download, History, ArrowDownToLine, ArrowUpFromLine,
+  AlertTriangle, Download, History, ArrowDownToLine, ArrowUpFromLine, ChevronRight,
 } from 'lucide-react'
 
 // Tipos de unidad para el inventario (cómo se mide el stock)
@@ -23,7 +23,16 @@ const TIPOS = [
 ]
 const tipoLabel = (v) => TIPOS.find(t => t.v === v)?.v || v
 
-const EMPTY = { nombre: '', tipo: 'm2', cantidad: '', stockVerde: '', stockMinimo: '', precio: '', proveedorId: '', nota: '' }
+const EMPTY = { nombre: '', grupo: '', tipo: 'm2', cantidad: '', stockVerde: '', stockMinimo: '', precio: '', proveedorId: '', nota: '' }
+
+// Orden de los grupos en la vista (menú → submenú). Los grupos que no estén
+// aquí van al final; "Otros" siempre último.
+const GRUPO_DEFAULT = 'Otros'
+const ORDEN_GRUPOS = [
+  'Acrílicos', 'Trovicel', 'Aluminio compuesto', 'Lonas e impresión',
+  'Adhesivos', 'Cables', 'Calugas LED', 'Cintas LED',
+  'Fuentes y eléctrico', 'Insumos y químicos',
+]
 
 // Mapea la unidad del proveedor (m², ml…) al tipo del inventario (m2, ml…)
 const UNIDAD_A_TIPO = { 'm²': 'm2', 'm2': 'm2', 'ml': 'ml', 'unidad': 'unidad', 'plancha': 'plancha', 'rollo': 'rollo', 'caja': 'caja', 'kilo': 'kilo', 'litro': 'litro', 'set': 'set' }
@@ -193,7 +202,7 @@ function KardexModal({ item, onClose }) {
 }
 
 // ─── MODAL CREAR/EDITAR ÍTEM ──────────────────────────────────────────────────
-function Modal({ item, proveedores, onClose, onSave }) {
+function Modal({ item, proveedores, gruposExistentes = [], onClose, onSave }) {
   const [form, setForm] = useState(item?.id ? { ...EMPTY, ...item } : { ...EMPTY })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -223,6 +232,7 @@ function Modal({ item, proveedores, onClose, onSave }) {
     onSave({
       ...form,
       nombre: form.nombre.trim(),
+      grupo: (form.grupo || '').trim(),
       cantidad: parseFloat(form.cantidad) || 0,
       stockVerde: parseFloat(form.stockVerde) || 0,
       stockMinimo: parseFloat(form.stockMinimo) || 0,
@@ -255,6 +265,16 @@ function Modal({ item, proveedores, onClose, onSave }) {
             <input value={form.nombre} onChange={e => set('nombre', e.target.value)} required autoFocus
               placeholder="Ej. Acrílico 3mm blanco, Rollo vinil adhesivo…"
               className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
+          </div>
+          <div>
+            <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Grupo / categoría</label>
+            <input list="grupos-inv" value={form.grupo} onChange={e => set('grupo', e.target.value)}
+              placeholder="Ej. Acrílicos, Cintas LED, Insumos…"
+              className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
+            <datalist id="grupos-inv">
+              {gruposExistentes.map(g => <option key={g} value={g} />)}
+            </datalist>
+            <p className="text-[11px] text-on-surface-variant/80 font-dm mt-1">Agrupa los materiales para desplegarlos juntos. Déjalo vacío y quedará en "Otros".</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -338,6 +358,7 @@ export default function Inventario() {
   const [busqueda, setBusqueda] = useState('')
   const [soloBajo, setSoloBajo] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [expandidos, setExpandidos] = useState(() => new Set()) // grupos abiertos
 
   useEffect(() => {
     const u1 = subscribeInventario(setItems)
@@ -356,6 +377,35 @@ export default function Inventario() {
   })
 
   const valorTotal = items.reduce((s, i) => s + (i.cantidad || 0) * (i.precio || 0), 0)
+
+  // Grupos existentes (para sugerir en el modal).
+  const gruposExistentes = [...new Set(items.map(i => (i.grupo || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'))
+
+  // Agrupa los materiales filtrados por su grupo, en el orden definido.
+  const ordenGrupo = (n) => {
+    const k = ORDEN_GRUPOS.indexOf(n)
+    return k === -1 ? (n === GRUPO_DEFAULT ? 1000 : 900) : k
+  }
+  const grupos = (() => {
+    const mapa = new Map()
+    for (const i of filtrados) {
+      const g = (i.grupo || '').toString().trim() || GRUPO_DEFAULT
+      if (!mapa.has(g)) mapa.set(g, [])
+      mapa.get(g).push(i)
+    }
+    return [...mapa.keys()]
+      .sort((a, b) => ordenGrupo(a) - ordenGrupo(b) || a.localeCompare(b, 'es'))
+      .map(g => ({ grupo: g, items: mapa.get(g).sort((x, y) => (x.nombre || '').localeCompare(y.nombre || '', 'es')) }))
+  })()
+
+  // Al buscar o filtrar por bajo stock, mostramos todos los grupos abiertos.
+  const mostrarTodo = !!busqueda.trim() || soloBajo
+  const toggleGrupo = (g) => setExpandidos(prev => {
+    const next = new Set(prev)
+    if (next.has(g)) next.delete(g); else next.add(g)
+    return next
+  })
 
   // El +/- rápido también queda registrado en el kardex como entrada/salida.
   const ajustarStock = (item, delta) => {
@@ -392,6 +442,7 @@ export default function Inventario() {
         <Modal
           item={modal.id ? modal : null}
           proveedores={proveedores}
+          gruposExistentes={gruposExistentes}
           onClose={() => setModal(null)}
           onSave={async (data) => { await saveInventarioItem(data); setModal(null) }}
         />
@@ -477,89 +528,54 @@ export default function Inventario() {
           {items.length === 0 ? 'Sin materiales en el inventario. Agrega el primero.' : 'Sin resultados.'}
         </div>
       ) : (
-        <>
-          {/* Mobile: cards */}
-          <div className="md:hidden space-y-2.5">
-            {filtrados.map(i => (
-              <div key={i.id} className="glass-panel rounded-widget px-3 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <DotEstado estado={estadoStock(i)} />
-                      <p className="font-dm font-semibold text-on-surface leading-tight">{i.nombre}</p>
-                      <BadgeStock estado={estadoStock(i)} agotado={(i.cantidad || 0) <= 0} />
-                    </div>
-                    <p className="text-[11px] text-on-surface-variant font-dm mt-0.5">
-                      {clp(i.precio)}/{tipoLabel(i.tipo)}{i.proveedorId && ` · ${provNombre(i.proveedorId)}`}
-                      {((i.stockVerde || 0) > 0 || (i.stockMinimo || 0) > 0) && ` · 🟢${i.stockVerde || '—'} 🔴${i.stockMinimo || '—'}`}
-                    </p>
-                    {i.nota && <p className="text-[11px] text-on-surface-variant/80 font-dm mt-0.5">{i.nota}</p>}
+        <div className="space-y-2.5">
+          {grupos.map(({ grupo, items: itemsGrupo }) => {
+            const abierto = mostrarTodo || expandidos.has(grupo)
+            const alerta = itemsGrupo.some(i => { const e = estadoStock(i); return e === 'rojo' || e === 'amarillo' })
+            return (
+              <div key={grupo} className="glass-panel rounded-widget overflow-hidden">
+                {/* Cabecera del grupo (menú desplegable) */}
+                <button type="button" onClick={() => toggleGrupo(grupo)}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-white/40 transition-colors">
+                  <ChevronRight size={16} className={`text-on-surface-variant transition-transform shrink-0 ${abierto ? 'rotate-90' : ''}`} />
+                  <span className="font-barlow font-bold text-on-surface tracking-wide flex-1 truncate">{grupo}</span>
+                  {alerta && <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Hay material por reponer" />}
+                  <span className="text-xs font-dm text-on-surface-variant shrink-0">{itemsGrupo.length}</span>
+                </button>
+                {/* Materiales del grupo (submenú) */}
+                {abierto && (
+                  <div className="border-t border-white/50 divide-y divide-white/40">
+                    {itemsGrupo.map(i => {
+                      const e = estadoStock(i)
+                      return (
+                        <div key={i.id} className="flex items-center gap-2 px-3 md:px-4 py-2.5">
+                          <DotEstado estado={e} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-dm text-sm text-on-surface leading-tight truncate">{i.nombre}</p>
+                              <BadgeStock estado={e} agotado={(i.cantidad || 0) <= 0} />
+                            </div>
+                            {i.nota && <p className="text-[11px] text-on-surface-variant/80 font-dm truncate">{i.nota}</p>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => ajustarStock(i, -1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><Minus size={12} /></button>
+                            <span className={`font-dm text-sm font-semibold min-w-[3.4rem] text-center ${colorEstado(e)}`}>{i.cantidad ?? 0} <span className="text-[10px] text-on-surface-variant">{tipoLabel(i.tipo)}</span></span>
+                            <button onClick={() => ajustarStock(i, 1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><PlusIcon size={12} /></button>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => setMovModal(i)} title="Movimientos" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><History size={13} /></button>
+                            <button onClick={() => setModal({ ...i })} title="Editar" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><Edit2 size={13} /></button>
+                            <button onClick={() => setConfirmDelete(i)} title="Eliminar" className="p-1.5 rounded border border-red-200 text-primary hover:bg-red-50"><Trash2 size={13} /></button>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => setMovModal(i)} title="Movimientos" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><History size={14} /></button>
-                    <button onClick={() => setModal({ ...i })} className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><Edit2 size={14} /></button>
-                    <button onClick={() => setConfirmDelete(i)} className="p-1.5 rounded border border-red-200 text-primary hover:bg-red-50"><Trash2 size={14} /></button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-white/50">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => ajustarStock(i, -1)} className="w-7 h-7 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant active:bg-white/70"><Minus size={13} /></button>
-                    <span className={`font-barlow text-lg font-bold min-w-[3rem] text-center ${colorEstado(estadoStock(i))}`}>{i.cantidad ?? 0} <span className="text-xs font-dm text-on-surface-variant">{tipoLabel(i.tipo)}</span></span>
-                    <button onClick={() => ajustarStock(i, 1)} className="w-7 h-7 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant active:bg-white/70"><PlusIcon size={13} /></button>
-                  </div>
-                  <span className="text-sm font-dm font-bold text-green-700">{clp((i.cantidad || 0) * (i.precio || 0))}</span>
-                </div>
+                )}
               </div>
-            ))}
-          </div>
-
-          {/* Desktop: tabla */}
-          <div className="hidden md:block glass-panel rounded-widget overflow-hidden">
-            <table className="w-full text-sm font-dm">
-              <thead>
-                <tr className="border-b border-white/50">
-                  <th className="text-left px-5 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Material</th>
-                  <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Proveedor</th>
-                  <th className="text-right px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Precio unit.</th>
-                  <th className="text-center px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Stock</th>
-                  <th className="text-right px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Valor</th>
-                  <th className="px-5 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtrados.map(i => (
-                  <tr key={i.id} className="border-b border-white/50 hover:bg-white/50">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <DotEstado estado={estadoStock(i)} />
-                        <p className="font-medium text-on-surface">{i.nombre}</p>
-                        <BadgeStock estado={estadoStock(i)} agotado={(i.cantidad || 0) <= 0} />
-                      </div>
-                      {i.nota && <p className="text-[11px] text-on-surface-variant">{i.nota}</p>}
-                    </td>
-                    <td className="px-3 py-3 text-on-surface-variant">{provNombre(i.proveedorId) || '—'}</td>
-                    <td className="px-3 py-3 text-right text-on-surface-variant">{clp(i.precio)}/{tipoLabel(i.tipo)}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button onClick={() => ajustarStock(i, -1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><Minus size={12} /></button>
-                        <span className={`font-medium min-w-[3.5rem] text-center ${colorEstado(estadoStock(i))}`}>{i.cantidad ?? 0} {tipoLabel(i.tipo)}</span>
-                        <button onClick={() => ajustarStock(i, 1)} className="w-6 h-6 flex items-center justify-center rounded-full border border-white/50 text-on-surface-variant hover:bg-white/70"><PlusIcon size={12} /></button>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-right font-medium text-green-700">{clp((i.cantidad || 0) * (i.precio || 0))}</td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-1.5 justify-end">
-                        <button onClick={() => setMovModal(i)} title="Movimientos" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><History size={14} /></button>
-                        <button onClick={() => setModal({ ...i })} title="Editar" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><Edit2 size={14} /></button>
-                        <button onClick={() => setConfirmDelete(i)} title="Eliminar" className="p-1.5 rounded border border-red-200 text-primary hover:border-primary hover:bg-red-50"><Trash2 size={14} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+            )
+          })}
+        </div>
       )}
     </div>
   )
