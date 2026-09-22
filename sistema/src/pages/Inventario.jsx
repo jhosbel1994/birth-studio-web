@@ -7,7 +7,7 @@ import {
 import { clp, hoy, fechaCorta } from '../utils/formatters'
 import {
   Plus, Search, Trash2, Edit2, X, Boxes, Package, Plus as PlusIcon, Minus,
-  AlertTriangle, Download, History, ArrowDownToLine, ArrowUpFromLine, ChevronRight,
+  AlertTriangle, Download, History, ArrowDownToLine, ArrowUpFromLine, ChevronRight, MoreHorizontal,
 } from 'lucide-react'
 
 // Tipos de unidad para el inventario (cómo se mide el stock)
@@ -34,6 +34,38 @@ const ORDEN_GRUPOS = [
   'Adhesivos', 'Cables', 'Calugas LED', 'Cintas LED',
   'Fuentes y eléctrico', 'Insumos y químicos',
 ]
+
+// Menú "⋯" minimalista: botón de 3 puntos que despliega una lista de acciones
+// anclada al botón (cierra al hacer clic afuera). Reusable para grupos y filas.
+function MenuMini({ acciones, size = 15, className = '' }) {
+  const [pos, setPos] = useState(null) // { x, y } | null
+  const abrir = (e) => {
+    e.stopPropagation()
+    const r = e.currentTarget.getBoundingClientRect()
+    setPos({ x: Math.max(8, r.right - 180), y: r.bottom + 4 })
+  }
+  return (
+    <>
+      <button type="button" onClick={abrir} title="Opciones"
+        className={`p-2 rounded-lg border border-black/10 bg-white text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors ${className}`}>
+        <MoreHorizontal size={size} />
+      </button>
+      {pos && (
+        <div className="fixed inset-0 z-50" onClick={() => setPos(null)}>
+          <div className="absolute w-44 bg-white rounded-xl border border-black/10 shadow-xl py-1.5"
+            style={{ top: pos.y, left: pos.x }} onClick={e => e.stopPropagation()}>
+            {acciones.map((a, i) => (
+              <button key={i} type="button" onClick={() => { setPos(null); a.onClick() }}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-[13px] font-dm hover:bg-black/5 transition-colors ${a.danger ? 'text-primary' : 'text-on-surface'}`}>
+                <a.icon size={15} className={a.danger ? '' : 'text-on-surface-variant'} /><span>{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 
 // Mapea la unidad del proveedor (m², ml…) al tipo del inventario (m2, ml…)
 const UNIDAD_A_TIPO = { 'm²': 'm2', 'm2': 'm2', 'ml': 'ml', 'unidad': 'unidad', 'plancha': 'plancha', 'rollo': 'rollo', 'caja': 'caja', 'kilo': 'kilo', 'litro': 'litro', 'set': 'set' }
@@ -634,22 +666,16 @@ export default function Inventario() {
                 <p className="text-[11px] text-on-surface-variant font-dm">{contentCount} {contentCount === 1 ? 'material' : 'materiales'}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {catSel !== 'Todos' && catSel !== GRUPO_DEFAULT && (
-                  <>
-                    <button onClick={() => renombrarGrupo(catSel)} title="Renombrar este grupo"
-                      className="flex items-center gap-1.5 border border-black/10 bg-white text-on-surface-variant px-3 py-2 rounded-full text-sm font-dm hover:border-on-surface hover:text-on-surface transition-colors">
-                      <Edit2 size={14} /> Editar grupo
-                    </button>
-                    <button onClick={() => eliminarGrupo(catSel)} title="Eliminar este grupo y sus materiales"
-                      className="flex items-center gap-1.5 border border-red-200 bg-red-50/70 text-primary px-3 py-2 rounded-full text-sm font-dm hover:bg-primary hover:text-white transition-colors">
-                      <Trash2 size={14} /> Eliminar grupo
-                    </button>
-                  </>
-                )}
                 <button onClick={() => setModal({ grupo: catSel === 'Todos' ? '' : catSel })}
                   className="flex items-center gap-2 bg-primary text-on-primary px-3.5 py-2 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
                   <Plus size={15} /> Nuevo
                 </button>
+                {catSel !== 'Todos' && catSel !== GRUPO_DEFAULT && (
+                  <MenuMini acciones={[
+                    { icon: Edit2, label: 'Renombrar grupo', onClick: () => renombrarGrupo(catSel) },
+                    { icon: Trash2, label: 'Eliminar grupo', onClick: () => eliminarGrupo(catSel), danger: true },
+                  ]} />
+                )}
               </div>
             </div>
             <table className="w-full text-sm font-dm">
@@ -692,17 +718,12 @@ export default function Inventario() {
                             </div>
                           </td>
                           <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-2 justify-end">
-                              <button onClick={() => setMovModal(i)} title="Movimientos (historial)"
-                                className="p-2 rounded-lg border border-black/10 bg-white text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors"><History size={15} /></button>
-                              <button onClick={() => setModal({ ...i })} title="Editar material"
-                                className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-black/10 bg-white text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors">
-                                <Edit2 size={15} /><span className="text-xs font-dm">Editar</span>
-                              </button>
-                              <button onClick={() => setConfirmDelete(i)} title="Eliminar material"
-                                className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-red-200 bg-red-50/70 text-primary hover:bg-primary hover:text-white transition-colors">
-                                <Trash2 size={15} /><span className="text-xs font-dm">Eliminar</span>
-                              </button>
+                            <div className="flex items-center justify-end">
+                              <MenuMini acciones={[
+                                { icon: History, label: 'Movimientos', onClick: () => setMovModal(i) },
+                                { icon: Edit2, label: 'Editar', onClick: () => setModal({ ...i }) },
+                                { icon: Trash2, label: 'Eliminar', onClick: () => setConfirmDelete(i), danger: true },
+                              ]} />
                             </div>
                           </td>
                         </tr>
