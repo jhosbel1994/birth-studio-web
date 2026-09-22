@@ -658,10 +658,17 @@ export default function Inventario() {
                             </div>
                           </td>
                           <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-1.5 justify-end">
-                              <button onClick={() => setMovModal(i)} title="Movimientos" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><History size={14} /></button>
-                              <button onClick={() => setModal({ ...i })} title="Editar" className="p-1.5 rounded border border-white/50 text-on-surface-variant hover:border-on-surface hover:text-on-surface"><Edit2 size={14} /></button>
-                              <button onClick={() => setConfirmDelete(i)} title="Eliminar" className="p-1.5 rounded border border-red-200 text-primary hover:border-primary hover:bg-red-50"><Trash2 size={14} /></button>
+                            <div className="flex items-center gap-2 justify-end">
+                              <button onClick={() => setMovModal(i)} title="Movimientos (historial)"
+                                className="p-2 rounded-lg border border-black/10 bg-white text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors"><History size={15} /></button>
+                              <button onClick={() => setModal({ ...i })} title="Editar material"
+                                className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-black/10 bg-white text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors">
+                                <Edit2 size={15} /><span className="text-xs font-dm">Editar</span>
+                              </button>
+                              <button onClick={() => setConfirmDelete(i)} title="Eliminar material"
+                                className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-red-200 bg-red-50/70 text-primary hover:bg-primary hover:text-white transition-colors">
+                                <Trash2 size={15} /><span className="text-xs font-dm">Eliminar</span>
+                              </button>
                             </div>
                           </td>
                         </tr>
