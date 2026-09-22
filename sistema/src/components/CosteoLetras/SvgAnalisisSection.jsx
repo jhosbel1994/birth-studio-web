@@ -9,7 +9,7 @@ import MesaCanvas from './MesaCanvas'
 
 const MATERIALES_PLANCHA = [...GRUPO_ACRILICO, ...GRUPO_TROVICEL]
 
-export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSeparacion, onAplicarSugerencias }) {
+export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSeparacion, onAplicarSugerencias, sinTitulo = false }) {
   const [svgInfo, setSvgInfo] = useState(null) // { piezas, bboxUnion, svgTextNormalizado, nombreArchivo }
   const [error, setError] = useState('')
   const [anchoRealCm, setAnchoRealCm] = useState('')
@@ -90,7 +90,7 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
   return (
     <div className="divide-y divide-birth-gray-2">
       <div className="p-4 space-y-3">
-        <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">1. Diseño (SVG)</p>
+        {!sinTitulo && <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">1. Diseño (SVG)</p>}
 
         <div
           onDrop={onDrop}

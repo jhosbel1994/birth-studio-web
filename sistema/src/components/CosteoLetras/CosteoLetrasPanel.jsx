@@ -6,7 +6,7 @@ import {
 } from '../../data/costeoLetras'
 import { calcularCosteoLetras, sumarFachada } from '../../utils/costeoLetrasCalc'
 import { getCosteoLetrasPrecios, saveCosteoLetrasPrecios } from '../../utils/storage'
-import SvgAnalisisSection from './SvgAnalisisSection'
+import TamanoLetrasSection from './TamanoLetrasSection'
 import GrupoCostosSection from './GrupoCostosItems'
 import FachadaCosteoSection from './FachadaCosteoSection'
 import ProduccionLogisticaSection from './ProduccionLogisticaSection'
@@ -118,10 +118,11 @@ export default function CosteoLetrasPanel() {
     <div className="lg:grid lg:grid-cols-3 lg:gap-4 lg:p-4 lg:items-start">
       <div className="lg:col-span-2 divide-y divide-birth-gray-2 lg:divide-y-0 lg:space-y-4">
         <div className="lg:border lg:border-birth-gray-2 lg:rounded">
-          <SvgAnalisisSection
+          <TamanoLetrasSection
             mesa={mesa} setMesa={setMesa}
             separacion={separacion} setSeparacion={setSeparacion}
             onAplicarSugerencias={handleAplicarSugerencias}
+            setM2Proyecto={setM2Proyecto}
           />
         </div>
 
