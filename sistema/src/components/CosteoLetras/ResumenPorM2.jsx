@@ -39,31 +39,30 @@ export default function ResumenPorM2({
   const multNum = Number(mult) || 1.5
 
   return (
-    <div className="lg:sticky lg:top-0 lg:self-start bg-white border border-birth-gray-2 rounded divide-y divide-birth-gray-2">
+    <div className="bg-white border border-birth-gray-2 rounded divide-y divide-birth-gray-2">
       {/* Precio del letrero */}
       <div className="p-4 space-y-3">
         <p className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider">Precio del letrero</p>
 
-        <div>
-          <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">m² de letras</label>
-          <input type="number" min="0" step="0.01" value={m2Proyecto} onChange={e => setM2Proyecto(e.target.value)}
-            className="w-full border border-birth-gray-2 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
-        </div>
-
-        <div>
-          <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">Material</label>
-          <Toggle opciones={MATERIALES} valor={material} onChange={setMaterial} />
-        </div>
-
-        <div>
-          <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">Iluminación</label>
-          <Toggle opciones={ILUMINACION} valor={iluminacion} onChange={setIluminacion} />
-        </div>
-
-        <div>
-          <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">Precio por m² (editable)</label>
-          <input type="number" min="0" value={precioM2} onChange={e => setPrecioM2(e.target.value)} onBlur={onPrecioM2Blur}
-            className="w-full border-2 border-birth-black rounded px-3 py-2 text-lg font-barlow font-bold focus:outline-none focus:border-birth-red" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">m² de letras</label>
+            <input type="number" min="0" step="0.01" value={m2Proyecto} onChange={e => setM2Proyecto(e.target.value)}
+              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-birth-black" />
+          </div>
+          <div>
+            <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">Precio por m² (editable)</label>
+            <input type="number" min="0" value={precioM2} onChange={e => setPrecioM2(e.target.value)} onBlur={onPrecioM2Blur}
+              className="w-full border-2 border-birth-black rounded px-3 py-2 text-sm font-barlow font-bold focus:outline-none focus:border-birth-red" />
+          </div>
+          <div>
+            <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">Material</label>
+            <Toggle opciones={MATERIALES} valor={material} onChange={setMaterial} />
+          </div>
+          <div>
+            <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">Iluminación</label>
+            <Toggle opciones={ILUMINACION} valor={iluminacion} onChange={setIluminacion} />
+          </div>
         </div>
       </div>
 

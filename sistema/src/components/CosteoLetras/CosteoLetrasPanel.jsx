@@ -83,30 +83,26 @@ export default function CosteoLetrasPanel() {
   }
 
   return (
-    <div className="lg:grid lg:grid-cols-3 lg:gap-4 lg:p-4 lg:items-start">
-      <div className="lg:col-span-2">
-        <div className="lg:border lg:border-birth-gray-2 lg:rounded">
-          <TamanoLetrasSection
-            mesa={mesa} setMesa={setMesa}
-            separacion={separacion} setSeparacion={setSeparacion}
-            onAplicarSugerencias={handleAplicarSugerencias}
-            setM2Proyecto={setM2Proyecto}
-          />
-        </div>
-      </div>
-
-      <div className="mt-4 lg:mt-0">
-        <ResumenPorM2
-          m2Proyecto={m2Proyecto} setM2Proyecto={setM2Proyecto}
-          material={material} setMaterial={setMaterial}
-          iluminacion={iluminacion} setIluminacion={setIluminacion}
-          precioM2={precioM2Actual} setPrecioM2={setPrecioM2Actual} onPrecioM2Blur={guardarPreciosM2}
-          multActivo={multActivo} setMultActivo={setMultActivo} mult={mult} setMult={setMult}
-          instalacion={instalacion} setInstalacion={setInstalacion}
-          subtotalLetrero={subtotalLetrero} subtotalFinal={subtotalFinal} totalNeto={totalNeto}
-          onAgregar={handleAgregar}
+    <div className="p-2.5 md:p-4 space-y-4">
+      <div className="border border-birth-gray-2 rounded">
+        <TamanoLetrasSection
+          mesa={mesa} setMesa={setMesa}
+          separacion={separacion} setSeparacion={setSeparacion}
+          onAplicarSugerencias={handleAplicarSugerencias}
+          setM2Proyecto={setM2Proyecto}
         />
       </div>
+
+      <ResumenPorM2
+        m2Proyecto={m2Proyecto} setM2Proyecto={setM2Proyecto}
+        material={material} setMaterial={setMaterial}
+        iluminacion={iluminacion} setIluminacion={setIluminacion}
+        precioM2={precioM2Actual} setPrecioM2={setPrecioM2Actual} onPrecioM2Blur={guardarPreciosM2}
+        multActivo={multActivo} setMultActivo={setMultActivo} mult={mult} setMult={setMult}
+        instalacion={instalacion} setInstalacion={setInstalacion}
+        subtotalLetrero={subtotalLetrero} subtotalFinal={subtotalFinal} totalNeto={totalNeto}
+        onAgregar={handleAgregar}
+      />
     </div>
   )
 }
