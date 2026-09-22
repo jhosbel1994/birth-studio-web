@@ -46,48 +46,50 @@ const CatalogoContext = createContext({
   renombrarSeccion: () => {}, eliminarSeccion: () => {},
 })
 
-// Fila de instalación reutilizable: botones ×valor (clic = seleccionar,
-// doble clic = editar el valor guardado). Reemplaza los bloques repetidos
-// de "MULTIPLICADORES.map(...)" en cada panel.
-function MultiplicadorButtons({ multiplicador, setMultiplicador, label = 'Instalación' }) {
-  const { multiplicadores, setValorMultiplicador } = useContext(MultiplicadoresContext)
-  const [editando, setEditando] = useState(null)
-  const [valorInput, setValorInput] = useState('')
+// Control de instalación: opciones con NOMBRE claro (Sin instalación / Con
+// instalación / Con andamio) + un deslizador para afinar el multiplicador de
+// 2.0 a 4.0 en pasos de 0.1. El número (×N) es solo referencia.
+function nombreCortoInstalacion(m) {
+  const l = String(m?.label || '').toLowerCase()
+  if (l.includes('sin instal')) return 'Sin instalación'
+  if (l.includes('andamio')) return 'Con andamio'
+  if (l.includes('instal')) return 'Con instalación'
+  return m?.label || ''
+}
 
-  const guardarEdicion = () => {
-    const v = parseFloat(valorInput)
-    if (editando && !isNaN(v) && v > 0) {
-      const anterior = multiplicadores.find(m => m.id === editando)?.valor
-      setValorMultiplicador(editando, v)
-      if (multiplicador === anterior) setMultiplicador(v)
-    }
-    setEditando(null)
-  }
+function MultiplicadorButtons({ multiplicador, setMultiplicador, label = 'Instalación' }) {
+  const { multiplicadores } = useContext(MultiplicadoresContext)
+
+  const valores = multiplicadores.map(m => m.valor)
+  const min = Math.min(2, ...valores)
+  const max = Math.max(4, ...valores)
+  const actual = multiplicadores.find(m => m.valor === multiplicador)
+  const valorNum = Number(multiplicador) || min
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {label && <span className="text-xs text-on-surface-variant font-dm uppercase tracking-wider shrink-0">{label}:</span>}
-      <div className="flex gap-1 flex-wrap">
-        {multiplicadores.map(m => editando === m.id ? (
-          <input key={m.id} type="number" min="0" step="0.1" autoFocus value={valorInput}
-            onChange={e => setValorInput(e.target.value)}
-            onBlur={guardarEdicion}
-            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
-            className="w-14 text-center border-2 border-primary rounded px-1 py-1 text-xs font-dm focus:outline-none"
-          />
-        ) : (
-          <button key={m.id}
-            onClick={() => setMultiplicador(m.valor)}
-            onDoubleClick={() => { setEditando(m.id); setValorInput(String(m.valor)) }}
-            title={`${m.label} — doble clic para editar el valor`}
-            className={`px-2.5 py-1 rounded text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-on-surface text-white border-on-surface' : 'bg-white text-on-surface-variant border-white/50 hover:border-on-surface'}`}>
-            ×{m.valor}
+    <div className="w-full">
+      <div className="flex items-center gap-2 flex-wrap mb-2">
+        {label && <span className="text-xs text-on-surface-variant font-dm uppercase tracking-wider shrink-0">{label}:</span>}
+        {multiplicadores.map(m => (
+          <button key={m.id} type="button" onClick={() => setMultiplicador(m.valor)}
+            title={`${m.label} (×${m.valor})`}
+            className={`px-3 py-1.5 rounded-full text-xs font-dm border transition-colors ${multiplicador === m.valor ? 'bg-on-surface text-white border-on-surface' : 'bg-white text-on-surface-variant border-white/60 hover:border-on-surface'}`}>
+            {nombreCortoInstalacion(m)}
           </button>
         ))}
       </div>
-      <span className="text-xs text-on-surface-variant font-dm">
-        {multiplicadores.find(m => m.valor === multiplicador)?.label}
-      </span>
+      <div className="flex items-center gap-3">
+        <input
+          type="range" min={min} max={max} step="0.1" value={valorNum}
+          onChange={e => setMultiplicador(parseFloat(e.target.value))}
+          aria-label="Multiplicador de instalación"
+          className="flex-1 accent-primary cursor-pointer"
+        />
+        <span className="font-barlow text-sm font-bold text-on-surface w-14 text-right shrink-0">×{valorNum.toFixed(1)}</span>
+      </div>
+      <p className="text-[11px] text-on-surface-variant font-dm mt-1">
+        {actual ? actual.label : 'Ajuste personalizado'} · desliza para afinar (pasos de 0.1)
+      </p>
     </div>
   )
 }
