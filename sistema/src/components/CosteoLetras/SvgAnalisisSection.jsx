@@ -154,7 +154,7 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
 
         {svgInfo && anchoNum <= 0 && (
           <p className="text-[11px] font-dm text-birth-red bg-red-50 border border-red-200 rounded px-3 py-2">
-            👉 Escribe el <b>ancho real del diseño</b> abajo para ver el nesting, las planchas y los cantos.
+            Escribe el <b>ancho real del diseño</b> abajo para ver el nesting, las planchas y los cantos.
           </p>
         )}
 

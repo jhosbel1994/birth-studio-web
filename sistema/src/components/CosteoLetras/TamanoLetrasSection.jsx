@@ -103,7 +103,7 @@ function TabMedidas({ setM2Proyecto }) {
 
       {!aspecto && (
         <p className="text-[11px] font-dm text-birth-gray-3">
-          💡 Escribe el ancho a mano, <b>o sube el logo</b> arriba y lo calculo solo desde el alto.
+          Escribe el ancho a mano, <b>o sube el logo</b> arriba y lo calculo solo desde el alto.
         </p>
       )}
 
