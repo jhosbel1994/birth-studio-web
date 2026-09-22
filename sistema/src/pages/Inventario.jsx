@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
+import { createPortal } from 'react-dom'
 import {
   subscribeInventario, saveInventarioItem, deleteInventarioItem, subscribeProveedores,
   registrarMovimiento, subscribeMovimientosItem,
@@ -42,7 +43,14 @@ function MenuMini({ acciones, size = 15, className = '' }) {
   const abrir = (e) => {
     e.stopPropagation()
     const r = e.currentTarget.getBoundingClientRect()
-    setPos({ x: Math.max(8, r.right - 180), y: r.bottom + 4 })
+    const ancho = 176
+    const alto = acciones.length * 40 + 12
+    const x = Math.max(8, Math.min(window.innerWidth - ancho - 8, r.right - ancho))
+    const yPreferido = r.bottom + 4
+    const y = yPreferido + alto <= window.innerHeight
+      ? yPreferido
+      : Math.max(8, r.top - alto - 4)
+    setPos({ x, y })
   }
   return (
     <>
@@ -50,9 +58,9 @@ function MenuMini({ acciones, size = 15, className = '' }) {
         className={`p-2 rounded-lg border border-black/10 bg-white text-on-surface-variant hover:border-on-surface hover:text-on-surface transition-colors ${className}`}>
         <MoreHorizontal size={size} />
       </button>
-      {pos && (
+      {pos && createPortal((
         <div className="fixed inset-0 z-50" onClick={() => setPos(null)}>
-          <div className="absolute w-44 bg-white rounded-xl border border-black/10 shadow-xl py-1.5"
+          <div className="fixed w-44 bg-white rounded-xl border border-black/10 shadow-xl py-1.5"
             style={{ top: pos.y, left: pos.x }} onClick={e => e.stopPropagation()}>
             {acciones.map((a, i) => (
               <button key={i} type="button" onClick={() => { setPos(null); a.onClick() }}
@@ -62,7 +70,7 @@ function MenuMini({ acciones, size = 15, className = '' }) {
             ))}
           </div>
         </div>
-      )}
+      ), document.body)}
     </>
   )
 }

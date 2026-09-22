@@ -2561,7 +2561,7 @@ export default function Prototipo() {
         face.emissive = new THREE.Color(ledColor);
         // Mas intensidad: al frente el logo debe verse claramente ENCENDIDO
         // (antes pasaba desapercibido, sobre todo de dia).
-        face.emissiveIntensity = (mode === "both" ? 1.4 : 2.3) * litK;
+        face.emissiveIntensity = (mode === "both" ? 1.7 : 4.2) * litK;
       }
     } else {
       face.color = faceCol.clone();
@@ -2569,7 +2569,7 @@ export default function Prototipo() {
         // Acrilico opal de color: la cara emite en su propio color,
         // tenido por el color del LED.
         face.emissive = faceCol.clone().multiply(new THREE.Color(ledColor));
-        face.emissiveIntensity = (mode === "both" ? 1.5 : 2.4) * litK;
+        face.emissiveIntensity = (mode === "both" ? 1.8 : 4.4) * litK;
       }
     }
     if (mode === "back") { face.emissive = new THREE.Color(0x000000); face.emissiveIntensity = 0; face.color.multiplyScalar(0.45); }
@@ -2611,7 +2611,7 @@ export default function Prototipo() {
         let aw = realW * 0.8, ah = aw / la;
         if (ah > realH * 0.8) { ah = realH * 0.8; aw = ah * la; }
         const artMat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.42, metalness: 0, side: THREE.DoubleSide, depthWrite: false });
-        if (litFront) { artMat.emissiveMap = tex; artMat.emissive = new THREE.Color(ledColor); artMat.emissiveIntensity = (mode === "both" ? 0.5 : 0.8) * litK; }
+        if (litFront) { artMat.emissiveMap = tex; artMat.emissive = new THREE.Color(ledColor); artMat.emissiveIntensity = (mode === "both" ? 0.8 : 1.8) * litK; }
         const art = new THREE.Mesh(new THREE.PlaneGeometry(aw, ah), artMat);
         art.position.set(0, 0, thick + 0.006);
         art.renderOrder = 3;
@@ -2763,13 +2763,13 @@ export default function Prototipo() {
           // emisión para leerse encendida (acrílico iluminado por dentro).
           pFace.emissiveMap = pTex;
           pFace.emissive = new THREE.Color(ledColor);
-          pFace.emissiveIntensity = (mode === "both" ? 1.4 : 2.1) * litK;
+          pFace.emissiveIntensity = (mode === "both" ? 1.7 : 4.0) * litK;
         }
       } else {
         pFace.color = new THREE.Color(faceColor);
         if (litFront) {
           pFace.emissive = new THREE.Color(faceColor).multiply(new THREE.Color(ledColor));
-          pFace.emissiveIntensity = (mode === "both" ? 1.55 : 2.25) * litK;
+          pFace.emissiveIntensity = (mode === "both" ? 1.85 : 4.2) * litK;
         }
       }
       if (mode === "back") { pFace.emissive = new THREE.Color(0x000000); pFace.emissiveIntensity = 0; pFace.color.multiplyScalar(0.45); }
@@ -2865,7 +2865,7 @@ export default function Prototipo() {
       if (kind === "lightbox") {
         const boxMat = new THREE.MeshStandardMaterial({
           color: 0xf7f8fb, roughness: 0.34, metalness: 0.02,
-          emissive: new THREE.Color(ledColor), emissiveIntensity: (night ? 0.5 : 0.16) * litK,
+          emissive: new THREE.Color(ledColor), emissiveIntensity: (night ? 0.9 : 0.35) * litK,
         });
         const isCircle = (item.boxForm || "rect") === "circle";
         const box = isCircle
@@ -2881,7 +2881,7 @@ export default function Prototipo() {
         art.material.dispose();
         art.material = new THREE.MeshStandardMaterial({ map: texExtra, transparent: true,
           side: THREE.DoubleSide, roughness: 0.34, emissive: new THREE.Color(ledColor),
-          emissiveMap: texExtra, emissiveIntensity: litFront ? (night ? 0.8 : 0.5) * litK : 0 });
+          emissiveMap: texExtra, emissiveIntensity: litFront ? (night ? 1.8 : 1.2) * litK : 0 });
         art.position.z = 0.012;
         plane.add(art);
       } else if (kind === "letters" && cached?.imageData) {
