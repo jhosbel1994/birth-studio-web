@@ -200,12 +200,16 @@ function podarContenidos(rects) {
 // ─── CANTOS ───────────────────────────────────────────────────────────────
 // tiras: cada una mide el ancho de la mesa (largo de la plancha, 1220mm por
 // defecto); tirasPorPlancha: cuántas caben apiladas en el alto de la mesa.
-export function calcularCantos(perimetroTotalMm, mesaAncho, mesaAlto, altoCantoMm, separacion) {
+export function calcularCantos(perimetroTotalMm, mesaAncho, mesaAlto, altoCantoMm, separacion, largoTiraMm) {
+  const largo = largoTiraMm || mesaAncho
   if (!perimetroTotalMm || perimetroTotalMm <= 0 || !altoCantoMm) {
-    return { tiras: 0, tirasPorPlancha: 0, planchasCantos: 0 }
+    return { tiras: 0, tirasPorPlancha: 0, planchasCantos: 0, largoTiraMm: largo }
   }
-  const tiras = Math.ceil(perimetroTotalMm / mesaAncho)
-  const tirasPorPlancha = Math.max(1, Math.floor(mesaAlto / (altoCantoMm + separacion)))
+  // Las tiras se apilan en el OTRO lado de la plancha: si el largo se parece
+  // al lado largo (2440), se apilan a lo ancho (1220), y viceversa.
+  const ladoApilado = Math.abs(largo - mesaAlto) < Math.abs(largo - mesaAncho) ? mesaAncho : mesaAlto
+  const tiras = Math.ceil(perimetroTotalMm / largo)
+  const tirasPorPlancha = Math.max(1, Math.floor(ladoApilado / (altoCantoMm + separacion)))
   const planchasCantos = Math.ceil(tiras / tirasPorPlancha)
-  return { tiras, tirasPorPlancha, planchasCantos }
+  return { tiras, tirasPorPlancha, planchasCantos, largoTiraMm: largo }
 }

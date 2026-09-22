@@ -15,6 +15,7 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
   const [anchoRealCm, setAnchoRealCm] = useState('')
   const [altoCantoSel, setAltoCantoSel] = useState(String(ALTO_CANTO_DEFAULT_CM))
   const [altoCantoManual, setAltoCantoManual] = useState('')
+  const [largoTiraMm, setLargoTiraMm] = useState(1200) // largo de la tira de canto: 1200 (120cm) o 2400 (240cm)
   const [materialId, setMaterialId] = useState(MATERIALES_PLANCHA[0].id)
   const [areaM2, setAreaM2] = useState(0)
   const [calculandoArea, setCalculandoArea] = useState(false)
@@ -62,7 +63,7 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
     const perimetroTotalMm = piezasMm.reduce((s, p) => s + p.perimetroMm, 0)
     perimetroTotalM = perimetroTotalMm / 1000
     if (altoCantoCm > 0) {
-      cantos = calcularCantos(perimetroTotalMm, mesa.ancho, mesa.alto, altoCantoCm * 10, separacion)
+      cantos = calcularCantos(perimetroTotalMm, mesa.ancho, mesa.alto, altoCantoCm * 10, separacion, largoTiraMm)
     }
   }
 
@@ -189,6 +190,18 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
               placeholder="cm" className="mt-1.5 w-24 border border-birth-gray-2 rounded px-2 py-1.5 text-sm font-dm focus:outline-none focus:border-birth-black" />
           )}
         </div>
+
+        <div>
+          <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1.5">Largo de tira de canto</label>
+          <div className="flex gap-1.5">
+            {[{ mm: 1200, l: '120 cm' }, { mm: 2400, l: '240 cm' }].map(o => (
+              <button key={o.mm} type="button" onClick={() => setLargoTiraMm(o.mm)}
+                className={`px-3 py-1.5 rounded text-xs font-dm border transition-colors ${largoTiraMm === o.mm ? 'bg-birth-black text-white border-birth-black' : 'bg-white text-birth-gray-4 border-birth-gray-2 hover:border-birth-black'}`}>
+                {o.l}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {nesting && (
@@ -216,7 +229,9 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
             <span>Planchas de caras</span><span className="text-right font-medium text-birth-black">{totalPlanchasCaras}</span>
             {cantos && (
               <>
+                <span>Largo de tira</span><span className="text-right font-medium text-birth-black">{Math.round(cantos.largoTiraMm / 10)} cm</span>
                 <span>Tiras de canto ({cantos.tirasPorPlancha}/plancha)</span><span className="text-right font-medium text-birth-black">{cantos.tiras}</span>
+                <span>Canto total</span><span className="text-right font-medium text-birth-black">{(cantos.tiras * cantos.largoTiraMm / 1000).toFixed(1)} m</span>
                 <span>Planchas de cantos</span><span className="text-right font-medium text-birth-black">{cantos.planchasCantos}</span>
               </>
             )}
