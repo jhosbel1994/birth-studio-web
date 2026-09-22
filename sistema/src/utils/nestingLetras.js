@@ -114,69 +114,87 @@ export function calcularAreaRellena(svgTextNormalizado, targetPx = 900) {
   })
 }
 
-// ─── NESTING: shelf packing greedy con rotación 90° ──────────────────────────
-// Ordena piezas por lado mayor descendente, prueba ambas orientaciones,
-// acomoda en "estantes" horizontales dentro de cada mesa y abre mesa nueva
-// cuando ya no cabe. Piezas más grandes que la mesa en ambas orientaciones
-// se reportan aparte.
+// ─── NESTING: MaxRects (Best Short Side Fit) con rotación 0°/90° ──────────────
+// Empaqueta las cajas envolventes lo más apretado posible probando ambas
+// orientaciones (0° y 90°) para aprovechar mejor la plancha (menos planchas).
+// Sigue siendo por CAJA (no por contorno real ni ángulos libres). La separación
+// se modela inflando la plancha y cada pieza en `sep`, así el borde no pierde.
 export function nestearPiezas(piezasMm, mesaAncho, mesaAlto, separacion) {
-  const ordenadas = [...piezasMm].sort((a, b) => Math.max(b.wMm, b.hMm) - Math.max(a.wMm, a.hMm))
-  const mesas = []
+  const sep = Math.max(0, Number(separacion) || 0)
+  const binW = mesaAncho + sep
+  const binH = mesaAlto + sep
+
   const piezasGigantes = []
+  const colocables = []
+  for (const p of piezasMm) {
+    const it = { id: p.id, w: p.wMm, h: p.hMm }
+    const cabe = (it.w <= mesaAncho && it.h <= mesaAlto) || (it.h <= mesaAncho && it.w <= mesaAlto)
+    if (cabe) colocables.push(it)
+    else piezasGigantes.push(it)
+  }
+  // Piezas más grandes primero: mejor empaque.
+  colocables.sort((a, b) => (b.w * b.h) - (a.w * a.h))
 
-  for (const pieza of ordenadas) {
-    const cabeNormal = pieza.wMm <= mesaAncho && pieza.hMm <= mesaAlto
-    const cabeRotada = pieza.hMm <= mesaAncho && pieza.wMm <= mesaAlto
-    if (!cabeNormal && !cabeRotada) {
-      piezasGigantes.push(pieza)
-      continue
-    }
-
+  const mesas = []
+  for (const it of colocables) {
     let colocada = false
-    for (const mesaExistente of mesas) {
-      if (colocarEnMesa(mesaExistente, pieza, mesaAncho, mesaAlto, separacion, cabeNormal, cabeRotada)) {
-        colocada = true
-        break
-      }
+    for (const mesa of mesas) {
+      if (colocarMaxRects(mesa, it, sep)) { colocada = true; break }
     }
     if (!colocada) {
-      const mesaNueva = { shelves: [], items: [] }
-      colocarEnMesa(mesaNueva, pieza, mesaAncho, mesaAlto, separacion, cabeNormal, cabeRotada)
-      mesas.push(mesaNueva)
+      const mesa = { items: [], free: [{ x: 0, y: 0, w: binW, h: binH }] }
+      colocarMaxRects(mesa, it, sep)
+      mesas.push(mesa)
     }
   }
 
-  return { mesas, piezasGigantes }
+  return { mesas: mesas.map(m => ({ items: m.items })), piezasGigantes }
 }
 
-function colocarEnMesa(mesa, pieza, mesaAncho, mesaAlto, separacion, cabeNormal, cabeRotada) {
-  // 1) Intenta sumarse a un estante ya abierto
-  for (const shelf of mesa.shelves) {
-    for (const rot of [false, true]) {
-      if (rot ? !cabeRotada : !cabeNormal) continue
-      const w = rot ? pieza.hMm : pieza.wMm
-      const h = rot ? pieza.wMm : pieza.hMm
-      if (h <= shelf.height && shelf.usedWidth + separacion + w <= mesaAncho) {
-        mesa.items.push({ id: pieza.id, x: shelf.usedWidth + separacion, y: shelf.y, w, h, rot })
-        shelf.usedWidth += separacion + w
-        return true
+function colocarMaxRects(mesa, it, sep) {
+  // Elige el free-rect con mejor "short side fit" entre las dos orientaciones.
+  let best = null
+  const orientaciones = [
+    { ow: it.w + sep, oh: it.h + sep, rot: false, rw: it.w, rh: it.h },
+    { ow: it.h + sep, oh: it.w + sep, rot: true, rw: it.h, rh: it.w },
+  ]
+  for (const o of orientaciones) {
+    for (const fr of mesa.free) {
+      if (o.ow <= fr.w && o.oh <= fr.h) {
+        const shortFit = Math.min(fr.w - o.ow, fr.h - o.oh)
+        const longFit = Math.max(fr.w - o.ow, fr.h - o.oh)
+        if (!best || shortFit < best.shortFit || (shortFit === best.shortFit && longFit < best.longFit)) {
+          best = { x: fr.x, y: fr.y, ...o, shortFit, longFit }
+        }
       }
     }
   }
-  // 2) No entró en ningún estante: abre uno nuevo si hay alto disponible
-  const ultimo = mesa.shelves[mesa.shelves.length - 1]
-  const yBase = ultimo ? ultimo.y + ultimo.height + separacion : 0
-  for (const rot of [false, true]) {
-    if (rot ? !cabeRotada : !cabeNormal) continue
-    const w = rot ? pieza.hMm : pieza.wMm
-    const h = rot ? pieza.wMm : pieza.hMm
-    if (yBase + h <= mesaAlto) {
-      mesa.shelves.push({ y: yBase, height: h, usedWidth: w })
-      mesa.items.push({ id: pieza.id, x: 0, y: yBase, w, h, rot })
-      return true
-    }
+  if (!best) return false
+
+  mesa.items.push({ id: it.id, x: best.x, y: best.y, w: best.rw, h: best.rh, rot: best.rot })
+
+  // Recalcula los free-rects: divide los que se solapan con el ocupado.
+  const usado = { x: best.x, y: best.y, w: best.ow, h: best.oh }
+  const nuevos = []
+  for (const fr of mesa.free) {
+    if (!seSolapan(fr, usado)) { nuevos.push(fr); continue }
+    if (usado.x > fr.x) nuevos.push({ x: fr.x, y: fr.y, w: usado.x - fr.x, h: fr.h })
+    if (usado.x + usado.w < fr.x + fr.w) nuevos.push({ x: usado.x + usado.w, y: fr.y, w: fr.x + fr.w - usado.x - usado.w, h: fr.h })
+    if (usado.y > fr.y) nuevos.push({ x: fr.x, y: fr.y, w: fr.w, h: usado.y - fr.y })
+    if (usado.y + usado.h < fr.y + fr.h) nuevos.push({ x: fr.x, y: usado.y + usado.h, w: fr.w, h: fr.y + fr.h - usado.y - usado.h })
   }
-  return false
+  mesa.free = podarContenidos(nuevos.filter(r => r.w > 1 && r.h > 1))
+  return true
+}
+
+function seSolapan(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+}
+function contenidoEn(a, b) {
+  return a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h
+}
+function podarContenidos(rects) {
+  return rects.filter((r, i) => !rects.some((o, j) => i !== j && contenidoEn(r, o)))
 }
 
 // ─── CANTOS ───────────────────────────────────────────────────────────────
