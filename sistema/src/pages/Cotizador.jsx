@@ -874,7 +874,6 @@ function AgregarItemForm({ categoria, defaultMult }) {
 // ─── PANEL DE PRODUCTOS GENÉRICO ──────────────────────────────────────────
 function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
   const { catalogoItems } = useContext(CatalogoContext)
-  const [query, setQuery] = useState('')
 
   const seed = PRODUCTOS[categoria] || []
   const custom = catalogoItems
@@ -883,9 +882,6 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
   const productos = [...seed, ...custom]
 
   const tieneMultiplicador = productos.some(p => p.aplicaMultiplicador)
-  const filtrados = query.trim()
-    ? productos.filter(p => normalizar(p.nombre).includes(normalizar(query.trim())))
-    : productos
 
   return (
     <div>
@@ -894,14 +890,6 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
           <MultiplicadorButtons multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
         </div>
       )}
-      <div className="px-4 py-2 bg-white border-b border-white/50">
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Buscar producto..."
-          className="w-full border border-white/50 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface"
-        />
-      </div>
       <div className="px-2 py-1 bg-white/50 border-b border-white/50">
         <div className="hidden sm:flex items-center text-[10px] text-on-surface-variant font-dm uppercase tracking-wider px-2 gap-2">
           <span className="flex-1">Producto</span>
@@ -912,9 +900,7 @@ function ProductosGenericos({ categoria, multiplicador, setMultiplicador }) {
       </div>
       {productos.length === 0
         ? <p className="p-4 text-sm text-on-surface-variant font-dm">Sección vacía. Agrega tu primer ítem abajo.</p>
-        : filtrados.length === 0
-          ? <p className="p-4 text-sm text-on-surface-variant font-dm">Sin resultados para "{query}"</p>
-          : filtrados.map(p => <ProductoFila key={p.id} producto={p} multiplicador={multiplicador} />)
+        : productos.map(p => <ProductoFila key={p.id} producto={p} multiplicador={multiplicador} />)
       }
       <AgregarItemForm categoria={categoria} defaultMult={multiplicador} />
     </div>
@@ -1003,14 +989,12 @@ function AcrilicoRectangularPanel({ multiplicador }) {
 // ─── PANEL ESPECIAL ACRÍLICO ───────────────────────────────────────────────
 function AcrilicoPanel({ multiplicador, setMultiplicador }) {
   const todos = PRODUCTOS.acrilico || []
-  const [query, setQuery] = useState('')
 
   const plancha = todos.filter(p => !p.seccion)
   const circular = todos.filter(p => p.seccion === 'circular')
 
-  const q = query.trim()
-  const filtrarPlancha = q ? plancha.filter(p => normalizar(p.nombre).includes(normalizar(q))) : plancha
-  const filtrarCircular = q ? circular.filter(p => normalizar(p.nombre).includes(normalizar(q))) : circular
+  const filtrarPlancha = plancha
+  const filtrarCircular = circular
 
   const SectionHeader = ({ label }) => (
     <div className="px-4 py-1.5 bg-white/50 border-b border-white/50">
@@ -1023,16 +1007,6 @@ function AcrilicoPanel({ multiplicador, setMultiplicador }) {
       {/* Selector instalación */}
       <div className="flex items-center gap-2 px-4 py-2.5 bg-white/50 border-b border-white/50">
         <MultiplicadorButtons multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
-      </div>
-
-      {/* Buscador */}
-      <div className="px-4 py-2 bg-white border-b border-white/50">
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Buscar producto..."
-          className="w-full border border-white/50 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface"
-        />
       </div>
 
       {/* Cabecera columnas */}
