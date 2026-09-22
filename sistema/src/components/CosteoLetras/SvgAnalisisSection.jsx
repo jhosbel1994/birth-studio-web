@@ -141,6 +141,19 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
           </p>
         )}
 
+        {svgInfo && (
+          <div className="rounded border border-birth-gray-2 bg-birth-gray p-2 flex items-center justify-center">
+            <img src={`data:image/svg+xml;utf8,${encodeURIComponent(svgInfo.svgTextNormalizado)}`}
+              alt="Vista del logo" className="max-h-44 w-auto object-contain" />
+          </div>
+        )}
+
+        {svgInfo && anchoNum <= 0 && (
+          <p className="text-[11px] font-dm text-birth-red bg-red-50 border border-red-200 rounded px-3 py-2">
+            👉 Escribe el <b>ancho real del diseño</b> abajo para ver el nesting, las planchas y los cantos.
+          </p>
+        )}
+
         <div>
           <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Ancho real del diseño (cm)</label>
           <input

@@ -87,7 +87,9 @@ function TabMedidas({ setM2Proyecto }) {
             className="w-full border-2 border-birth-black rounded px-3 py-2 text-lg font-barlow font-bold focus:outline-none focus:border-birth-red" />
         </div>
         <div>
-          <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">Ancho (cm){aspecto ? ' · auto' : ''}</label>
+          <label className="text-[10px] font-dm text-birth-gray-4 uppercase block mb-1">
+            Ancho (cm){aspecto ? ' · auto desde el logo' : ' · a mano'}
+          </label>
           {aspecto ? (
             <div className="w-full border-2 border-birth-gray-2 rounded px-3 py-2 text-lg font-barlow font-bold text-birth-gray-4">
               {anchoAuto > 0 ? anchoAuto.toFixed(1) : '—'}
@@ -98,6 +100,12 @@ function TabMedidas({ setM2Proyecto }) {
           )}
         </div>
       </div>
+
+      {!aspecto && (
+        <p className="text-[11px] font-dm text-birth-gray-3">
+          💡 Escribe el ancho a mano, <b>o sube el logo</b> arriba y lo calculo solo desde el alto.
+        </p>
+      )}
 
       <ResultadoM2 m2={m2} onUsar={() => m2 > 0 && setM2Proyecto(String(Math.round(m2 * 1000) / 1000))} />
     </div>
