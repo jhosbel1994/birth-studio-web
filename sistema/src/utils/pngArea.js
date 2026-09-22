@@ -1,8 +1,27 @@
 // Lee la proporción de una imagen (alto/ancho). Sirve para PNG, JPG y SVG:
 // con el alto que da el cliente + esta proporción se calcula el ancho.
-export function proporcionImagen(file) {
+export async function proporcionImagen(file) {
+  if (!file) throw new Error('Sin archivo')
+
+  // SVG: se lee por TEXTO (width/height o viewBox). Muchos SVG de Illustrator
+  // no traen tamaño intrínseco al cargarlos como imagen, así que esto es más
+  // confiable que usar <img>.
+  const esSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '')
+  if (esSvg) {
+    const texto = await file.text()
+    const svg = new DOMParser().parseFromString(texto, 'image/svg+xml').documentElement
+    let w = parseFloat(svg.getAttribute('width'))
+    let h = parseFloat(svg.getAttribute('height'))
+    if (!(w > 0) || !(h > 0)) {
+      const vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(parseFloat)
+      if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) { w = vb[2]; h = vb[3] }
+    }
+    if (!(w > 0) || !(h > 0)) throw new Error('El SVG no trae tamaño ni viewBox. Prueba con un PNG.')
+    return { aspecto: h / w, ancho: w, alto: h }
+  }
+
+  // Raster (PNG/JPG…): se lee con <img>.
   return new Promise((resolve, reject) => {
-    if (!file) { reject(new Error('Sin archivo')); return }
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
