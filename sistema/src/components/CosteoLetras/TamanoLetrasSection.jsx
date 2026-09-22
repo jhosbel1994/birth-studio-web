@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Ruler, FileCode2, Image as ImageIcon, Sparkles, AlertTriangle } from 'lucide-react'
 import SvgAnalisisSection from './SvgAnalisisSection'
 import { estimarAreaPng, proporcionImagen } from '../../utils/pngArea'
@@ -32,9 +32,13 @@ function TabMedidas({ setM2Proyecto }) {
   const inputRef = useRef(null)
   const [aspecto, setAspecto] = useState(null) // alto/ancho del logo
   const [logoNombre, setLogoNombre] = useState('')
+  const [previewUrl, setPreviewUrl] = useState('')
   const [error, setError] = useState('')
   const [alto, setAlto] = useState('')
   const [ancho, setAncho] = useState('')
+
+  // Libera el object URL del preview al desmontar.
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
   const subirLogo = async (file) => {
     setError('')
@@ -43,6 +47,7 @@ function TabMedidas({ setM2Proyecto }) {
       const r = await proporcionImagen(file)
       setAspecto(r.aspecto)
       setLogoNombre(file.name)
+      setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file) })
     } catch (e) {
       setError(e.message || 'No se pudo leer el logo.')
       setAspecto(null)
@@ -68,6 +73,12 @@ function TabMedidas({ setM2Proyecto }) {
         <input ref={inputRef} type="file" accept=".svg,image/*" className="hidden" onChange={e => subirLogo(e.target.files?.[0])} />
       </div>
       {error && <p className="text-xs font-dm text-birth-red">{error}</p>}
+
+      {previewUrl && (
+        <div className="rounded border border-birth-gray-2 bg-birth-gray p-2 flex items-center justify-center">
+          <img src={previewUrl} alt="Vista del logo" className="max-h-40 w-auto object-contain" />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <div>
