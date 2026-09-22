@@ -1038,16 +1038,8 @@ function AcrilicoPanel({ multiplicador, setMultiplicador }) {
       )}
 
       {/* Sección: Corte Rectangular */}
-      {!q && (
-        <>
-          <SectionHeader label="Corte Rectangular — ingresar dimensiones en cm" />
-          <AcrilicoRectangularPanel multiplicador={multiplicador} />
-        </>
-      )}
-
-      {filtrarPlancha.length === 0 && filtrarCircular.length === 0 && q && (
-        <p className="p-4 text-sm text-on-surface-variant font-dm">Sin resultados para "{query}"</p>
-      )}
+      <SectionHeader label="Corte Rectangular — ingresar dimensiones en cm" />
+      <AcrilicoRectangularPanel multiplicador={multiplicador} />
     </div>
   )
 }
