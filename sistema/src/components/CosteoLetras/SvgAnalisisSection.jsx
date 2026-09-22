@@ -111,6 +111,10 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
   const totalPlanchasCaras = nesting ? nesting.mesas.length : 0
   const totalPlanchas = totalPlanchasCaras + (cantos?.planchasCantos || 0)
 
+  // Tamaño total del diseño (bounding box) en m², para el precio por m².
+  const altoRealM = svgInfo?.bboxUnion?.width ? (anchoNum / 100) * (svgInfo.bboxUnion.height / svgInfo.bboxUnion.width) : 0
+  const m2Total = anchoNum > 0 ? Math.round((anchoNum / 100) * altoRealM * 1000) / 1000 : 0
+
   const handleAplicar = () => {
     if (!totalPlanchas || !areaM2) return
     onAplicarSugerencias({ materialId, totalPlanchas, areaM2 })
@@ -252,17 +256,12 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
             <span className="text-right font-bold text-birth-black border-t border-birth-gray-2 pt-1.5 mt-1">{totalPlanchas}</span>
           </div>
 
-          <div>
-            <label className="text-[11px] font-dm text-birth-gray-4 uppercase tracking-wider block mb-1">Material para estas planchas</label>
-            <select value={materialId} onChange={e => setMaterialId(e.target.value)}
-              className="w-full border border-birth-gray-2 rounded px-3 py-2 text-sm font-dm focus:outline-none bg-white">
-              {MATERIALES_PLANCHA.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-            </select>
-          </div>
-
-          <button onClick={handleAplicar} disabled={!totalPlanchas || !areaM2}
+          <p className="text-[11px] font-dm text-birth-gray-3">
+            Esto es para saber el <b>material</b> (planchas y canto). El precio se calcula por m² abajo.
+          </p>
+          <button onClick={() => m2Total > 0 && onAplicarSugerencias({ areaM2: m2Total })} disabled={!m2Total}
             className="w-full flex items-center justify-center gap-2 bg-birth-black text-white py-2.5 rounded text-sm font-dm font-medium hover:bg-birth-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            <Sparkles size={14} /> Aplicar sugerencias al costeo
+            <Sparkles size={14} /> Usar este tamaño ({m2Total.toFixed(2)} m²) en el precio
           </button>
         </div>
       )}
