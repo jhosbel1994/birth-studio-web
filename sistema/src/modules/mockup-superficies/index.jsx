@@ -390,15 +390,15 @@ export default function MockupVitrina() {
   const m2 = anchoCm > 0 && altoCm > 0 ? (anchoCm * altoCm) / 10000 : 0
 
   return (
-    <div className="px-2.5 py-3 md:p-6 lg:p-8">
-      <div className="flex items-center justify-between gap-3 mb-5 md:mb-8">
+    <div className="min-w-0 px-2.5 py-3 md:p-6 lg:p-8">
+      <div className="mb-5 flex flex-col gap-4 md:mb-8 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h1 className="font-barlow text-3xl md:text-4xl font-bold text-on-surface tracking-wide">MOCKUP VITRINA</h1>
           <p className="text-on-surface-variant text-xs md:text-sm font-dm mt-1">
             Simula gráfica sobre fotos reales de vidrio y pared
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {guardadoOk && <span className="text-xs font-dm text-secondary hidden sm:inline">Guardado.</span>}
           {puenteOk && <span className="text-xs font-dm text-secondary hidden sm:inline">Enviado a Prototipo.</span>}
           <button onClick={handleUsarEnPrototipo} disabled={enviandoPrototipo}
@@ -424,9 +424,9 @@ export default function MockupVitrina() {
 
       {(error || errorListado) && <p className="text-sm font-dm text-primary mb-3">{error || errorListado}</p>}
 
-      <div className="flex gap-3 md:gap-5">
+      <div className="flex min-w-0 flex-col gap-3 md:gap-5 2xl:grid 2xl:h-[calc(100vh-12rem)] 2xl:min-h-[520px] 2xl:max-h-[760px] 2xl:grid-cols-[auto_minmax(0,1fr)_18rem]">
         {/* Toolbar vertical */}
-        <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 h-fit">
+        <div className="glass-panel flex h-fit max-w-full flex-row gap-1 overflow-x-auto rounded-2xl p-2 2xl:flex-col 2xl:overflow-visible">
           {HERRAMIENTAS.map((h) => {
             const ok = disponible(h)
             return (
@@ -435,7 +435,7 @@ export default function MockupVitrina() {
                 disabled={!ok}
                 onClick={() => irA(h.key)}
                 title={ok ? h.label : `${h.label} — completa el paso anterior`}
-                className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl text-[11px] font-dm transition-colors ${
+                className={`flex min-w-[70px] shrink-0 flex-col items-center gap-1 rounded-xl px-3 py-2.5 text-[11px] font-dm transition-colors 2xl:min-w-0 ${
                   herramienta === h.key
                     ? 'bg-secondary-container/80 text-on-secondary-container font-semibold'
                     : ok
@@ -451,7 +451,7 @@ export default function MockupVitrina() {
         </div>
 
         {/* Canvas */}
-        <div className="glass-panel rounded-2xl flex-1 min-h-[480px]">
+        <div className="glass-panel h-[min(68vh,720px)] min-h-[460px] min-w-0 overflow-hidden rounded-2xl 2xl:h-full 2xl:min-h-0">
           <SceneCanvas
             ref={canvasRef}
             fotoUrl={escena.fotoUrl} fotoW={escena.fotoW} fotoH={escena.fotoH}
@@ -465,7 +465,7 @@ export default function MockupVitrina() {
         </div>
 
         {/* Panel derecho — cambia según la herramienta activa */}
-        <div className="glass-panel rounded-2xl p-4 w-72 shrink-0 flex flex-col gap-4 overflow-y-auto">
+        <div className="glass-panel flex max-h-[680px] w-full min-w-0 flex-col gap-4 overflow-y-auto rounded-2xl p-4 2xl:h-full 2xl:max-h-none 2xl:w-72">
           {herramienta === 'escena' && (
             <>
               <div>

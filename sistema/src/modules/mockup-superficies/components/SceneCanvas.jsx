@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { drawImageQuad, clipToPolygon } from '../utils/warpQuad'
 
 const COLOR_ZONA = { vidrio: '#0058bc', pared: '#bc000a' }
@@ -147,8 +147,10 @@ const SceneCanvas = forwardRef(function SceneCanvas({
 }, ref) {
   const canvasRef = useRef(null)
   const svgRef = useRef(null)
+  const viewportRef = useRef(null)
   const dragRef = useRef(null)
   const imgCache = useRef(new Map())
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   // Las imagenes (foto base, adhesivos) cargan async — cuando terminan hay
   // que volver a dibujar. Antes esto pasaba por un contador de estado +
   // useEffect([redraw]), pero como `redraw` es la MISMA referencia
@@ -192,6 +194,25 @@ const SceneCanvas = forwardRef(function SceneCanvas({
 
   useEffect(() => { redrawRef.current = redraw }, [redraw])
   useEffect(() => { redraw() }, [redraw])
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return undefined
+
+    const medir = () => {
+      const rect = viewport.getBoundingClientRect()
+      setViewportSize(current => {
+        const width = Math.round(rect.width)
+        const height = Math.round(rect.height)
+        return current.width === width && current.height === height ? current : { width, height }
+      })
+    }
+
+    medir()
+    const observer = new ResizeObserver(medir)
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [fotoUrl])
 
   useImperativeHandle(ref, () => ({
     exportImage({ type = 'image/jpeg', quality = 0.88, maxWidth = 1600 } = {}) {
@@ -249,6 +270,20 @@ const SceneCanvas = forwardRef(function SceneCanvas({
 
   const handlePointerUp = () => { dragRef.current = null }
 
+  const displaySize = useMemo(() => {
+    if (!fotoW || !fotoH || !viewportSize.width || !viewportSize.height) {
+      return { width: fotoW || 1, height: fotoH || 1 }
+    }
+    const availableWidth = Math.max(1, viewportSize.width - 32)
+    const availableHeight = Math.max(1, viewportSize.height - 32)
+    const fitScale = Math.min(1, availableWidth / fotoW, availableHeight / fotoH)
+    const displayScale = fitScale * zoom
+    return {
+      width: Math.max(1, Math.round(fotoW * displayScale)),
+      height: Math.max(1, Math.round(fotoH * displayScale)),
+    }
+  }, [fotoH, fotoW, viewportSize.height, viewportSize.width, zoom])
+
   if (!fotoUrl) {
     return (
       <div className="flex h-full min-h-[420px] flex-col items-center justify-center gap-2 text-center">
@@ -263,8 +298,8 @@ const SceneCanvas = forwardRef(function SceneCanvas({
   const mostrarCapa = ['diseno', 'escala', 'acabado', 'luz'].includes(herramienta)
 
   return (
-    <div className="relative flex h-full items-center justify-center overflow-auto p-4">
-      <div className="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-full border border-white/60 bg-white/80 px-2 py-1 shadow-sm backdrop-blur">
+    <div ref={viewportRef} className="relative h-full min-h-0 min-w-0 overflow-auto">
+      <div className="sticky left-4 top-4 z-10 flex w-fit items-center gap-1 rounded-full border border-white/60 bg-white/90 px-2 py-1 shadow-sm backdrop-blur">
         <button
           type="button"
           onClick={() => onZoomChange?.(Math.max(0.35, Number((zoom - 0.1).toFixed(2))))}
@@ -282,57 +317,69 @@ const SceneCanvas = forwardRef(function SceneCanvas({
         >
           +
         </button>
+        {zoom !== 1 && (
+          <button
+            type="button"
+            onClick={() => onZoomChange?.(1)}
+            className="ml-1 rounded-full px-2 py-1 text-[10px] font-dm font-medium text-secondary hover:bg-white"
+            title="Ajustar la foto al espacio disponible"
+          >
+            Ajustar
+          </button>
+        )}
       </div>
-      <div
-        className="relative inline-block"
-        style={{ width: `${fotoW * zoom}px`, maxWidth: zoom <= 1 ? '100%' : 'none' }}
-      >
-        <canvas ref={canvasRef} className="block h-auto w-full rounded-2xl shadow-lg" />
-        <svg
-          ref={svgRef}
-          viewBox={`0 0 ${fotoW} ${fotoH}`}
-          className="absolute inset-0 h-full w-full touch-none select-none"
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
+      <div className="flex min-h-[calc(100%_-_44px)] min-w-full items-center justify-center p-4 pt-2">
+        <div
+          className="relative shrink-0"
+          style={{ width: `${displaySize.width}px`, height: `${displaySize.height}px` }}
         >
-          {mostrarGuias && mostrarZonas && zonas.map(z => (
-            <g key={z.id}>
-              <polygon
-                points={z.puntos.map(p => `${p.x},${p.y}`).join(' ')}
-                fill={COLOR_ZONA[z.tipo] || '#888'}
-                fillOpacity={z.id === zonaActivaId ? 0.22 : 0.1}
-                stroke={COLOR_ZONA[z.tipo] || '#888'}
-                strokeWidth={fotoW * 0.0025}
-                strokeDasharray={z.id === zonaActivaId ? 'none' : `${fotoW * 0.008} ${fotoW * 0.006}`}
-              />
-              {z.id === zonaActivaId && z.puntos.map((p, idx) => (
-                <circle
-                  key={idx} cx={p.x} cy={p.y} r={handleR}
-                  fill="#fff" stroke={COLOR_ZONA[z.tipo] || '#888'} strokeWidth={fotoW * 0.003}
-                  onPointerDown={handlePointerDown('zona', z.id, idx)}
-                  style={{ cursor: 'grab' }}
+          <canvas ref={canvasRef} className="block h-full w-full rounded-2xl shadow-lg" />
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${fotoW} ${fotoH}`}
+            className="absolute inset-0 h-full w-full touch-none select-none"
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          >
+            {mostrarGuias && mostrarZonas && zonas.map(z => (
+              <g key={z.id}>
+                <polygon
+                  points={z.puntos.map(p => `${p.x},${p.y}`).join(' ')}
+                  fill={COLOR_ZONA[z.tipo] || '#888'}
+                  fillOpacity={z.id === zonaActivaId ? 0.22 : 0.1}
+                  stroke={COLOR_ZONA[z.tipo] || '#888'}
+                  strokeWidth={fotoW * 0.0025}
+                  strokeDasharray={z.id === zonaActivaId ? 'none' : `${fotoW * 0.008} ${fotoW * 0.006}`}
                 />
-              ))}
-            </g>
-          ))}
+                {z.id === zonaActivaId && z.puntos.map((p, idx) => (
+                  <circle
+                    key={idx} cx={p.x} cy={p.y} r={handleR}
+                    fill="#fff" stroke={COLOR_ZONA[z.tipo] || '#888'} strokeWidth={fotoW * 0.003}
+                    onPointerDown={handlePointerDown('zona', z.id, idx)}
+                    style={{ cursor: 'grab' }}
+                  />
+                ))}
+              </g>
+            ))}
 
-          {mostrarGuias && mostrarCapa && capas.filter(c => c.id === capaActivaId).map(c => (
-            <g key={c.id}>
-              <polygon
-                points={c.puntos.map(p => `${p.x},${p.y}`).join(' ')}
-                fill="none" stroke="#00647f" strokeWidth={fotoW * 0.0025}
-              />
-              {c.puntos.map((p, idx) => (
-                <circle
-                  key={idx} cx={p.x} cy={p.y} r={handleR}
-                  fill="#fff" stroke="#00647f" strokeWidth={fotoW * 0.003}
-                  onPointerDown={handlePointerDown('capa', c.id, idx)}
-                  style={{ cursor: 'grab' }}
+            {mostrarGuias && mostrarCapa && capas.filter(c => c.id === capaActivaId).map(c => (
+              <g key={c.id}>
+                <polygon
+                  points={c.puntos.map(p => `${p.x},${p.y}`).join(' ')}
+                  fill="none" stroke="#00647f" strokeWidth={fotoW * 0.0025}
                 />
-              ))}
-            </g>
-          ))}
-        </svg>
+                {c.puntos.map((p, idx) => (
+                  <circle
+                    key={idx} cx={p.x} cy={p.y} r={handleR}
+                    fill="#fff" stroke="#00647f" strokeWidth={fotoW * 0.003}
+                    onPointerDown={handlePointerDown('capa', c.id, idx)}
+                    style={{ cursor: 'grab' }}
+                  />
+                ))}
+              </g>
+            ))}
+          </svg>
+        </div>
       </div>
     </div>
   )
