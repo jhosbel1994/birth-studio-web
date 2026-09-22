@@ -2,6 +2,7 @@ import { useState, useEffect, Fragment } from 'react'
 import {
   subscribeInventario, saveInventarioItem, deleteInventarioItem, subscribeProveedores,
   registrarMovimiento, subscribeMovimientosItem,
+  renombrarGrupoInventario, eliminarGrupoInventario,
 } from '../utils/storage'
 import { clp, hoy, fechaCorta } from '../utils/formatters'
 import {
@@ -416,6 +417,25 @@ export default function Inventario() {
   const contentCount = contentGrupos.reduce((s, g) => s + g.items.length, 0)
   const grupoAlerta = (g) => g.items.some(i => { const e = estadoStock(i); return e === 'rojo' || e === 'amarillo' })
 
+  // Renombrar / eliminar un grupo completo (todos sus materiales).
+  const renombrarGrupo = async (grupo) => {
+    const nuevo = window.prompt(`Nuevo nombre para el grupo "${grupo}":`, grupo)
+    const limpio = (nuevo || '').trim()
+    if (!limpio || limpio === grupo) return
+    try {
+      await renombrarGrupoInventario(grupo, limpio)
+      if (categoriaSel === grupo) setCategoriaSel(limpio)
+    } catch { window.alert('No se pudo renombrar el grupo.') }
+  }
+  const eliminarGrupo = async (grupo) => {
+    const n = grupos.find(g => g.grupo === grupo)?.items.length || 0
+    if (!window.confirm(`¿Eliminar el grupo "${grupo}" y sus ${n} material${n === 1 ? '' : 'es'}?\n\nEsta acción NO se puede deshacer.`)) return
+    try {
+      await eliminarGrupoInventario(grupo)
+      if (categoriaSel === grupo) setCategoriaSel('Todos')
+    } catch { window.alert('No se pudo eliminar el grupo.') }
+  }
+
   // El +/- rápido también queda registrado en el kardex como entrada/salida.
   const ajustarStock = (item, delta) => {
     registrarMovimiento({
@@ -597,14 +617,29 @@ export default function Inventario() {
               <span className="text-xs opacity-70">{totalItems}</span>
             </button>
             <div className="my-1 border-t border-white/40" />
-            {grupos.map(g => (
-              <button key={g.grupo} type="button" onClick={() => setCategoriaSel(g.grupo)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm font-dm transition-colors ${catSel === g.grupo ? 'bg-primary/10 text-on-surface font-semibold' : 'text-on-surface-variant hover:bg-white/50'}`}>
-                <span className="flex-1 truncate">{g.grupo}</span>
-                {grupoAlerta(g) && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Hay material por reponer" />}
-                <span className="text-xs opacity-70">{g.items.length}</span>
-              </button>
-            ))}
+            {grupos.map(g => {
+              const activo = catSel === g.grupo
+              const esOtros = g.grupo === GRUPO_DEFAULT
+              return (
+                <div key={g.grupo}
+                  className={`group/rail w-full flex items-center rounded-xl transition-colors ${activo ? 'bg-primary/10' : 'hover:bg-white/50'}`}>
+                  <button type="button" onClick={() => setCategoriaSel(g.grupo)}
+                    className={`flex-1 min-w-0 flex items-center gap-2 pl-3 py-2 text-left text-sm font-dm ${activo ? 'text-on-surface font-semibold' : 'text-on-surface-variant'}`}>
+                    <span className="flex-1 truncate">{g.grupo}</span>
+                    {grupoAlerta(g) && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Hay material por reponer" />}
+                    <span className="text-xs opacity-70">{g.items.length}</span>
+                  </button>
+                  {!esOtros && (
+                    <div className="flex items-center gap-0.5 pr-1.5 shrink-0 opacity-0 group-hover/rail:opacity-100 transition-opacity">
+                      <button type="button" onClick={() => renombrarGrupo(g.grupo)} title="Renombrar grupo"
+                        className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-white/70"><Edit2 size={12} /></button>
+                      <button type="button" onClick={() => eliminarGrupo(g.grupo)} title="Eliminar grupo"
+                        className="p-1 rounded text-primary hover:bg-red-50"><Trash2 size={12} /></button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           <div className="flex-1 min-w-0 glass-panel rounded-widget overflow-hidden">

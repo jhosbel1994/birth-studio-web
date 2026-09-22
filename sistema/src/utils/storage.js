@@ -564,6 +564,29 @@ export async function deleteInventarioItem(id) {
   await deleteDoc(doc(db, 'inventario', id))
 }
 
+// Renombra un grupo del inventario: actualiza el campo `grupo` de todos sus
+// materiales (por lotes). No toca stock ni el resto de los datos.
+export async function renombrarGrupoInventario(grupoViejo, grupoNuevo) {
+  const snap = await getDocs(query(collection(db, 'inventario'), where('grupo', '==', grupoViejo)))
+  for (let offset = 0; offset < snap.docs.length; offset += 400) {
+    const batch = writeBatch(db)
+    snap.docs.slice(offset, offset + 400).forEach(d => batch.set(doc(db, 'inventario', d.id), { grupo: grupoNuevo }, { merge: true }))
+    await batch.commit()
+  }
+  return snap.docs.length
+}
+
+// Elimina un grupo del inventario y TODOS sus materiales (por lotes).
+export async function eliminarGrupoInventario(grupo) {
+  const snap = await getDocs(query(collection(db, 'inventario'), where('grupo', '==', grupo)))
+  for (let offset = 0; offset < snap.docs.length; offset += 400) {
+    const batch = writeBatch(db)
+    snap.docs.slice(offset, offset + 400).forEach(d => batch.delete(doc(db, 'inventario', d.id)))
+    await batch.commit()
+  }
+  return snap.docs.length
+}
+
 // ─── MOVIMIENTOS DE INVENTARIO (KARDEX) ──────────────────────────────────────
 // Registra una entrada o salida de stock de forma ATÓMICA: actualiza la
 // cantidad del ítem y guarda el movimiento con el stock resultante (para tener
