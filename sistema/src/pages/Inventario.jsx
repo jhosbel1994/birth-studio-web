@@ -617,41 +617,40 @@ export default function Inventario() {
               <span className="text-xs opacity-70">{totalItems}</span>
             </button>
             <div className="my-1 border-t border-white/40" />
-            {grupos.map(g => {
-              const activo = catSel === g.grupo
-              const esOtros = g.grupo === GRUPO_DEFAULT
-              return (
-                <div key={g.grupo}
-                  className={`group/rail w-full flex items-center rounded-xl transition-colors ${activo ? 'bg-primary/10' : 'hover:bg-white/50'}`}>
-                  <button type="button" onClick={() => setCategoriaSel(g.grupo)}
-                    className={`flex-1 min-w-0 flex items-center gap-2 pl-3 py-2 text-left text-sm font-dm ${activo ? 'text-on-surface font-semibold' : 'text-on-surface-variant'}`}>
-                    <span className="flex-1 truncate">{g.grupo}</span>
-                    {grupoAlerta(g) && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Hay material por reponer" />}
-                    <span className="text-xs opacity-70">{g.items.length}</span>
-                  </button>
-                  {!esOtros && (
-                    <div className="flex items-center gap-0.5 pr-1.5 shrink-0 opacity-0 group-hover/rail:opacity-100 transition-opacity">
-                      <button type="button" onClick={() => renombrarGrupo(g.grupo)} title="Renombrar grupo"
-                        className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-white/70"><Edit2 size={12} /></button>
-                      <button type="button" onClick={() => eliminarGrupo(g.grupo)} title="Eliminar grupo"
-                        className="p-1 rounded text-primary hover:bg-red-50"><Trash2 size={12} /></button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {grupos.map(g => (
+              <button key={g.grupo} type="button" onClick={() => setCategoriaSel(g.grupo)}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm font-dm transition-colors ${catSel === g.grupo ? 'bg-primary/10 text-on-surface font-semibold' : 'text-on-surface-variant hover:bg-white/50'}`}>
+                <span className="flex-1 truncate">{g.grupo}</span>
+                {grupoAlerta(g) && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Hay material por reponer" />}
+                <span className="text-xs opacity-70">{g.items.length}</span>
+              </button>
+            ))}
           </div>
 
           <div className="flex-1 min-w-0 glass-panel rounded-widget overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/50">
-              <div>
-                <h2 className="font-barlow font-bold text-on-surface tracking-wide text-lg leading-tight">{catSel}</h2>
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-white/50">
+              <div className="min-w-0">
+                <h2 className="font-barlow font-bold text-on-surface tracking-wide text-lg leading-tight truncate">{catSel}</h2>
                 <p className="text-[11px] text-on-surface-variant font-dm">{contentCount} {contentCount === 1 ? 'material' : 'materiales'}</p>
               </div>
-              <button onClick={() => setModal({ grupo: catSel === 'Todos' ? '' : catSel })}
-                className="flex items-center gap-2 bg-primary text-on-primary px-3.5 py-2 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
-                <Plus size={15} /> Nuevo
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {catSel !== 'Todos' && catSel !== GRUPO_DEFAULT && (
+                  <>
+                    <button onClick={() => renombrarGrupo(catSel)} title="Renombrar este grupo"
+                      className="flex items-center gap-1.5 border border-black/10 bg-white text-on-surface-variant px-3 py-2 rounded-full text-sm font-dm hover:border-on-surface hover:text-on-surface transition-colors">
+                      <Edit2 size={14} /> Editar grupo
+                    </button>
+                    <button onClick={() => eliminarGrupo(catSel)} title="Eliminar este grupo y sus materiales"
+                      className="flex items-center gap-1.5 border border-red-200 bg-red-50/70 text-primary px-3 py-2 rounded-full text-sm font-dm hover:bg-primary hover:text-white transition-colors">
+                      <Trash2 size={14} /> Eliminar grupo
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setModal({ grupo: catSel === 'Todos' ? '' : catSel })}
+                  className="flex items-center gap-2 bg-primary text-on-primary px-3.5 py-2 rounded-full text-sm font-dm font-medium hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">
+                  <Plus size={15} /> Nuevo
+                </button>
+              </div>
             </div>
             <table className="w-full text-sm font-dm">
               <thead>
