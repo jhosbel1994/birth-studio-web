@@ -4,15 +4,15 @@ import { Plus, Trash2, Upload, Wand2, RotateCcw, RotateCw, Copy, ArrowUp, ArrowD
 const ACABADOS = [
   { value: 'impreso-opaco', label: 'Vinil impreso' },
   { value: 'microperforado', label: 'Microperforado' },
-  { value: 'empavonado-troquelado', label: 'Empavonado troquelado' },
-  { value: 'empavonado-sin-diseno', label: 'Empavonado sin diseño' },
+  { value: 'empavonado-troquelado', label: 'Empavonado con logo calado (negativo)' },
+  { value: 'empavonado-sin-diseno', label: 'Empavonado completo' },
   { value: 'vinil-corte', label: 'Vinil de corte' },
 ]
 
 function propsAcabado(value) {
   if (value === 'microperforado') return { acabado: value, opacidad: 0.96, textura: 0.5, luz: 0.12 }
-  if (value === 'empavonado-sin-diseno') return { acabado: value, opacidad: 0.58, textura: 0.7, luz: 0.35 }
-  if (value === 'empavonado-troquelado') return { acabado: value, opacidad: 0.72, textura: 0.65, luz: 0.3 }
+  if (value === 'empavonado-sin-diseno') return { acabado: value, opacidad: 0.88, textura: 0.72, luz: 0.35 }
+  if (value === 'empavonado-troquelado') return { acabado: value, opacidad: 0.88, textura: 0.72, luz: 0.3 }
   return { acabado: value }
 }
 
@@ -90,7 +90,7 @@ export default function DesignLayer({
         className="w-full flex items-center justify-center gap-2 bg-white/50 border border-white/60 rounded-full px-4 py-2.5 text-sm font-dm text-on-surface-variant hover:bg-white/80 transition-colors disabled:opacity-50"
       >
         <Upload size={16} />
-        {cargando && progreso ? `Cargando ${progreso.actual}/${progreso.total}…` : 'Subir adhesivos a la zona'}
+        {cargando && progreso ? `Cargando ${progreso.actual}/${progreso.total}…` : 'Subir diseño o logo'}
       </button>
 
       <button
@@ -101,7 +101,7 @@ export default function DesignLayer({
         className="w-full flex items-center justify-center gap-2 bg-white/40 border border-white/60 rounded-full px-4 py-2.5 text-sm font-dm text-on-surface-variant hover:bg-white/80 transition-colors"
       >
         <Plus size={15} />
-        Empavonado sin diseño
+        Empavonado completo
       </button>
 
       {capas.length === 0 && (
@@ -158,13 +158,36 @@ export default function DesignLayer({
               onChange={e => onUpdateCapaProps(capaActiva.id, propsAcabado(e.target.value))}
               className="mt-1 w-full border border-white/60 rounded-full px-3 py-2 text-xs font-dm focus:outline-none focus:border-primary bg-white/50"
             >
-              {ACABADOS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+              {ACABADOS.map(a => (
+                <option
+                  key={a.value}
+                  value={a.value}
+                  disabled={a.value === 'empavonado-troquelado' && !capaActiva.imgUrl}
+                >
+                  {a.label}
+                </option>
+              ))}
             </select>
+            {capaActiva.acabado === 'empavonado-troquelado' && (
+              <p className="mt-2 rounded-lg bg-secondary-container/45 p-2 text-[10px] font-dm text-on-surface-variant">
+                El vidrio queda empavonado y la forma del logo se recorta transparente en negativo.
+              </p>
+            )}
+            {capaActiva.acabado === 'empavonado-sin-diseno' && (
+              <p className="mt-2 rounded-lg bg-white/40 p-2 text-[10px] font-dm text-on-surface-variant">
+                Cubre toda la zona con película empavonada, sin recortar el logo.
+              </p>
+            )}
+            {!capaActiva.imgUrl && (
+              <p className="mt-2 text-[10px] font-dm text-on-surface-variant/70">
+                Sube un logo para habilitar el calado transparente en negativo.
+              </p>
+            )}
           </div>
 
           <div>
             <div className="flex items-center justify-between text-[10px] font-dm font-semibold uppercase tracking-wide text-on-surface-variant">
-              <span>Opacidad</span>
+              <span>{capaActiva.acabado?.includes('empavonado') ? 'Cobertura' : 'Opacidad'}</span>
               <span>{Math.round((capaActiva.opacidad ?? 0.88) * 100)}%</span>
             </div>
             <input

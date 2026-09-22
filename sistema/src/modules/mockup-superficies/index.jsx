@@ -25,8 +25,8 @@ const HERRAMIENTAS = [
 const ACABADOS = [
   { value: 'impreso-opaco', label: 'Vinil impreso opaco' },
   { value: 'microperforado', label: 'Microperforado' },
-  { value: 'empavonado-troquelado', label: 'Empavonado troquelado' },
-  { value: 'empavonado-sin-diseno', label: 'Empavonado sin diseño' },
+  { value: 'empavonado-troquelado', label: 'Empavonado con logo calado (negativo)' },
+  { value: 'empavonado-sin-diseno', label: 'Empavonado completo' },
   { value: 'vinil-corte', label: 'Vinil de corte' },
 ]
 
@@ -103,8 +103,8 @@ function redimensionarCapaPorCm(capa, zona, anchoCm, altoCm) {
 
 function propsAcabado(value) {
   if (value === 'microperforado') return { acabado: value, opacidad: 0.96, textura: 0.5, luz: 0.12 }
-  if (value === 'empavonado-sin-diseno') return { acabado: value, opacidad: 0.58, textura: 0.7, luz: 0.35 }
-  if (value === 'empavonado-troquelado') return { acabado: value, opacidad: 0.72, textura: 0.65, luz: 0.3 }
+  if (value === 'empavonado-sin-diseno') return { acabado: value, opacidad: 0.88, textura: 0.72, luz: 0.35 }
+  if (value === 'empavonado-troquelado') return { acabado: value, opacidad: 0.88, textura: 0.72, luz: 0.3 }
   return { acabado: value }
 }
 
@@ -666,7 +666,7 @@ export default function MockupVitrina() {
             <div className="space-y-4">
               {!capaActiva && (
                 <>
-                  <p className="text-xs font-dm text-on-surface-variant/70">Sube un adhesivo o crea un empavonado sin diseño para activar acabados.</p>
+                  <p className="text-xs font-dm text-on-surface-variant/70">Sube un logo para calarlo en negativo o crea un empavonado completo.</p>
                   {zonaActiva && (
                     <button
                       onClick={() => {
@@ -675,7 +675,7 @@ export default function MockupVitrina() {
                       }}
                       className="w-full rounded-full bg-white/50 px-4 py-2.5 text-sm font-dm text-on-surface-variant hover:bg-white/80"
                     >
-                      Crear empavonado sin diseño
+                      Crear empavonado completo
                     </button>
                   )}
                 </>
@@ -702,12 +702,35 @@ export default function MockupVitrina() {
                       onChange={e => updateCapaProps(capaActiva.id, propsAcabado(e.target.value))}
                       className="mt-2 w-full border border-white/60 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary bg-white/50"
                     >
-                      {ACABADOS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                      {ACABADOS.map(a => (
+                        <option
+                          key={a.value}
+                          value={a.value}
+                          disabled={a.value === 'empavonado-troquelado' && !capaActiva.imgUrl}
+                        >
+                          {a.label}
+                        </option>
+                      ))}
                     </select>
+                    {capaActiva.acabado === 'empavonado-troquelado' && (
+                      <p className="mt-2 rounded-lg bg-secondary-container/45 p-2 text-[11px] font-dm text-on-surface-variant">
+                        El empavonado cubre el vidrio y el logo se recorta transparente en negativo.
+                      </p>
+                    )}
+                    {capaActiva.acabado === 'empavonado-sin-diseno' && (
+                      <p className="mt-2 rounded-lg bg-white/40 p-2 text-[11px] font-dm text-on-surface-variant">
+                        Empavonado continuo sobre toda la zona, sin recorte de logo.
+                      </p>
+                    )}
+                    {!capaActiva.imgUrl && (
+                      <p className="mt-2 text-[11px] font-dm text-on-surface-variant/70">
+                        Sube un logo en Diseño para habilitar el calado transparente en negativo.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <div className="flex justify-between text-xs font-dm font-semibold text-on-surface-variant uppercase tracking-wide">
-                      <span>Opacidad</span><span>{Math.round((capaActiva.opacidad ?? 0.88) * 100)}%</span>
+                      <span>{capaActiva.acabado?.includes('empavonado') ? 'Cobertura' : 'Opacidad'}</span><span>{Math.round((capaActiva.opacidad ?? 0.88) * 100)}%</span>
                     </div>
                     <input type="range" min="0.1" max="1" step="0.01" value={capaActiva.opacidad ?? 0.88}
                       onChange={e => updateCapaProps(capaActiva.id, { opacidad: Number(e.target.value) })}

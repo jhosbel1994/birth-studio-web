@@ -57,12 +57,12 @@ function drawPerforation(ctx, puntos, textura = 0.5) {
 
 function drawFrostNoise(ctx, puntos, textura = 0.5) {
   const b = polygonBounds(puntos)
-  const lines = Math.max(10, Math.round((b.w + b.h) / 36))
+  const lines = Math.max(18, Math.round((b.w + b.h) / 28))
   ctx.save()
   clipToPolygon(ctx, puntos)
-  ctx.globalAlpha = 0.12 + textura * 0.16
+  ctx.globalAlpha = 0.09 + textura * 0.12
   ctx.strokeStyle = '#ffffff'
-  ctx.lineWidth = Math.max(1, Math.min(b.w, b.h) * 0.004)
+  ctx.lineWidth = Math.max(0.8, Math.min(b.w, b.h) * 0.0025)
   for (let i = 0; i < lines; i += 1) {
     const y = b.y + (b.h * i) / lines
     ctx.beginPath()
@@ -86,26 +86,39 @@ function renderCapa(ctx, base, img, capa, zona, fotoW, fotoH) {
   lctx.save()
   clipToPolygon(lctx, zona.puntos)
 
-  if (acabado.includes('empavonado')) {
-    lctx.filter = `blur(${2 + textura * 4}px) saturate(0.65)`
-    lctx.globalAlpha = 0.65
+  const esEmpavonado = acabado.includes('empavonado')
+
+  if (esEmpavonado) {
+    // El empavonado real difumina y desatura lo que hay detrás del vidrio,
+    // y agrega una película blanca lechosa. Ambos modos parten de esta base:
+    // completo, o completo con el logo recortado en negativo.
+    lctx.filter = `blur(${3 + textura * 5}px) saturate(${0.42 + (1 - textura) * 0.16}) brightness(1.08)`
+    lctx.globalAlpha = 0.82
     lctx.drawImage(base, 0, 0, fotoW, fotoH)
     lctx.filter = 'none'
-    lctx.globalAlpha = acabado === 'empavonado-sin-diseno' ? 0.52 + textura * 0.18 : 0.26 + textura * 0.12
-    lctx.fillStyle = '#f7fbff'
+    lctx.globalAlpha = 0.72 + textura * 0.18
+    lctx.fillStyle = '#f4f6f7'
     polygonPath(lctx, zona.puntos)
     lctx.fill()
+    drawFrostNoise(lctx, zona.puntos, textura)
   }
 
-  if (img) {
-    lctx.globalAlpha = acabado === 'empavonado-troquelado' ? 0.74 : 1
+  if (img && acabado === 'empavonado-troquelado') {
+    // Troquelado: el logo no se imprime encima. Su alfa funciona como molde
+    // y perfora la película empavonada para mostrar el vidrio original.
+    lctx.globalCompositeOperation = 'destination-out'
+    lctx.globalAlpha = 1
+    drawImageQuad(lctx, img, capa.puntos)
+    lctx.globalCompositeOperation = 'source-over'
+  } else if (img && !esEmpavonado) {
+    lctx.globalAlpha = 1
     if (acabado === 'vinil-corte') lctx.filter = 'contrast(1.15) saturate(1.2)'
     if (acabado === 'microperforado') lctx.filter = 'contrast(1.05) saturate(0.95)'
     drawImageQuad(lctx, img, capa.puntos)
     lctx.filter = 'none'
   }
 
-  if (!img && !acabado.includes('empavonado')) {
+  if (!img && !esEmpavonado) {
     lctx.globalAlpha = 0.35
     lctx.fillStyle = zona.tipo === 'pared' ? '#ffffff' : '#dceffc'
     polygonPath(lctx, zona.puntos)
@@ -115,8 +128,6 @@ function renderCapa(ctx, base, img, capa, zona, fotoW, fotoH) {
   lctx.restore()
 
   if (acabado === 'microperforado') drawPerforation(lctx, zona.puntos, textura)
-  if (acabado.includes('empavonado')) drawFrostNoise(lctx, zona.puntos, textura)
-
   if (luz > 0) {
     lctx.save()
     clipToPolygon(lctx, zona.puntos)

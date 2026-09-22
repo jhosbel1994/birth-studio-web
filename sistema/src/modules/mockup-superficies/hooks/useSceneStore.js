@@ -232,7 +232,7 @@ export default function useSceneStore() {
       id, zonaId, imgUrl: null, imgW: 0, imgH: 0,
       ...CAPA_DEFAULTS,
       acabado,
-      opacidad: acabado.includes('empavonado') ? 0.58 : CAPA_DEFAULTS.opacidad,
+      opacidad: acabado.includes('empavonado') ? 0.88 : CAPA_DEFAULTS.opacidad,
       luz: 0.35,
       textura: 0.7,
       puntos: zona.puntos.map(p => ({ ...p })),
