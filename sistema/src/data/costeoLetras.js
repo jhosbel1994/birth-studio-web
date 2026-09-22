@@ -13,6 +13,13 @@ export const MARGEN_DEFAULT = 2
 
 export const PRECIO_CALLE_M2_DEFAULT = 390000
 
+// Precio de venta por m² de letras corpóreas (sin instalación), según material
+// e iluminación. Editable por el usuario; la instalación se cobra aparte.
+export const PRECIOS_M2_LETRAS = {
+  acrilico: { sin: 310000, con: 370000 },
+  trovicel: { sin: 200000, con: 280000 },
+}
+
 // unidad: 'plancha' | 'unidad' | 'caja' | 'm2' | 'tira' | 'fijo'
 export const GRUPO_ACRILICO = [
   { id: 'acr_bnt_2mm', nombre: 'Acrílico Blanco/Negro/Transparente 2mm', precio: 55000, unidad: 'plancha' },

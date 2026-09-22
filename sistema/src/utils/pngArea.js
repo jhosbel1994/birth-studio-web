@@ -1,3 +1,22 @@
+// Lee la proporción de una imagen (alto/ancho). Sirve para PNG, JPG y SVG:
+// con el alto que da el cliente + esta proporción se calcula el ancho.
+export function proporcionImagen(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) { reject(new Error('Sin archivo')); return }
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const w = img.naturalWidth || img.width
+      const h = img.naturalHeight || img.height
+      URL.revokeObjectURL(url)
+      if (!w || !h) { reject(new Error('No se pudo leer el tamaño del logo. Prueba con un PNG.')); return }
+      resolve({ aspecto: h / w, ancho: w, alto: h })
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo leer el logo. Prueba con un PNG.')) }
+    img.src = url
+  })
+}
+
 // Estima el área "rellena" de un logo en PNG: la fracción de píxeles NO
 // transparentes sobre el total, más la proporción alto/ancho de la imagen.
 // Pensado para logos exportados con FONDO TRANSPARENTE. Solo usa APIs del
