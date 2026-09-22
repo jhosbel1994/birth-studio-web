@@ -2164,6 +2164,9 @@ export default function Cotizador() {
   const [tabMovil, setTabMovil] = useState('calcular')
   const [vistaMode, setVistaMode] = useState('lista')
   const [globalQuery, setGlobalQuery] = useState('')
+  const [cartWidth, setCartWidth] = useState(() => {
+    try { return Math.min(760, Math.max(260, parseInt(localStorage.getItem('bs_cotizador_cart_w'), 10) || 340)) } catch { return 340 }
+  })
   const [precios, setPreciosState] = useState({})
   const [multiplicadoresOverride, setMultiplicadoresOverride] = useState({})
   const [multProductos, setMultProductosState] = useState({})
@@ -2325,6 +2328,25 @@ export default function Cotizador() {
   const iva = conIva ? Math.round(subtotal * 0.19) : 0
   const total = subtotal + iva
 
+  // Divisor arrastrable entre Productos y Cotización (recuerda el ancho elegido).
+  const iniciarArrastreCarrito = (e) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = cartWidth
+    let ultimo = startW
+    const onMove = (ev) => {
+      ultimo = Math.min(760, Math.max(260, startW - (ev.clientX - startX)))
+      setCartWidth(ultimo)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      try { localStorage.setItem('bs_cotizador_cart_w', String(ultimo)) } catch { /* sin storage */ }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
   return (
     <PreciosContext.Provider value={{ precios, setPrecio }}>
     <MultiplicadoresContext.Provider value={{ multiplicadores: multiplicadoresEfectivos, setValorMultiplicador }}>
@@ -2471,10 +2493,10 @@ export default function Cotizador() {
         />
       </div>
 
-      {/* ─── DESKTOP: Layout 3 columnas ─────────────────────────────────── */}
-      <div className="hidden lg:grid grid-cols-12 gap-4 flex-1 overflow-hidden px-6 pb-6 md:px-8 md:pb-8">
+      {/* ─── DESKTOP: Layout 3 columnas (con divisor arrastrable) ────────── */}
+      <div className="hidden lg:flex gap-3 flex-1 overflow-hidden px-6 pb-6 md:px-8 md:pb-8">
         {/* Categorías — lista o cuadrícula */}
-        <div className={`glass-panel rounded-widget overflow-y-auto ${vistaMode === 'cuadricula' ? 'col-span-3' : 'col-span-2'}`}>
+        <div className={`glass-panel rounded-widget overflow-y-auto shrink-0 ${vistaMode === 'cuadricula' ? 'w-72' : 'w-56'}`}>
           {vistaMode === 'lista' ? (
             <>
               {categoriasTodas.map(cat => {
@@ -2524,7 +2546,7 @@ export default function Cotizador() {
         </div>
 
         {/* Productos */}
-        <div className={`glass-panel rounded-widget overflow-y-auto ${vistaMode === 'cuadricula' ? 'col-span-5' : 'col-span-6'}`}>
+        <div className="glass-panel rounded-widget overflow-y-auto flex-1 min-w-0">
           <div className="sticky top-0 bg-white/70 backdrop-blur-xl border-b border-white/40 px-4 py-2.5 z-10">
             {globalQuery.trim() ? (
               <p className="text-sm font-dm text-on-surface-variant">
@@ -2545,8 +2567,14 @@ export default function Cotizador() {
           )}
         </div>
 
+        {/* Divisor arrastrable: achica o ensancha la Cotización */}
+        <div onMouseDown={iniciarArrastreCarrito} title="Arrastra para ensanchar o achicar la cotización"
+          className="shrink-0 w-2 self-stretch flex items-center justify-center cursor-col-resize group">
+          <div className="w-1 h-12 rounded-full bg-on-surface-variant/30 group-hover:bg-primary transition-colors" />
+        </div>
+
         {/* Cotización */}
-        <div className="col-span-4 glass-panel rounded-widget flex flex-col overflow-hidden">
+        <div style={{ width: `${cartWidth}px` }} className="shrink-0 glass-panel rounded-widget flex flex-col overflow-hidden">
           <div className="px-4 py-2.5 border-b border-white/40 flex items-center justify-between shrink-0">
             <h2 className="font-barlow text-sm font-bold tracking-wider">COTIZACIÓN</h2>
             <span className="text-xs text-on-surface-variant font-dm">{items.length} ítem{items.length !== 1 ? 's' : ''}</span>
