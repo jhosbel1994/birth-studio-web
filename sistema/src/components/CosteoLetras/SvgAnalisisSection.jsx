@@ -18,6 +18,7 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
   const [materialId, setMaterialId] = useState(MATERIALES_PLANCHA[0].id)
   const [areaM2, setAreaM2] = useState(0)
   const [calculandoArea, setCalculandoArea] = useState(false)
+  const [logoImg, setLogoImg] = useState(null) // imagen rasterizada del logo para dibujar las piezas reales
   const inputRef = useRef(null)
 
   const altoCantoCm = altoCantoSel === 'otro' ? (parseFloat(altoCantoManual) || 0) : parseFloat(altoCantoSel)
@@ -78,6 +79,33 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
       .finally(() => { if (!cancelado) setCalculandoArea(false) })
     return () => { cancelado = true }
   }, [svgInfo, anchoNum])
+
+  // Rasteriza el logo (SVG normalizado) a una imagen para poder dibujar cada
+  // pieza real en su lugar sobre la mesa (en vez de rectángulos).
+  useEffect(() => {
+    if (!svgInfo?.svgTextNormalizado) { setLogoImg(null); return }
+    const blob = new Blob([svgInfo.svgTextNormalizado], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+    img.onload = () => setLogoImg(img)
+    img.onerror = () => setLogoImg(null)
+    img.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [svgInfo])
+
+  // Posición fraccional de cada pieza dentro del logo (para recortarla del raster).
+  const piezasMap = {}
+  if (svgInfo?.bboxUnion?.width) {
+    const b = svgInfo.bboxUnion
+    for (const p of svgInfo.piezas) {
+      piezasMap[p.id] = {
+        fx: (p.x - b.x) / b.width,
+        fy: (p.y - b.y) / b.height,
+        fw: p.w / b.width,
+        fh: p.h / b.height,
+      }
+    }
+  }
 
   const totalPlanchasCaras = nesting ? nesting.mesas.length : 0
   const totalPlanchas = totalPlanchasCaras + (cantos?.planchasCantos || 0)
@@ -176,7 +204,8 @@ export default function SvgAnalisisSection({ mesa, setMesa, separacion, setSepar
 
           <div className="grid sm:grid-cols-2 gap-3">
             {nesting.mesas.map((m, i) => (
-              <MesaCanvas key={i} mesa={m} mesaAncho={mesa.ancho} mesaAlto={mesa.alto} indice={i} />
+              <MesaCanvas key={i} mesa={m} mesaAncho={mesa.ancho} mesaAlto={mesa.alto} indice={i}
+                logoImg={logoImg} piezasMap={piezasMap} />
             ))}
           </div>
 
