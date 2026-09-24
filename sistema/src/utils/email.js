@@ -214,6 +214,22 @@ export function buildWhatsAppUrl(cotizacion, cliente) {
   return telWA ? `https://wa.me/${telWA}?text=${texto}` : `https://wa.me/?text=${texto}`
 }
 
+export function buildDatosBancariosWhatsAppUrl(cotizacion, cliente) {
+  const tel = cliente?.telefono?.replace(/\D/g, '') || ''
+  const telWA = tel.startsWith('56') ? tel : tel ? `56${tel}` : ''
+  const nombre = cliente?.nombre || cotizacion?.clienteNombre || ''
+  const saludo = nombre ? `Hola ${nombre},` : 'Hola,'
+  const texto = encodeURIComponent(
+    `${saludo}\n\nAdjunto nuestros datos bancarios para realizar la transferencia:\n\n` +
+    `Birth Studio SpA\n` +
+    `RUT: 77.990.344-3\n` +
+    `Tipo de cuenta: Chequera electrónica\n` +
+    `N° de cuenta: 90279056174\n\n` +
+    `Por favor, envíanos el comprobante por este mismo medio. Muchas gracias.`
+  )
+  return telWA ? `https://wa.me/${telWA}?text=${texto}` : `https://wa.me/?text=${texto}`
+}
+
 // ─── AVISO DE AVANCE DE FASE (seguimiento del cliente) ───────────────────────
 // Texto amable con la fase actual + el link de seguimiento. Lo envía el usuario
 // (aprieta "enviar" en WhatsApp/correo) = su autorización.

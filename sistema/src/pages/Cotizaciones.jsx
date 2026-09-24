@@ -10,7 +10,7 @@ import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { FASES, faseInfo, faseLabel, urlSeguimiento } from '../utils/fases'
 import QRCode from 'qrcode'
 import { generarCotizacionPDF } from '../utils/pdf'
-import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, formatEmailJSError, buildSeguimientoWhatsAppUrl, buildSeguimientoGmailUrl } from '../utils/email'
+import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, buildDatosBancariosWhatsAppUrl, formatEmailJSError, buildSeguimientoWhatsAppUrl, buildSeguimientoGmailUrl } from '../utils/email'
 import { CATEGORIAS, PRODUCTOS } from '../data/productos'
 import { useLocation } from 'react-router-dom'
 import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
@@ -21,7 +21,7 @@ import {
   Plus, Download, Trash2, Edit2, X, Search,
   Eye, Mail, MessageCircle, FileText, MoreHorizontal, CheckCircle, AlertCircle, Loader2,
   BookOpen, Wallet, Boxes, ArrowUpFromLine, ArrowDownToLine,
-  QrCode, Copy, Check, Link2,
+  QrCode, Copy, Check, Link2, Landmark,
 } from 'lucide-react'
 
 // Catálogo plano para el selector — excluye calculadoras complejas
@@ -297,7 +297,7 @@ function ActionPill({ icon: Icon, label, tone = 'neutral', onClick, disabled }) 
 }
 
 // ─── MENÚ DE ACCIONES ─────────────────────────────────────────────────────────
-function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onFinanzas, onTerminar, onMateriales, onSeguimiento, onClose }) {
+function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, onEditar, onEliminar, onEnviarEmail, onEnviarWhatsApp, onEnviarDatosBancarios, onFinanzas, onTerminar, onMateriales, onSeguimiento, onClose }) {
   const cliente = clientes.find(c => c.id === cotizacion.clienteId) || null
 
   const acciones = [
@@ -315,6 +315,7 @@ function AccionesMenu({ cotizacion, clientes, onResumen, onVerPDF, onDescargar, 
       items: [
         { icon: Mail, label: 'Enviar por email', desc: cliente?.correo || 'Pedir email', onClick: onEnviarEmail },
         { icon: MessageCircle, label: 'Enviar por WhatsApp', desc: cliente?.telefono || 'Sin teléfono guardado', onClick: onEnviarWhatsApp },
+        { icon: Landmark, label: 'Enviar datos bancarios', desc: 'Cuenta lista para WhatsApp', onClick: onEnviarDatosBancarios },
       ]
     },
     {
@@ -1407,7 +1408,7 @@ export default function Cotizaciones() {
   // dentro de la pantalla aunque la fila esté abajo.
   const abrirMenuFila = (e, cot) => {
     const r = e.currentTarget.getBoundingClientRect()
-    const ancho = 208, alto = 360
+    const ancho = 224, alto = 420
     const left = Math.max(8, r.right - ancho)
     let top = r.bottom + 6
     if (top + alto > window.innerHeight) top = Math.max(8, window.innerHeight - alto - 8)
@@ -1423,6 +1424,7 @@ export default function Cotizaciones() {
     'sep',
     { icon: Mail, label: 'Enviar por email', onClick: () => handleEnviarEmail(c) },
     { icon: MessageCircle, label: 'Enviar por WhatsApp', onClick: () => handleEnviarWhatsApp(c) },
+    { icon: Landmark, label: 'Enviar datos bancarios', onClick: () => handleEnviarDatosBancarios(c) },
     'sep',
     c.estado === 'aceptada' && { icon: CheckCircle, label: 'Trabajo terminado', onClick: () => handleEstado(c, 'terminada') },
     ['aceptada', 'terminada'].includes(c.estado) && { icon: QrCode, label: 'Fases / Seguimiento', onClick: () => setSegCot(c) },
@@ -1549,6 +1551,13 @@ export default function Cotizaciones() {
     }
   }
 
+  const handleEnviarDatosBancarios = (cot) => {
+    const cliente = clienteLocal(cot.clienteId)
+    setMenuAbierto(null)
+    setMenuFila(null)
+    window.open(buildDatosBancariosWhatsAppUrl(cot, cliente), '_blank')
+  }
+
   const filtradas = cotizaciones
     .filter(c => !filtroEstado || c.estado === filtroEstado)
     .filter(c => !busqueda || c.numero?.includes(busqueda) || c.clienteNombre?.toLowerCase().includes(busqueda.toLowerCase()))
@@ -1647,6 +1656,7 @@ export default function Cotizaciones() {
           onDescargar={() => { handlePDF(cotMenu, 'download'); setMenuAbierto(null) }}
           onEnviarEmail={() => handleEnviarEmail(cotMenu)}
           onEnviarWhatsApp={() => handleEnviarWhatsApp(cotMenu)}
+          onEnviarDatosBancarios={() => handleEnviarDatosBancarios(cotMenu)}
           onFinanzas={() => { setFinanzas(cotMenu); setMenuAbierto(null) }}
           onTerminar={() => { setMenuAbierto(null); handleEstado(cotMenu, 'terminada') }}
           onMateriales={() => { setMatModal(cotMenu.id); setMenuAbierto(null) }}
