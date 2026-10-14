@@ -2,29 +2,47 @@
 # Sitio público indexable; herramientas internas bloqueadas.
 
 User-agent: *
-Allow: /
 Disallow: /cotizador/
 Disallow: /sistema/
+Allow: /
 
-# Bots de motores de IA (GEO): acceso permitido explícitamente
-User-agent: GPTBot
-Allow: /
+# Búsqueda de ChatGPT, independiente del entrenamiento GPTBot.
+User-agent: OAI-SearchBot
 Disallow: /cotizador/
 Disallow: /sistema/
+Allow: /
+
+# Búsqueda de Claude y consultas iniciadas por sus usuarios.
+User-agent: Claude-SearchBot
+Disallow: /cotizador/
+Disallow: /sistema/
+Allow: /
+
+User-agent: Claude-User
+Disallow: /cotizador/
+Disallow: /sistema/
+Allow: /
+
+# Se mantienen las preferencias existentes de entrenamiento.
+User-agent: GPTBot
+Disallow: /cotizador/
+Disallow: /sistema/
+Allow: /
 
 User-agent: ClaudeBot
-Allow: /
 Disallow: /cotizador/
 Disallow: /sistema/
+Allow: /
 
 User-agent: PerplexityBot
-Allow: /
 Disallow: /cotizador/
 Disallow: /sistema/
+Allow: /
 
+# Entrenamiento y grounding de Gemini. Googlebot sigue las reglas generales.
 User-agent: Google-Extended
-Allow: /
 Disallow: /cotizador/
 Disallow: /sistema/
+Allow: /
 
 Sitemap: https://www.bspublicidad.cl/sitemap.xml
