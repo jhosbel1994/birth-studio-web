@@ -1379,7 +1379,7 @@ export default function Cotizaciones() {
       if (maintenanceRef.current.has(key)) return
       maintenanceRef.current.add(key)
       const task = action === 'complete'
-        ? ensureAcceptedDeposit(cotizacion).then(() => ensureCompletedPayment(cotizacion))
+        ? ensureCompletedPayment(cotizacion)
         : action === 'deposit'
           ? ensureAcceptedDeposit(cotizacion)
           : saveCotizacion(autoRejectedQuote(cotizacion, new Date(expiryTick)))
@@ -1475,7 +1475,9 @@ export default function Cotizaciones() {
       const result = await updateCotizacionEstado(cot, estado)
       if (reabriendo) await revertirMaterialesTrabajo(cot).catch(() => {})
       if (estado === 'aceptada') {
-        setEnvioEstado({ tipo: 'ok', mensaje: `Cotización #${cot.numero} aceptada. Abono inicial del 50% registrado en ingresos.` })
+        setEnvioEstado({ tipo: 'ok', mensaje: cot.estado === 'terminada'
+          ? `Cotización #${cot.numero} reabierta. Saldo final automático revertido; se conservan el anticipo y los pagos manuales.`
+          : `Cotización #${cot.numero} aceptada. Abono inicial del 50% registrado en ingresos.` })
         setTimeout(() => setEnvioEstado(null), 3500)
       } else if (estado === 'terminada') {
         const detalle = result.pago

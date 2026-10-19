@@ -78,19 +78,17 @@ export default function Dashboard() {
     return () => clearInterval(timer)
   }, [])
 
-  // Repara cotizaciones aceptadas antiguas que todavía no tienen el abono
-  // inicial. El ID del pago es determinista, por lo que abrir el dashboard
-  // varias veces nunca duplica el ingreso.
+  // Repara abonos faltantes y saldos automáticos de trabajos reabiertos.
+  // Los IDs deterministas evitan duplicar ingresos al abrir el dashboard.
   useEffect(() => {
     if (!loaded) return
     cotizaciones.forEach(cotizacion => {
       if (['aceptada', 'terminada'].includes(cotizacion.estado)) {
-        const key = `${cotizacion.estado}:${cotizacion.id}:${cotizacion.total || 0}`
+        const key = `${cotizacion.estado}:${cotizacion.id}:${cotizacion.total || 0}:${cotizacion.updatedAt || ''}`
         if (depositsChecked.current.has(key)) return
         depositsChecked.current.add(key)
-        ensureAcceptedDeposit(cotizacion)
-          .then(() => cotizacion.estado === 'terminada' ? ensureCompletedPayment(cotizacion) : null)
-          .catch(() => depositsChecked.current.delete(key))
+        const task = cotizacion.estado === 'terminada' ? ensureCompletedPayment(cotizacion) : ensureAcceptedDeposit(cotizacion)
+        task.catch(() => depositsChecked.current.delete(key))
         return
       }
       if (!shouldAutoReject(cotizacion, new Date(expiryTick))) return

@@ -4,7 +4,8 @@ import {
 } from 'firebase/firestore'
 import { ref, uploadBytes, getBlob, deleteObject } from 'firebase/storage'
 import { auth, db, storage } from '../firebase'
-import { initialDepositAmount, remainingBalanceAmount } from './cotizacionesWorkflow'
+import { initialDepositId, finalPaymentId, planQuotePayments } from './quotePayments'
+export { initialDepositId, finalPaymentId } from './quotePayments'
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function snapToObj(snap) {
@@ -86,14 +87,6 @@ export async function deleteCotizacion(id) {
   await deleteCotizaciones([id])
 }
 
-export function initialDepositId(cotizacionId) {
-  return `anticipo-50-${cotizacionId}`
-}
-
-export function finalPaymentId(cotizacionId) {
-  return `saldo-final-${cotizacionId}`
-}
-
 export async function deleteCotizaciones(ids) {
   const uniqueIds = [...new Set(ids)].filter(Boolean)
   for (let offset = 0; offset < uniqueIds.length; offset += 250) {
@@ -107,50 +100,34 @@ export async function deleteCotizaciones(ids) {
   }
 }
 
-export async function ensureAcceptedDeposit(cotizacion) {
-  if (!cotizacion?.id || !['aceptada', 'terminada'].includes(cotizacion.estado)) return null
-  const target = initialDepositAmount(cotizacion.total)
-  if (!target) return null
+// Lee el estado vigente dentro de la transacción: una reparación pendiente
+// del dashboard no puede volver a cobrar un trabajo que ya se reabrió.
+async function syncQuotePayments(cotizacion) {
+  if (!cotizacion?.id) return { anticipo: null, pago: null }
   const pagos = await getPagosByCotizacion(cotizacion.id)
-  const current = pagos.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0)
-  if (current >= target) return null
-  const id = initialDepositId(cotizacion.id)
-  const existing = pagos.find(pago => pago.id === id)
-  const amount = (Number(existing?.monto) || 0) + (target - current)
-  const acceptedDate = String(cotizacion.acceptedAt || cotizacion.createdAt || new Date().toISOString()).slice(0, 10)
-  return savePago({
-    ...existing,
-    id,
-    cotizacionId: cotizacion.id,
-    monto: amount,
-    fecha: acceptedDate,
-    tipo: 'anticipo',
-    notas: 'Abono inicial automático al aceptar la cotización (50%)',
-    automatico: true,
-    origen: 'cotizacion_aceptada',
+  const ids = [...new Set([...pagos.map(p => p.id), initialDepositId(cotizacion.id), finalPaymentId(cotizacion.id)])]
+  return runTransaction(db, async tx => {
+    const quoteRef = doc(db, 'cotizaciones', cotizacion.id)
+    const quoteSnap = await tx.get(quoteRef)
+    if (!quoteSnap.exists()) return { anticipo: null, pago: null }
+    const snapshots = await Promise.all(ids.map(id => tx.get(doc(db, 'pagos', id))))
+    const quote = snapToObj(quoteSnap)
+    const plan = planQuotePayments(quote, snapshots.map(snapToObj).filter(Boolean))
+    plan.deleteIds.forEach(id => tx.delete(doc(db, 'pagos', id)))
+    plan.writes.forEach(pago => tx.set(doc(db, 'pagos', pago.id), pago))
+    if (quote.estado !== 'terminada' && quote.completedAt) {
+      tx.update(quoteRef, { completedAt: null })
+    }
+    return plan
   })
 }
 
+export async function ensureAcceptedDeposit(cotizacion) {
+  return (await syncQuotePayments(cotizacion)).anticipo
+}
+
 export async function ensureCompletedPayment(cotizacion) {
-  if (!cotizacion?.id || cotizacion.estado !== 'terminada') return null
-  const pagos = await getPagosByCotizacion(cotizacion.id)
-  const current = pagos.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0)
-  const pending = remainingBalanceAmount(cotizacion.total, current)
-  if (!pending) return null
-  const id = finalPaymentId(cotizacion.id)
-  const existing = pagos.find(pago => pago.id === id)
-  const completedDate = String(cotizacion.completedAt || new Date().toISOString()).slice(0, 10)
-  return savePago({
-    ...existing,
-    id,
-    cotizacionId: cotizacion.id,
-    monto: (Number(existing?.monto) || 0) + pending,
-    fecha: completedDate,
-    tipo: 'saldo',
-    notas: 'Saldo final automático al marcar el trabajo como terminado',
-    automatico: true,
-    origen: 'trabajo_terminado',
-  })
+  return (await syncQuotePayments(cotizacion)).pago
 }
 
 export async function updateCotizacionEstado(cotizacion, estado) {
@@ -175,13 +152,14 @@ export async function updateCotizacionEstado(cotizacion, estado) {
     ...cotizacion,
     estado,
     ...(estado === 'aceptada' && !cotizacion.acceptedAt ? { acceptedAt: now } : {}),
-    ...(estado === 'terminada' && !cotizacion.completedAt ? { completedAt: now } : {}),
+    ...(estado === 'terminada' ? { completedAt: cotizacion.completedAt || now } : { completedAt: null }),
     ...(estado !== 'rechazada' ? { rechazoAutomaticoAt: null, rechazoMotivo: null } : {}),
     ...faseAlTerminar,
   }
   const saved = await saveCotizacion(next)
-  const anticipo = ['aceptada', 'terminada'].includes(estado) ? await ensureAcceptedDeposit(saved) : null
-  const pago = estado === 'terminada' ? await ensureCompletedPayment(saved) : anticipo
+  const synced = await syncQuotePayments(saved)
+  const anticipo = synced.anticipo
+  const pago = estado === 'terminada' ? synced.pago : anticipo
   return { cotizacion: saved, pago, anticipo }
 }
 
