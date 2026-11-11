@@ -247,6 +247,11 @@
 .hero-primary:hover{background:#b90000}
 .hero-secondary{border:1px solid #a1a1aa;background:rgba(255,255,255,.72);color:#111113;backdrop-filter:blur(6px)}
 .hero-secondary:hover{border-color:#111113;background:#fff}
+.corporate-feature{scroll-margin-top:6rem}
+.corporate-photos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:1rem;margin:1.5rem 0}
+.corporate-photos figure{margin:0;min-width:0}
+.corporate-photos img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover}
+.corporate-photos figcaption{margin-top:.5rem;color:#52525b;font-size:.8125rem}
 /* Tres marcas de agua vinculadas al diseño gráfico */
 #capacidades,#monografias,#proceso{position:relative;overflow:hidden}
 #capacidades>.max-w-7xl,#monografias>.max-w-7xl,#proceso>.max-w-7xl{position:relative;z-index:1}
@@ -436,7 +441,7 @@ a[href*="wa.me"]:not(.whatsapp-float):hover{background:#b90000;border-color:#b90
 </div>
 <div class="hero-copy">
 <p>
-Birth Studio Publicidad: diseño gráfico y fabricación propia de letreros publicitarios, letreros luminosos y letras corpóreas para negocios en Talca y la Región del Maule.
+Somos una empresa de publicidad en Talca. Diseñamos, fabricamos en nuestro taller e instalamos letreros, señalética y gráfica para empresas en la Región del Maule.
 </p>
 <div class="hero-actions">
 <a class="hero-primary transition-colors" href="#cotizador"><span class="material-symbols-outlined text-[17px]">arrow_forward</span>Cotizar Proyecto</a>
@@ -450,15 +455,28 @@ Birth Studio Publicidad: diseño gráfico y fabricación propia de letreros publ
 
 
 
-<section class="w-full py-12 lg:py-16 bg-white border-b border-outline" aria-labelledby="proyectos-empresas-title">
-  <div class="max-w-7xl mx-auto px-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-    <div>
-      <h2 id="proyectos-empresas-title" class="text-3xl lg:text-4xl font-normal tracking-tight text-primary">Señalética y letreros para empresas</h2>
-      <p class="text-[14px] text-secondary mt-3 max-w-xl">Diseñamos, fabricamos e instalamos letreros de fachada y señalética interior para locales y sucursales en Talca y el Maule.</p>
+<section id="proyectos-empresas" class="corporate-feature w-full py-12 lg:py-16 bg-white border-b border-outline" aria-labelledby="proyectos-empresas-title">
+  <div class="max-w-7xl mx-auto px-6">
+    <h2 id="proyectos-empresas-title" class="text-3xl lg:text-4xl font-normal tracking-tight text-primary">Señalética y letreros para empresas</h2>
+    <div class="corporate-photos">
+      <figure>
+        <img src="/assets/proyectos-corporativos/grupo-montes-fachada.jpg" alt="Letrero de Grupo Montes instalado en la fachada de sus oficinas" width="1280" height="960" loading="lazy" decoding="async">
+        <figcaption>Fachada</figcaption>
+      </figure>
+      <figure>
+        <img src="/assets/proyectos-corporativos/grupo-montes-recepcion.jpg" alt="Logo de Grupo Montes instalado detrás del mesón de recepción" width="1280" height="960" loading="lazy" decoding="async">
+        <figcaption>Recepción</figcaption>
+      </figure>
     </div>
-    <div class="corporate-actions flex flex-wrap items-center gap-4">
-      <a class="hero-primary transition-colors" href="/senaletica-talca.html#cotizar-empresa">Cotizar proyecto corporativo</a>
-      <a class="hero-secondary transition-colors" href="/proyectos-letreros-talca.html#proyectos-para-empresas">Ver proyectos realizados</a>
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div>
+        <h3 class="text-2xl font-normal tracking-tight text-primary">Grupo Montes</h3>
+        <p class="text-[14px] text-secondary mt-2">Letrero exterior y logo de recepción para sus oficinas.</p>
+      </div>
+      <div class="corporate-actions flex flex-wrap items-center gap-4">
+        <a class="hero-primary transition-colors" href="/senaletica-talca.html#cotizar-empresa">Cotizar un proyecto similar</a>
+        <a class="hero-secondary transition-colors" href="/proyectos-letreros-talca.html#grupo-montes" aria-label="Ver proyecto de Grupo Montes">Ver proyecto</a>
+      </div>
     </div>
   </div>
 </section>
