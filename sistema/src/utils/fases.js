@@ -12,11 +12,7 @@ export const FASES = [
   { id: 'entregado', label: 'Entregado', emoji: '✅', color: '#16a34a' },
 ]
 
-export const FASE_IDS = FASES.map(f => f.id)
-
 export const faseInfo = (id) => FASES.find(f => f.id === id) || null
-
-export const faseIndex = (id) => FASE_IDS.indexOf(id)
 
 export function faseLabel(id) {
   const f = faseInfo(id)

@@ -8,7 +8,6 @@ export const MULTIPLICADORES = [
 // ─── CATEGORÍAS ───────────────────────────────────────────────────────────────
 export const CATEGORIAS = [
   { id: 'acrilico', label: 'Acrílico / Letras Corpóreas' },
-  { id: 'letras_costeo', label: 'Letras Corpóreas (Costeo)' },
   { id: 'materiales', label: 'Materiales (Costeo)' },
   { id: 'afiches_acrilico', label: 'Afiches Acrílicos' },
   { id: 'adhesivo', label: 'Adhesivo' },

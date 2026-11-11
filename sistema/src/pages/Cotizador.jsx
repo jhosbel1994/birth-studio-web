@@ -14,15 +14,13 @@ import {
   subscribeProveedores,
 } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
-import { enviarCotizacionEmailJS, abrirGmailCompose, formatEmailJSError } from '../utils/email'
+import { enviarCotizacionEmailJS, formatEmailJSError } from '../utils/email'
 import { clp, hoy, sumarDias } from '../utils/formatters'
-import CosteoLetrasPanel from '../components/CosteoLetras/CosteoLetrasPanel'
 import MaterialesPanel from '../components/Materiales/MaterialesPanel'
 import AdjuntarPrototipo from '../components/AdjuntarPrototipo'
-import { obtenerPrototipo } from '../utils/prototipoStore'
 import {
   Plus, Trash2, RotateCcw, ArrowRight,
-  User, UserPlus, X, Download, Save, Mail, Eye, Pencil,
+  User, UserPlus, X, Download, Save, Mail, Eye, Pencil, Check,
   LayoutGrid, List, Search,
 } from 'lucide-react'
 
@@ -1813,7 +1811,6 @@ function CategoriaPanel({ categoria, multiplicador, setMultiplicador }) {
   if (categoria === 'miscelaneos') return <MiscelaneosPanel />
   if (categoria === 'manual') return <ManualPanel />
   if (categoria === 'acrilico') return <AcrilicoPanel multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
-  if (categoria === 'letras_costeo') return <CosteoLetrasPanel />
   if (categoria === 'materiales') return <MaterialesPanel />
   if (categoria === 'afiches_acrilico') return <AfichesAcrilicosPanel />
   if (categoria === 'fachada') return <FachadaPanel multiplicador={multiplicador} setMultiplicador={setMultiplicador} />
@@ -1860,9 +1857,10 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
   const [loading, setLoading] = useState(false)
   const [msgEmail, setMsgEmail] = useState(null)
   const [preview, setPreview] = useState(null)
-  // Se adjunta automaticamente el ultimo render enviado desde Prototipo Logo,
-  // tal como quedo al momento de exportar. El usuario puede quitarlo o cambiarlo.
-  const [prototipoImg, setPrototipoImg] = useState(() => obtenerPrototipo()?.dataUrl || null)
+  // El prototipo NO se adjunta por defecto. El usuario debe activarlo
+  // explicitamente desde "Adjuntar prototipo del letrero al PDF" (allí puede
+  // usar el último render generado o subir una imagen propia).
+  const [prototipoImg, setPrototipoImg] = useState(null)
 
   const subtotalBruto   = items.reduce((s, i) => s + (i.total || 0), 0)
   const pctDesc         = Math.min(Math.max(parseFloat(descuento) || 0, 0), 100)
@@ -1943,13 +1941,13 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
         />
       )}
 
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-auto">
-        <div className="glass-panel bg-white/90 rounded-widget w-full max-w-lg shadow-xl my-4">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-widget">
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="glass-panel bg-white/90 rounded-widget w-full max-w-lg shadow-xl flex flex-col max-h-[calc(100dvh-2rem)]">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/40 bg-white/90 backdrop-blur-xl rounded-t-widget shrink-0">
             <h2 className="font-barlow text-xl font-bold tracking-wide">CREAR COTIZACIÓN</h2>
             <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface"><X size={18} /></button>
           </div>
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4 overflow-y-auto">
             {/* Resumen items */}
             <div className="bg-white/50 rounded p-3 max-h-28 overflow-y-auto space-y-1">
               {items.map((item, i) => (
@@ -2110,21 +2108,83 @@ function QuotePanel({ items, setItems, conIva, setConIva, onCrear }) {
   const iva = conIva ? Math.round(subtotal * 0.19) : 0
   const total = subtotal + iva
 
+  // Edición en línea de un ítem (nombre + precio unitario). El total se
+  // recalcula como precio × cantidad para mantener la coherencia del desglose.
+  const [editId, setEditId] = useState(null)
+  const [draftDesc, setDraftDesc] = useState('')
+  const [draftPrecio, setDraftPrecio] = useState('')
+
+  const abrirEdicion = (item) => {
+    setEditId(item._id)
+    setDraftDesc(item.descripcion)
+    setDraftPrecio(String(item.precioUnitario ?? ''))
+  }
+
+  const guardarEdicion = (item) => {
+    const desc = draftDesc.trim() || item.descripcion
+    const precio = Math.max(0, Math.round(parseFloat(draftPrecio) || 0))
+    const cantidad = item.cantidad || 1
+    setItems(prev => prev.map(i =>
+      i._id === item._id
+        ? { ...i, descripcion: desc, precioUnitario: precio, total: precio * cantidad }
+        : i
+    ))
+    setEditId(null)
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto divide-y divide-white/40">
         {items.length === 0 ? (
           <p className="text-on-surface-variant text-sm font-dm text-center py-12">Sin ítems agregados</p>
         ) : items.map(item => (
-          <div key={item._id} className="flex items-start gap-2 px-4 py-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-dm font-medium text-on-surface leading-snug">{item.descripcion}</p>
-              <p className="text-xs text-on-surface-variant mt-0.5">{item.cantidad} × {clp(item.precioUnitario)}</p>
+          editId === item._id ? (
+            <div key={item._id} className="px-4 py-3 space-y-2 bg-white/60">
+              <input
+                value={draftDesc}
+                onChange={e => setDraftDesc(e.target.value)}
+                placeholder="Nombre del ítem"
+                autoFocus
+                className="w-full border border-white/50 rounded px-2.5 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface"
+              />
+              <div className="flex items-center gap-2">
+                <div className="flex items-center border border-white/50 rounded overflow-hidden flex-1">
+                  <span className="px-2.5 py-1.5 bg-white/50 text-sm font-dm text-on-surface-variant border-r border-white/50">$</span>
+                  <input
+                    type="number" min="0"
+                    value={draftPrecio}
+                    onChange={e => setDraftPrecio(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') guardarEdicion(item) }}
+                    placeholder="Precio unitario"
+                    className="flex-1 px-2.5 py-1.5 text-sm font-dm focus:outline-none text-right"
+                  />
+                </div>
+                <span className="text-xs text-on-surface-variant shrink-0 whitespace-nowrap">× {item.cantidad}</span>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => guardarEdicion(item)}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-on-surface text-white py-1.5 rounded text-xs font-dm">
+                  <Check size={13} /> Guardar
+                </button>
+                <button onClick={() => setEditId(null)}
+                  className="flex-1 flex items-center justify-center gap-1.5 border border-white/50 py-1.5 rounded text-xs font-dm hover:border-on-surface">
+                  <X size={13} /> Cancelar
+                </button>
+              </div>
             </div>
-            <span className="font-barlow text-sm font-bold shrink-0">{clp(item.total)}</span>
-            <button onClick={() => setItems(prev => prev.filter(i => i._id !== item._id))}
-              className="text-on-surface-variant active:text-primary shrink-0 mt-0.5 p-1"><Trash2 size={13} /></button>
-          </div>
+          ) : (
+            <div key={item._id} className="flex items-start gap-2 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-dm font-medium text-on-surface leading-snug">{item.descripcion}</p>
+                <p className="text-xs text-on-surface-variant mt-0.5">{item.cantidad} × {clp(item.precioUnitario)}</p>
+              </div>
+              <span className="font-barlow text-sm font-bold shrink-0">{clp(item.total)}</span>
+              <button onClick={() => abrirEdicion(item)}
+                className="text-on-surface-variant active:text-on-surface shrink-0 mt-0.5 p-1" title="Editar nombre y precio"><Pencil size={13} /></button>
+              <button onClick={() => setItems(prev => prev.filter(i => i._id !== item._id))}
+                className="text-on-surface-variant active:text-primary shrink-0 mt-0.5 p-1" title="Eliminar"><Trash2 size={13} /></button>
+            </div>
+          )
         ))}
       </div>
 

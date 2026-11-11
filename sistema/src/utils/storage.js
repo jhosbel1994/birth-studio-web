@@ -83,10 +83,6 @@ export async function saveCotizacion(cotizacion) {
   return data
 }
 
-export async function deleteCotizacion(id) {
-  await deleteCotizaciones([id])
-}
-
 export async function deleteCotizaciones(ids) {
   const uniqueIds = [...new Set(ids)].filter(Boolean)
   for (let offset = 0; offset < uniqueIds.length; offset += 250) {
@@ -163,12 +159,6 @@ export async function updateCotizacionEstado(cotizacion, estado) {
   return { cotizacion: saved, pago, anticipo }
 }
 
-export async function getCotizacionById(id) {
-  if (!id) return null
-  const snap = await getDoc(doc(db, 'cotizaciones', id))
-  return snapToObj(snap)
-}
-
 // ─── FASES / SEGUIMIENTO DEL TRABAJO ─────────────────────────────────────────
 // Actualiza la fase de avance de un trabajo (inicial → mitad → término →
 // entregado). Genera un token público la primera vez (para el link/QR que ve
@@ -194,11 +184,6 @@ export async function actualizarFaseCotizacion(cotizacion, faseId) {
 }
 
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
-export async function getContratos() {
-  const snap = await getDocs(query(collection(db, 'contratos'), orderBy('createdAt', 'desc')))
-  return snapsToArr(snap)
-}
-
 export async function saveContrato(contrato) {
   const id = contrato.id || crypto.randomUUID()
   const data = { ...contrato, id, createdAt: contrato.createdAt || new Date().toISOString() }
@@ -211,11 +196,6 @@ export async function deleteContrato(id) {
 }
 
 // ─── GASTOS ───────────────────────────────────────────────────────────────────
-export async function getGastos() {
-  const snap = await getDocs(query(collection(db, 'gastos'), orderBy('createdAt', 'desc')))
-  return snapsToArr(snap)
-}
-
 export async function saveGasto(gasto) {
   const id = gasto.id || crypto.randomUUID()
   const data = { ...gasto, id, createdAt: gasto.createdAt || new Date().toISOString() }
@@ -274,11 +254,6 @@ export async function deleteGastoConReversa(gasto) {
 }
 
 // ─── PAGOS ────────────────────────────────────────────────────────────────────
-export async function getPagos() {
-  const snap = await getDocs(query(collection(db, 'pagos'), orderBy('createdAt', 'desc')))
-  return snapsToArr(snap)
-}
-
 export async function savePago(pago) {
   const id = pago.id || crypto.randomUUID()
   const data = { ...pago, id, createdAt: pago.createdAt || new Date().toISOString() }
@@ -399,10 +374,6 @@ export async function getCatalogoSecciones() {
   return snapsToArr(snap)
 }
 
-export function subscribeCatalogoSecciones(cb) {
-  return onSnapshot(collection(db, 'catalogoSecciones'), snap => cb(snapsToArr(snap)))
-}
-
 export async function saveCatalogoSeccion(seccion) {
   const id = seccion.id || crypto.randomUUID()
   const data = { ...seccion, id, createdAt: seccion.createdAt || new Date().toISOString() }
@@ -436,10 +407,6 @@ export async function saveSeccionesOverrides(overrides) {
 export async function getCatalogoItems() {
   const snap = await getDocs(collection(db, 'catalogoItems'))
   return snapsToArr(snap)
-}
-
-export function subscribeCatalogoItems(cb) {
-  return onSnapshot(collection(db, 'catalogoItems'), snap => cb(snapsToArr(snap)))
 }
 
 export async function saveCatalogoItem(item) {
@@ -522,11 +489,6 @@ export async function setMultiplicadorMateriales(valor) {
 // ─── INVENTARIO (stock de materiales de Birth Studio) ────────────────────────
 // Shape: { id, nombre, tipo: 'm2'|'ml'|'unidad'|'plancha'|..., cantidad,
 //          precio (costo unitario), proveedorId?, nota?, createdAt }
-export async function getInventario() {
-  const snap = await getDocs(query(collection(db, 'inventario'), orderBy('nombre', 'asc')))
-  return snapsToArr(snap)
-}
-
 export function subscribeInventario(cb) {
   return onSnapshot(query(collection(db, 'inventario'), orderBy('nombre', 'asc')), snap => cb(snapsToArr(snap)))
 }
@@ -643,11 +605,6 @@ export async function revertirMaterialesTrabajo(cotizacion) {
 // ─── PROVEEDORES (con teléfono y los materiales que venden) ──────────────────
 // Shape: { id, nombre, telefono?, email?, direccion?, nota?,
 //          materiales: [{ nombre, unidad, precio }], createdAt }
-export async function getProveedores() {
-  const snap = await getDocs(query(collection(db, 'proveedores'), orderBy('nombre', 'asc')))
-  return snapsToArr(snap)
-}
-
 export function subscribeProveedores(cb) {
   return onSnapshot(query(collection(db, 'proveedores'), orderBy('nombre', 'asc')), snap => cb(snapsToArr(snap)))
 }
@@ -664,11 +621,6 @@ export async function deleteProveedor(id) {
 }
 
 // ─── GALERÍA (fotos del sitio público: banner + catálogo) ────────────────────
-export async function getGaleria() {
-  const snap = await getDocs(query(collection(db, 'galeria'), orderBy('orden', 'asc')))
-  return snapsToArr(snap)
-}
-
 export function subscribeGaleria(cb) {
   return onSnapshot(query(collection(db, 'galeria'), orderBy('orden', 'asc')), snap => cb(snapsToArr(snap)))
 }

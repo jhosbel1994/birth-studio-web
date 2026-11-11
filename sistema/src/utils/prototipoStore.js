@@ -24,11 +24,3 @@ export function obtenerPrototipo() {
     return null
   }
 }
-
-export function limpiarPrototipo() {
-  try {
-    localStorage.removeItem(KEY)
-  } catch {
-    /* sin acceso a localStorage */
-  }
-}

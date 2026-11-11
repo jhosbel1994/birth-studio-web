@@ -4,23 +4,11 @@ export function clp(value) {
   return '$' + Math.round(value).toLocaleString('es-CL')
 }
 
-// Número de cotización formateado: #00239
-export function numeroCotizacion(n) {
-  return '#' + String(n).padStart(5, '0')
-}
-
 // Fecha legible: 02 Jun 2026
 export function fechaCorta(dateStr) {
   if (!dateStr) return '—'
   const d = new Date(dateStr)
   return d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-// Fecha input value: YYYY-MM-DD
-export function fechaInput(dateStr) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toISOString().split('T')[0]
 }
 
 // Hoy en formato YYYY-MM-DD

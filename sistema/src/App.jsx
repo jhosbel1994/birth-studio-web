@@ -4,6 +4,7 @@ import Login, { isLoggedIn } from './pages/Login'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Cotizador from './pages/Cotizador'
+import CosteoLetras from './pages/CosteoLetras'
 import Clientes from './pages/Clientes'
 import Cotizaciones from './pages/Cotizaciones'
 import Contratos from './pages/Contratos'
@@ -37,6 +38,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="cotizador" element={<Cotizador />} />
+        <Route path="costeo-letras" element={<CosteoLetras />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="cotizaciones" element={<Cotizaciones />} />
         <Route path="contratos" element={<Contratos />} />

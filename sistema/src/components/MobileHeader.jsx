@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, Calculator, Users, FileText, ScrollText, Wallet, Boxes, Truck, Image, Box, Frame,
+  LayoutDashboard, Calculator, Shapes, Users, FileText, ScrollText, Wallet, Boxes, Truck, Image, Box, Frame,
   Menu, X, LogOut, KeyRound,
 } from 'lucide-react'
 import { doLogout, ModalCambiarPin } from '../pages/Login'
@@ -9,6 +9,7 @@ import { doLogout, ModalCambiarPin } from '../pages/Login'
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
   { to: '/cotizador', icon: Calculator, label: 'Cotizador' },
+  { to: '/costeo-letras', icon: Shapes, label: 'Costeo de letras' },
   { to: '/clientes', icon: Users, label: 'Clientes' },
   { to: '/cotizaciones', icon: FileText, label: 'Cotizaciones' },
   { to: '/contratos', icon: ScrollText, label: 'Contratos' },

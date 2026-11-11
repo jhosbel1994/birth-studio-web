@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  saveCotizacion, deleteCotizaciones, saveCliente, getClienteById,
+  saveCotizacion, deleteCotizaciones, saveCliente,
   subscribeCotizaciones, subscribeClientes, syncPublicStats,
-  saveGasto, deleteGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos,
+  saveGasto, deleteGastoConReversa, savePago, deletePago, subscribeGastos, subscribePagos,
   subscribeInventario, saveInventarioItem, updateCotizacionEstado, ensureAcceptedDeposit, ensureCompletedPayment,
   descontarMaterialesTrabajo, revertirMaterialesTrabajo, actualizarFaseCotizacion,
 } from '../utils/storage'
 import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
-import { FASES, faseInfo, faseLabel, urlSeguimiento } from '../utils/fases'
+import { FASES, faseLabel, urlSeguimiento } from '../utils/fases'
 import QRCode from 'qrcode'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, buildDatosBancariosWhatsAppUrl, formatEmailJSError, buildSeguimientoWhatsAppUrl, buildSeguimientoGmailUrl } from '../utils/email'

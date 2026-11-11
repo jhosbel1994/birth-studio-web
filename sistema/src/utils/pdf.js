@@ -219,26 +219,36 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   // Tabla items
   const colWidths = [100, 20, 30, 32]
   const colX = [14, 114, 134, 164]
-  const rowH = 7
+  const headerH = 7
+
+  const addItemsHeader = () => {
+    doc.setFillColor(10, 10, 10)
+    doc.rect(14, y, 182, headerH, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...BLANCO)
+    doc.text('DESCRIPCIÓN', colX[0] + 2, y + 5)
+    doc.text('CANT.', colX[1] + 2, y + 5)
+    doc.text('PRECIO UNIT.', colX[2] + 2, y + 5)
+    doc.text('TOTAL', colX[3] + 2, y + 5)
+    y += headerH
+  }
 
   // Header tabla
-  doc.setFillColor(10, 10, 10)
-  doc.rect(14, y, 182, rowH, 'F')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...BLANCO)
-  doc.text('DESCRIPCIÓN', colX[0] + 2, y + 5)
-  doc.text('CANT.', colX[1] + 2, y + 5)
-  doc.text('PRECIO UNIT.', colX[2] + 2, y + 5)
-  doc.text('TOTAL', colX[3] + 2, y + 5)
-
-  y += rowH
+  addItemsHeader()
 
   // Filas items
   cotizacion.items?.forEach((item, i) => {
-    if (y > 240) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    const descLineas = doc.splitTextToSize(String(item.descripcion || ''), colWidths[0] - 4)
+    const lineas = descLineas.length > 0 ? descLineas : ['']
+    const rowH = Math.max(7, lineas.length * 4 + 3)
+
+    if (y + rowH > 270) {
       doc.addPage()
       y = 20
+      addItemsHeader()
     }
     if (i % 2 === 0) {
       doc.setFillColor(248, 248, 248)
@@ -248,8 +258,7 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
     doc.setFontSize(8)
     doc.setTextColor(...NEGRO)
 
-    const descLineas = doc.splitTextToSize(item.descripcion || '', colWidths[0] - 4)
-    doc.text(descLineas[0], colX[0] + 2, y + 5)
+    doc.text(lineas, colX[0] + 2, y + 5, { lineHeightFactor: 1.15 })
     doc.text(String(item.cantidad || 1), colX[1] + 2, y + 5)
     doc.text(clp(item.precioUnitario), colX[2] + 2, y + 5)
     doc.text(clp(item.total), colX[3] + 2, y + 5)

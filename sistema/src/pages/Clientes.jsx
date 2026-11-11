@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { saveCliente, deleteCliente, subscribeClientes, subscribeCotizaciones } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
 import { fechaCorta, clp, ESTADOS } from '../utils/formatters'
-import { Plus, Search, Trash2, Edit2, FileText, Phone, Mail, X, MoreVertical, Download } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, Phone, Mail, X, MoreVertical, Download } from 'lucide-react'
 
 function WhatsAppIcon({ size = 16 }) {
   return (
