@@ -223,7 +223,7 @@ export function buildDatosBancariosWhatsAppUrl(cotizacion, cliente) {
   const texto = encodeURIComponent(
     `${saludo}\n\nAdjunto nuestros datos bancarios para realizar la transferencia:\n\n` +
     `Birth Studio SpA\n` +
-    `RUT: 78.534.949-0\n` +
+    `RUT: 77.990.344-3\n` +
     `Banco Estado\n` +
     `Tipo de cuenta: Chequera electrónica\n` +
     `N° de cuenta: 90279056174\n` +

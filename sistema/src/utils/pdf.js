@@ -11,7 +11,13 @@ const EMPRESA = {
   web: 'www.bspublicidad.cl',
   whatsapp: '+56 9 7724 7545',
   ciudad: 'Talca, Chile',
-  // Datos bancarios para transferencia
+  // Datos bancarios para transferencia.
+  // OJO: la cuenta está registrada en el banco bajo el RUT anterior
+  // (Birth Studio SpA, 77.990.344-3). El titular/RUT de la cuenta deben
+  // coincidir con los del banco para que la transferencia no rebote,
+  // aunque el emisor de la cotización use la razón social nueva.
+  bancoTitular: 'Birth Studio SpA',
+  bancoRut: '77.990.344-3',
   banco: 'Banco Estado',
   tipoCuenta: 'Chequera electrónica',
   numeroCuenta: '90279056174',
@@ -172,8 +178,8 @@ function addDatosBancarios(doc, y, empresa = EMPRESA) {
     doc.text(String(valor), x + 30, ty)
     ty += 4
   }
-  row('Titular:', empresa.nombre)
-  row('RUT:', empresa.rut)
+  row('Titular:', empresa.bancoTitular || empresa.nombre)
+  row('RUT:', empresa.bancoRut || empresa.rut)
   row('Banco:', empresa.banco)
   row('Tipo cuenta:', empresa.tipoCuenta)
   row('N° cuenta:', empresa.numeroCuenta, true)
