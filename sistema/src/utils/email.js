@@ -9,10 +9,11 @@ emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY })
 
 const EMPRESA = {
   nombre: 'Birth Studio SpA',
+  razonSocial: 'Sociedad de Servicios Birth Studio SpA',
   correo: 'bstudio.designe@gmail.com',
   whatsapp: '+56 9 7724 7545',
   web: 'www.bspublicidad.cl',
-  rut: '77.990.344-3',
+  rut: '78.534.949-0',
 }
 
 function escapeHtml(value = '') {
@@ -222,9 +223,11 @@ export function buildDatosBancariosWhatsAppUrl(cotizacion, cliente) {
   const texto = encodeURIComponent(
     `${saludo}\n\nAdjunto nuestros datos bancarios para realizar la transferencia:\n\n` +
     `Birth Studio SpA\n` +
-    `RUT: 77.990.344-3\n` +
+    `RUT: 78.534.949-0\n` +
+    `Banco Estado\n` +
     `Tipo de cuenta: Chequera electrónica\n` +
-    `N° de cuenta: 90279056174\n\n` +
+    `N° de cuenta: 90279056174\n` +
+    `Correo: ventas@bspublicidad.cl\n\n` +
     `Por favor, envíanos el comprobante por este mismo medio. Muchas gracias.`
   )
   return telWA ? `https://wa.me/${telWA}?text=${texto}` : `https://wa.me/?text=${texto}`

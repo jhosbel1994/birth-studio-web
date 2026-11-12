@@ -5,22 +5,25 @@ import logoTensionUrl from '../assets/logo-tension.png'
 
 const EMPRESA = {
   nombre: 'Birth Studio SpA',
-  rut: '77.990.344-3',
+  razonSocial: 'Sociedad de Servicios Birth Studio SpA',
+  rut: '78.534.949-0',
   correo: 'bstudio.designe@gmail.com',
   web: 'www.bspublicidad.cl',
   whatsapp: '+56 9 7724 7545',
   ciudad: 'Talca, Chile',
+  // Datos bancarios para transferencia
+  banco: 'Banco Estado',
+  tipoCuenta: 'Chequera electrónica',
+  numeroCuenta: '90279056174',
+  correoPagos: 'ventas@bspublicidad.cl',
 }
 
 // Misma SpA (mismo RUT), marca distinta para proyectos de obras y
 // estructuras — no debe aparecer nada de Birth en este PDF.
 const EMPRESA_TENSION = {
+  ...EMPRESA,
   nombre: 'Tensión Obras y Estructuras',
-  rut: EMPRESA.rut,
-  correo: EMPRESA.correo,
-  web: EMPRESA.web,
-  whatsapp: EMPRESA.whatsapp,
-  ciudad: EMPRESA.ciudad,
+  razonSocial: 'Tensión Obras y Estructuras',
 }
 
 function empresaDe(cotizacion) {
@@ -127,14 +130,111 @@ function cargarLogo(logoUrl = logoBirthUrl) {
 }
 
 function addEmpresaInfo(doc, y, empresa = EMPRESA) {
+  // Razón social destacada
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(...NEGRO)
+  doc.text(empresa.razonSocial || empresa.nombre, 14, y)
+  // Resto de datos
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(...GRIS)
-  doc.text(empresa.nombre, 14, y)
   doc.text(`RUT ${empresa.rut}`, 14, y + 4)
   doc.text(empresa.correo, 14, y + 8)
   doc.text(`${empresa.web}  ·  ${empresa.whatsapp}`, 14, y + 12)
   doc.text(empresa.ciudad, 14, y + 16)
+}
+
+// Caja con los datos bancarios para transferencia. Se dibuja en la página 1.
+function addDatosBancarios(doc, y, empresa = EMPRESA) {
+  const x = 14, w = 88, h = 32
+  // Marco
+  doc.setFillColor(248, 248, 248)
+  doc.setDrawColor(...GRIS_CLARO)
+  doc.setLineWidth(0.3)
+  doc.rect(x, y, w, h, 'FD')
+  // Banda superior negra con título
+  doc.setFillColor(...NEGRO)
+  doc.rect(x, y, w, 6, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...BLANCO)
+  doc.text('DATOS BANCARIOS PARA TRANSFERENCIA', x + 3, y + 4)
+  // Contenido
+  let ty = y + 11
+  const row = (label, valor, bold = false) => {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...GRIS)
+    doc.text(label, x + 3, ty)
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setTextColor(...NEGRO)
+    doc.text(String(valor), x + 30, ty)
+    ty += 4
+  }
+  row('Titular:', empresa.nombre)
+  row('RUT:', empresa.rut)
+  row('Banco:', empresa.banco)
+  row('Tipo cuenta:', empresa.tipoCuenta)
+  row('N° cuenta:', empresa.numeroCuenta, true)
+  row('Correo:', empresa.correoPagos)
+  return y + h
+}
+
+// Condiciones comerciales estándar de la cotización (página aparte).
+const CONDICIONES_COMERCIALES = [
+  ['Forma de pago', 'Transferencia bancaria o link de pago mediante tarjetas de crédito, débito y prepago. Al optar por link de pago se enviará un enlace por el 100% del valor total de la cotización.'],
+  ['Beneficio de pago', 'Hasta 3 cuotas sin interés con tarjeta de crédito.'],
+  ['Condiciones de pago', '50% de abono al inicio del trabajo y 50% de saldo contra entrega del producto o servicio. La entrega, instalación o envío podrá ser suspendida en caso de existir saldo pendiente. Al no optar por instalación o envío, el saldo deberá estar pagado previo al retiro; en caso de despacho, al menos 24 horas antes de la fecha programada.'],
+  ['Descuentos', 'Los descuentos aplican únicamente para pagos mediante transferencia bancaria. El porcentaje de descuento puede variar en caso de modificaciones a los ítems cotizados.'],
+  ['Plazo de entrega', 'Los plazos de fabricación comienzan a regir una vez aprobado el trabajo, recibido el abono inicial y la información completa por parte del cliente. Si el cliente posterga la confirmación, aprobación o pago, los plazos quedarán sujetos a reprogramación según la disponibilidad de producción vigente.'],
+  ['Transporte y despacho', 'El servicio de despacho es opcional y su valor depende de la ubicación de entrega. Para ubicaciones fuera de nuestro rango habitual podrá aplicarse un cargo adicional por concepto de traslado.'],
+  ['Embalaje', 'Si el producto es solicitado con envío y es de grandes dimensiones, se cobrará envoltura desde $120.000 + IVA.'],
+  ['Instalación', 'Cuando esté considerada: se realiza en horario laboral diurno. El cliente debe proporcionar el área despejada, acceso seguro (escalera/andamio según corresponda), un punto eléctrico operativo con descarga a tierra cercano al letrero y acceso a la zona técnica para las conexiones. El desmontaje de un letrero antiguo o la remoción de elementos obstructivos se cotiza y cobra de forma adicional.'],
+  ['Garantía', '6 meses sobre iluminación y componentes eléctricos, válida siempre y cuando el letrero no haya sido intervenido, manipulado o modificado por terceros, ni haya sufrido daños de origen natural (condiciones climáticas extremas, descargas eléctricas u otros). La garantía aplica únicamente cuando la instalación fue realizada por nuestra empresa. Cualquier visita o reparación tras una intervención externa se considera servicio de mantención con costo adicional.'],
+  ['Observaciones', 'Para la producción debe enviarse el logo en formato editable: AI (Illustrator), EPS, SVG o PDF editable (no la imagen convertida a PDF). Los productos fabricados a medida se desarrollan exclusivamente para el cliente, por lo que los pagos realizados no son reembolsables una vez iniciada la producción. La aceptación de la cotización implica la aceptación de estas condiciones comerciales.'],
+]
+
+// Página final con las condiciones comerciales extraídas.
+function addCondicionesPage(doc, empresa, logoImg, numero, marcaFallback) {
+  doc.addPage()
+  addHeader(doc, 'CONDICIONES COMERCIALES', numero, logoImg, marcaFallback)
+
+  let y = 42
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.setTextColor(...NEGRO)
+  doc.text('CONDICIONES COMERCIALES', 14, y)
+  y += 3
+  linea(doc, y + 2)
+  y += 8
+
+  CONDICIONES_COMERCIALES.forEach(([titulo, texto]) => {
+    const lineas = doc.splitTextToSize(texto, 182)
+    const bloqueH = 5 + lineas.length * 3.8 + 4
+    if (y + bloqueH > 280) {
+      doc.addPage()
+      addHeader(doc, 'CONDICIONES COMERCIALES', numero, logoImg, marcaFallback)
+      y = 42
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(...NEGRO)
+    doc.text(titulo, 14, y)
+    y += 4.5
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...GRIS)
+    doc.text(lineas, 14, y)
+    y += lineas.length * 3.8 + 5
+  })
+
+  // Validez
+  if (y > 275) { doc.addPage(); addHeader(doc, 'CONDICIONES COMERCIALES', numero, logoImg, marcaFallback); y = 42 }
+  doc.setFont('helvetica', 'italic')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...GRIS)
+  doc.text('Validez de la cotización: según la fecha indicada en la página anterior.', 14, y + 2)
 }
 
 function linea(doc, y) {
@@ -216,9 +316,13 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   linea(doc, y)
   y += 6
 
-  // Tabla items
-  const colWidths = [100, 20, 30, 32]
-  const colX = [14, 114, 134, 164]
+  // Tabla items — columnas: N° · Descripción · Cant. · Precio unit. · Total
+  const colNum = 14      // N°  (ancho 10)
+  const colDesc = 24     // Descripción (ancho 90)
+  const colCant = 114    // Cant. (ancho 20)
+  const colPrecio = 134  // Precio unit. (ancho 30)
+  const colTotal = 164   // Total (ancho 32, termina en 196)
+  const descWidth = 90
   const headerH = 7
 
   const addItemsHeader = () => {
@@ -227,10 +331,11 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8)
     doc.setTextColor(...BLANCO)
-    doc.text('DESCRIPCIÓN', colX[0] + 2, y + 5)
-    doc.text('CANT.', colX[1] + 2, y + 5)
-    doc.text('PRECIO UNIT.', colX[2] + 2, y + 5)
-    doc.text('TOTAL', colX[3] + 2, y + 5)
+    doc.text('N°', colNum + 2, y + 5)
+    doc.text('DESCRIPCIÓN', colDesc + 2, y + 5)
+    doc.text('CANT.', colCant + 2, y + 5)
+    doc.text('PRECIO UNIT.', colPrecio + 2, y + 5)
+    doc.text('TOTAL', colTotal + 2, y + 5)
     y += headerH
   }
 
@@ -241,7 +346,7 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   cotizacion.items?.forEach((item, i) => {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
-    const descLineas = doc.splitTextToSize(String(item.descripcion || ''), colWidths[0] - 4)
+    const descLineas = doc.splitTextToSize(String(item.descripcion || ''), descWidth - 4)
     const lineas = descLineas.length > 0 ? descLineas : ['']
     const rowH = Math.max(7, lineas.length * 4 + 3)
 
@@ -258,10 +363,14 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
     doc.setFontSize(8)
     doc.setTextColor(...NEGRO)
 
-    doc.text(lineas, colX[0] + 2, y + 5, { lineHeightFactor: 1.15 })
-    doc.text(String(item.cantidad || 1), colX[1] + 2, y + 5)
-    doc.text(clp(item.precioUnitario), colX[2] + 2, y + 5)
-    doc.text(clp(item.total), colX[3] + 2, y + 5)
+    // N° de ítem (negrita para que resalte)
+    doc.setFont('helvetica', 'bold')
+    doc.text(String(i + 1), colNum + 2, y + 5)
+    doc.setFont('helvetica', 'normal')
+    doc.text(lineas, colDesc + 2, y + 5, { lineHeightFactor: 1.15 })
+    doc.text(String(item.cantidad || 1), colCant + 2, y + 5)
+    doc.text(clp(item.precioUnitario), colPrecio + 2, y + 5)
+    doc.text(clp(item.total), colTotal + 2, y + 5)
 
     // Borde inferior fila
     doc.setDrawColor(...GRIS_CLARO)
@@ -289,6 +398,10 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   linea(doc, y)
   y += 5
 
+  // Datos bancarios (izquierda), en paralelo con el bloque de totales (derecha)
+  const bancoTop = y - 2
+  const bancoBottom = addDatosBancarios(doc, bancoTop, empresa)
+
   const tieneDescuento = cotizacion.descuento > 0 && cotizacion.montoDescuento > 0
   if (tieneDescuento) {
     const subtotalBruto = cotizacion.subtotal + cotizacion.montoDescuento
@@ -312,6 +425,9 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   y += 2
   addTotal('Anticipo (50%):', cotizacion.anticipo)
   addTotal('Saldo contraentrega:', cotizacion.saldo)
+
+  // Evitar que el bloque de totales quede por encima de la caja bancaria
+  y = Math.max(y, bancoBottom + 2)
 
   y += 5
   linea(doc, y)
@@ -377,11 +493,15 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   doc.setFontSize(7)
   doc.setTextColor(...GRIS)
   doc.text(
-    `${empresa.nombre}  ·  RUT ${empresa.rut}  ·  ${empresa.correo}  ·  ${empresa.whatsapp}  ·  ${empresa.web}`,
+    `${empresa.razonSocial || empresa.nombre}  ·  RUT ${empresa.rut}  ·  ${empresa.correo}  ·  ${empresa.whatsapp}  ·  ${empresa.web}`,
     105,
     footerY,
     { align: 'center' }
   )
+
+  // Página de condiciones comerciales
+  addCondicionesPage(doc, empresa, logo, cotizacion.numero,
+    empresa === EMPRESA_TENSION ? 'TENSIÓN' : 'BIRTH')
 
   // Página extra con el prototipo 3D, si la cotización lo trae adjunto
   if (cotizacion.prototipoImg) {
@@ -402,7 +522,7 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
 }
 
 // ─── CONTRATO LETRAS CORPÓREAS ─────────────────────────────────────────────
-export async function generarContratoLetras(contrato, cliente) {
+export async function generarContratoLetras(contrato, cliente, modo = 'download') {
   const logo = await cargarLogo()
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const fecha = fechaCorta(contrato.fecha || new Date().toISOString())
@@ -445,7 +565,7 @@ export async function generarContratoLetras(contrato, cliente) {
   const cnRut = cliente?.rut || '[RUT]'
   const ciudad = cliente?.ciudad || 'Talca'
 
-  clausula('1. PARTES', `CONTRATANTE: ${cn}, RUT ${cnRut}, domiciliado en ${ciudad}.\nCONTRATISTA: Birth Studio SpA, RUT 77.990.344-3, domiciliada en Talca, en adelante "Birth Studio".`)
+  clausula('1. PARTES', `CONTRATANTE: ${cn}, RUT ${cnRut}, domiciliado en ${ciudad}.\nCONTRATISTA: Sociedad de Servicios Birth Studio SpA, RUT 78.534.949-0, domiciliada en Talca, en adelante "Birth Studio".`)
 
   clausula('2. OBJETO DEL CONTRATO', `Birth Studio se compromete a fabricar e instalar ${contrato.descripcionTrabajo || '[descripción de letras corpóreas, señalética, etc.]'}, según las especificaciones acordadas entre las partes.`)
 
@@ -455,7 +575,7 @@ export async function generarContratoLetras(contrato, cliente) {
 
   clausula('5. CONDICIONES DE INSTALACIÓN', 'El contratante se compromete a: (a) proporcionar acceso al lugar de instalación en la fecha acordada; (b) contar con suministro eléctrico disponible cuando sea necesario; (c) gestionar los permisos municipales o de terceros que se requieran para la instalación. El incumplimiento de estas condiciones podrá derivar en reprogramación con costo adicional a cargo del contratante.')
 
-  clausula('6. GARANTÍA', 'Birth Studio garantiza los trabajos contra defectos de fabricación por un período de 6 meses desde la instalación. La garantía no cubre daños causados por terceros, vandalismo, condiciones climáticas extremas, ni modificaciones realizadas por personas ajenas a Birth Studio.')
+  clausula('6. GARANTÍA', 'Birth Studio garantiza la iluminación y los componentes eléctricos por un período de 6 meses desde la instalación, válida siempre y cuando el letrero no haya sido intervenido, manipulado o modificado por terceros, ni haya sufrido daños de origen natural (condiciones climáticas extremas, descargas eléctricas, vandalismo u otros). Cualquier visita o reparación tras una intervención externa se considera servicio de mantención con costo adicional.')
 
   clausula('7. RESOLUCIÓN DE CONFLICTOS', 'Cualquier controversia derivada del presente contrato será resuelta de común acuerdo entre las partes. En caso de no lograrse acuerdo, las partes se someten a la jurisdicción de los tribunales ordinarios de la ciudad de Talca, Chile.')
 
@@ -472,10 +592,10 @@ export async function generarContratoLetras(contrato, cliente) {
   y += 5
   doc.setTextColor(...GRIS)
   doc.text(cn, 30, y)
-  doc.text('Birth Studio SpA', 130, y)
+  doc.text('Sociedad de Servicios Birth Studio SpA', 130, y)
   y += 4
   doc.text(`RUT: ${cnRut}`, 30, y)
-  doc.text('RUT: 77.990.344-3', 130, y)
+  doc.text('RUT: 78.534.949-0', 130, y)
   y += 4
   doc.text('CONTRATANTE', 30, y)
   doc.text('CONTRATISTA', 130, y)
@@ -484,13 +604,17 @@ export async function generarContratoLetras(contrato, cliente) {
   const footerY = 290
   doc.setFontSize(7)
   doc.setTextColor(...GRIS)
-  doc.text(`${EMPRESA.nombre}  ·  RUT ${EMPRESA.rut}  ·  ${EMPRESA.correo}  ·  ${EMPRESA.web}`, 105, footerY, { align: 'center' })
+  doc.text(`${EMPRESA.razonSocial}  ·  RUT ${EMPRESA.rut}  ·  ${EMPRESA.correo}  ·  ${EMPRESA.web}`, 105, footerY, { align: 'center' })
 
-  doc.save(`Contrato_Letras_${(cn).replace(/\s/g, '_')}.pdf`)
+  const filename = `Contrato_Letras_${(cn).replace(/\s/g, '_')}.pdf`
+  if (modo === 'preview') return { url: URL.createObjectURL(doc.output('blob')), filename }
+  if (modo === 'blob') return { blob: doc.output('blob'), filename }
+  doc.save(filename)
+  return { filename }
 }
 
 // ─── CONTRATO DESARROLLO WEB ──────────────────────────────────────────────────
-export async function generarContratoWeb(contrato, cliente) {
+export async function generarContratoWeb(contrato, cliente, modo = 'download') {
   const logo = await cargarLogo()
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const fecha = fechaCorta(contrato.fecha || new Date().toISOString())
@@ -532,7 +656,7 @@ export async function generarContratoWeb(contrato, cliente) {
   const cnRut = cliente?.rut || '[RUT]'
   const ciudad = cliente?.ciudad || 'Talca'
 
-  clausula('1. PARTES', `CONTRATANTE: ${cn}, RUT ${cnRut}, domiciliado en ${ciudad}.\nCONTRATISTA: Birth Studio SpA, RUT 77.990.344-3, domiciliada en Talca, en adelante "Birth Studio".`)
+  clausula('1. PARTES', `CONTRATANTE: ${cn}, RUT ${cnRut}, domiciliado en ${ciudad}.\nCONTRATISTA: Sociedad de Servicios Birth Studio SpA, RUT 78.534.949-0, domiciliada en Talca, en adelante "Birth Studio".`)
 
   clausula('2. OBJETO', `Birth Studio se compromete a desarrollar ${contrato.descripcionProyecto || '[descripción del sitio web y funcionalidades acordadas]'} según las especificaciones definidas entre las partes previo al inicio del desarrollo.`)
 
@@ -562,10 +686,10 @@ export async function generarContratoWeb(contrato, cliente) {
   y += 5
   doc.setTextColor(...GRIS)
   doc.text(cn, 30, y)
-  doc.text('Birth Studio SpA', 130, y)
+  doc.text('Sociedad de Servicios Birth Studio SpA', 130, y)
   y += 4
   doc.text(`RUT: ${cnRut}`, 30, y)
-  doc.text('RUT: 77.990.344-3', 130, y)
+  doc.text('RUT: 78.534.949-0', 130, y)
   y += 4
   doc.text('CONTRATANTE', 30, y)
   doc.text('CONTRATISTA', 130, y)
@@ -573,7 +697,11 @@ export async function generarContratoWeb(contrato, cliente) {
   const footerY = 290
   doc.setFontSize(7)
   doc.setTextColor(...GRIS)
-  doc.text(`${EMPRESA.nombre}  ·  RUT ${EMPRESA.rut}  ·  ${EMPRESA.correo}  ·  ${EMPRESA.web}`, 105, footerY, { align: 'center' })
+  doc.text(`${EMPRESA.razonSocial}  ·  RUT ${EMPRESA.rut}  ·  ${EMPRESA.correo}  ·  ${EMPRESA.web}`, 105, footerY, { align: 'center' })
 
-  doc.save(`Contrato_Web_${(cn).replace(/\s/g, '_')}.pdf`)
+  const filename = `Contrato_Web_${(cn).replace(/\s/g, '_')}.pdf`
+  if (modo === 'preview') return { url: URL.createObjectURL(doc.output('blob')), filename }
+  if (modo === 'blob') return { blob: doc.output('blob'), filename }
+  doc.save(filename)
+  return { filename }
 }
