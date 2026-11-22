@@ -37,3 +37,11 @@ section{padding:28px 0;border-top:1px solid #e4e4e7}details{border-bottom:1px so
 .laser-page .quote-panel{background:#fff;border:1px solid #e4e4e7;padding:clamp(20px,4vw,36px);margin:24px 0}
 @media(max-width:900px){.laser-page .hero{grid-template-columns:1fr}.laser-page .hero>.project-photo{width:100%;max-width:560px;justify-self:center}.laser-page .hero>div{max-width:700px}.laser-page .service-grid{grid-template-columns:1fr;gap:24px}.laser-page h1{max-width:650px}}
 @media(max-width:480px){.laser-page header,.laser-page main,.laser-page footer{padding-left:20px;padding-right:20px}.laser-page header{gap:16px;align-items:center}.laser-page header>a:last-child{text-align:right;font-size:13px;line-height:1.4;min-height:44px;display:flex;align-items:center}.laser-page .brand{flex-shrink:0}.laser-page .brand img{width:100px}.laser-page .hero{padding:24px 0;gap:24px}.laser-page .eyebrow{font-size:11px;letter-spacing:.05em}.laser-page .button{display:block;width:100%}.laser-page section{padding:28px 0}.laser-page .quote-panel{padding:20px}.laser-page .related{gap:8px 20px}.laser-page h1{margin-top:12px}.laser-page nav{font-size:13px}}
+
+/* Dos formas de contactar, visibles al entrar a cada página. */
+.contact-actions{display:flex;flex-wrap:wrap;align-items:stretch;gap:12px;margin:24px 0 12px}
+.contact-actions .button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;max-width:100%;margin:0;padding:14px 20px;font-size:15px;line-height:1.45;text-align:center;border:1px solid #e60000;overflow-wrap:break-word}
+.contact-actions .button--outline{background:#fff;color:#18181b;border-color:#18181b}
+.contact-actions .button--outline:hover{background:#18181b;color:#fff}
+#visita-form{scroll-margin-top:110px}
+@media(max-width:600px){.contact-actions{flex-direction:column}.contact-actions .button{width:100%}}

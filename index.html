@@ -385,6 +385,7 @@ a[href*="wa.me"]:not(.whatsapp-float):hover{background:#b90000;border-color:#b90
 .service-page-card--laser .service-page-card__cta{margin:0;padding:0;border:0;gap:20px}
 @media(max-width:599px){.service-page-card--laser{grid-template-columns:minmax(0,1fr);gap:16px}.service-page-card--laser .service-page-card__cta{border-top:1px solid #e4e4e7;padding-top:12px}}
 
+#visita-form{scroll-margin-top:110px}
 </style>
 <!-- Widget del muro de Instagram (Behold.so) -->
 <script type="module" src="https://w.behold.so/widget.js"></script>
@@ -898,6 +899,9 @@ Somos una empresa de publicidad en Talca. Diseñamos, fabricamos en nuestro tall
 <option value="Gran Formato / Rotulación">Gran Formato / Rotulación</option>
 <option value="Página Web">Página Web</option>
 <option value="Corte y grabado láser">Corte y grabado láser</option>
+<option value="Letreros publicitarios">Letreros publicitarios</option>
+<option value="Diseño gráfico">Diseño gráfico</option>
+<option value="Señalética corporativa">Señalética corporativa</option>
 <option value="Otro / No estoy seguro">Otro / No estoy seguro</option>
 </select>
 </div>
@@ -1224,6 +1228,25 @@ Somos una empresa de publicidad en Talca. Diseñamos, fabricamos en nuestro tall
     }
     btnWa.addEventListener('click', function () { setModo('wa'); });
     btnCorreo.addEventListener('click', function () { setModo('correo'); });
+
+    // Las páginas de servicios abren el formulario directamente en modo correo.
+    var contactParams = new URLSearchParams(window.location.search);
+    if (contactParams.get('contacto') === 'correo') {
+      setModo('correo');
+      var projectSelect = document.getElementById('v-tipo');
+      var requestedService = contactParams.get('servicio');
+      if (projectSelect && Array.from(projectSelect.options).some(function (option) { return option.value === requestedService; })) {
+        projectSelect.value = requestedService;
+      }
+      var contactSection = document.getElementById('visita');
+      contactSection.querySelector('h2').textContent = 'Pide tu cotización formal';
+      contactSection.querySelector('p').textContent = 'Completa tus datos y cuéntanos qué necesitas. Recibiremos tu solicitud por correo para preparar una cotización. Puedes adjuntar tu diseño o logo.';
+      contactSection.querySelector('fieldset').style.display = 'none';
+      form.style.scrollMarginTop = '110px';
+      var showQuoteForm = function () { form.scrollIntoView({ behavior: 'instant', block: 'start' }); };
+      requestAnimationFrame(showQuoteForm);
+      if (document.readyState !== 'complete') window.addEventListener('load', showQuoteForm, { once: true });
+    }
 
     var val = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
 
