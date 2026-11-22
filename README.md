@@ -89,4 +89,4 @@ var WA_NUMBER = '56977247545';
 
 ---
 
-Birth Studio Publicidad SpA · RUT 77.990.344-3 · Talca, Chile
+Birth Studio Publicidad SpA · RUT 78.534.949-0 · Talca, Chile
