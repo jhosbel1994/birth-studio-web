@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://www.bspublicidad.cl/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-22</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -26,4 +26,5 @@
     <loc>https://www.bspublicidad.cl/proyecto-totem-luminoso-talca.html</loc>
     <lastmod>2026-11-10</lastmod>
   </url>
+  <url><loc>https://www.bspublicidad.cl/corte-laser-talca.html</loc><lastmod>2026-11-22</lastmod></url>
 </urlset>
