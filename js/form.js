@@ -219,7 +219,7 @@ function initScheduleForm() {
 
         // Mensaje para WhatsApp
         var msg = [
-            '¡Hola Birth Studio! 👋',
+            'Hola, encontré su página en internet y me gustaría cotizar con ustedes.',
             '',
             'Quiero agendar una visita a mi local:',
             '',
