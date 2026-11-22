@@ -367,17 +367,23 @@ a[href*="wa.me"]:not(.whatsapp-float):hover{background:#b90000;border-color:#b90
 .service-pages__intro{margin:16px 0 0;color:#52525b;font-size:15px;line-height:1.6}
 .service-pages__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:32px}
 .service-page-card{position:relative;display:flex;flex-direction:column;min-width:0;padding:24px;background:#fff;border:1px solid #dcdce0;border-radius:12px;color:#18181b;text-decoration:none;box-shadow:0 2px 4px rgba(24,24,27,.03);transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
-.service-page-card__icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:48px;height:48px;margin-bottom:20px;border-radius:12px;background:#18181b;color:#fff;transition:background-color .22s ease}
+
 .service-page-card h3{margin:0;font-size:20px;font-weight:600;line-height:1.3;letter-spacing:-.02em}
 .service-page-card p{margin:10px 0 22px;color:#52525b;font-size:14px;line-height:1.65}
 .service-page-card__cta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding-top:16px;border-top:1px solid #e4e4e7;color:#bd0000;font-size:13px;font-weight:600;line-height:1.5}
 .service-page-card__arrow{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:32px;height:32px;background:#fff0f0;border-radius:50%;font-size:20px;transition:transform .22s ease,background-color .22s ease,color .22s ease}
 .service-page-card:focus-visible{outline:3px solid #e60000;outline-offset:4px;border-color:#e60000}
 .service-page-card:active{transform:translateY(0);background:#fff9f9}
-@media(hover:hover){.service-page-card:hover{transform:translateY(-4px);border-color:#e60000;box-shadow:0 10px 24px rgba(24,24,27,.09)}.service-page-card:hover .service-page-card__icon{background:#d00000}.service-page-card:hover .service-page-card__arrow{transform:translateX(3px);background:#d00000;color:#fff}}
+@media(hover:hover){.service-page-card:hover{transform:translateY(-4px);border-color:#e60000;box-shadow:0 10px 24px rgba(24,24,27,.09)}.service-page-card:hover .service-page-card__arrow{transform:translateX(3px);background:#d00000;color:#fff}}
 @media(max-width:999px){.service-pages__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:599px){.service-pages{padding:44px 20px}.service-pages__grid{grid-template-columns:minmax(0,1fr);gap:14px;margin-top:24px}.service-page-card{padding:20px}.service-page-card__icon{width:42px;height:42px;margin-bottom:16px}.service-page-card h3{font-size:19px}.service-page-card p{margin-bottom:16px}.service-page-card__cta{padding-top:12px}}
-@media(prefers-reduced-motion:reduce){.service-page-card,.service-page-card__icon,.service-page-card__arrow{transition:none}.service-page-card:hover,.service-page-card:hover .service-page-card__arrow{transform:none}}
+@media(max-width:599px){.service-pages{padding:44px 20px}.service-pages__grid{grid-template-columns:minmax(0,1fr);gap:14px;margin-top:24px}.service-page-card{padding:20px}.service-page-card h3{font-size:19px}.service-page-card p{margin-bottom:16px}.service-page-card__cta{padding-top:12px}}
+@media(prefers-reduced-motion:reduce){.service-page-card,.service-page-card__arrow{transition:none}.service-page-card:hover,.service-page-card:hover .service-page-card__arrow{transform:none}}
+
+
+.service-page-card--laser{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:32px;border-left:3px solid #e60000}
+.service-page-card--laser p{margin-bottom:0;max-width:760px}
+.service-page-card--laser .service-page-card__cta{margin:0;padding:0;border:0;gap:20px}
+@media(max-width:599px){.service-page-card--laser{grid-template-columns:minmax(0,1fr);gap:16px}.service-page-card--laser .service-page-card__cta{border-top:1px solid #e4e4e7;padding-top:12px}}
 
 </style>
 <!-- Widget del muro de Instagram (Behold.so) -->
@@ -652,33 +658,32 @@ Somos una empresa de publicidad en Talca. Diseñamos, fabricamos en nuestro tall
 <h2 id="servicios-talca-title">Diseño gráfico y letreros para tu negocio en Talca</h2>
 <p class="service-pages__intro">Elige un servicio para conocer las opciones y cómo podemos ayudarte.</p>
 <div class="service-pages__grid">
+<a href="/corte-laser-talca.html" class="service-page-card service-page-card--laser">
+<div><h3>Corte y grabado láser</h3><p>Acrílico hasta 10 mm y MDF hasta 12 mm. $500 por minuto. También vendemos planchas: consulta el precio.</p></div>
+<span class="service-page-card__cta">Ver más información <span class="service-page-card__arrow" aria-hidden="true">→</span></span>
+</a>
+
 <a href="/letreros-publicitarios-talca.html" class="service-page-card">
-<span class="service-page-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20v-4m10 4v-4M7 8h10M7 12h6"/></svg></span>
 <h3>Letreros publicitarios</h3><p>Encuentra el letrero que mejor se adapte a tu local y a tu presupuesto.</p>
 <span class="service-page-card__cta">Ver más información <span class="service-page-card__arrow" aria-hidden="true">→</span></span>
 </a>
 <a href="/letreros-luminosos-talca.html" class="service-page-card">
-<span class="service-page-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6m-5 3h4M8 13a6 6 0 1 1 8 0c-1 1-1 2-1 2H9s0-1-1-2ZM12 1v1M3 5l1 1m16-1-1 1M1 11h2m18 0h2"/></svg></span>
 <h3>Letreros luminosos</h3><p>Haz que tu negocio se vea de día y de noche con letreros iluminados.</p>
 <span class="service-page-card__cta">Ver más información <span class="service-page-card__arrow" aria-hidden="true">→</span></span>
 </a>
 <a href="/diseno-grafico-talca.html" class="service-page-card">
-<span class="service-page-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m4 20 4-1L20 7a2.1 2.1 0 0 0-3-3L5 16l-1 4Zm10-13 3 3M5 16l3 3M12 20h8"/></svg></span>
 <h3>Diseño gráfico</h3><p>Dale forma a tu logo y a los diseños que necesitas para tu negocio.</p>
 <span class="service-page-card__cta">Ver más información <span class="service-page-card__arrow" aria-hidden="true">→</span></span>
 </a>
 <a href="/letras-corporeas-3d-talca.html" class="service-page-card">
-<span class="service-page-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Zm0 10 9-5M12 12 3 7m9 5v10M7.5 4.5l9 5"/></svg></span>
 <h3>Letras corpóreas y 3D</h3><p>Destaca tu nombre o tu logo con letras en relieve, con o sin luz.</p>
 <span class="service-page-card__cta">Ver más información <span class="service-page-card__arrow" aria-hidden="true">→</span></span>
 </a>
 <a href="/senaletica-talca.html" class="service-page-card">
-<span class="service-page-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3m0 6v3m0 6v2M3 5h15l3 3-3 3H3V5Zm18 9H6l-3 3 3 3h15v-6Z"/></svg></span>
 <h3>Señalética corporativa</h3><p>Identifica tus espacios con placas y letreros para tu empresa.</p>
 <span class="service-page-card__cta">Ver más información <span class="service-page-card__arrow" aria-hidden="true">→</span></span>
 </a>
 <a href="/paginas-web-talca.html" class="service-page-card">
-<span class="service-page-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="16" rx="2"/><path d="M2 8h20M6 5.5h.01M9 5.5h.01m0 6-3 2 3 2m6-4 3 2-3 2M8 22h8m-4-3v3"/></svg></span>
 <h3>Creación de páginas web</h3><p>Muestra tus servicios y facilita que tus clientes te encuentren y contacten.</p>
 <span class="service-page-card__cta">Ver más información <span class="service-page-card__arrow" aria-hidden="true">→</span></span>
 </a>
