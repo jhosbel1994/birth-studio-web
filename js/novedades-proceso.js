@@ -9,6 +9,7 @@
 
   function initBanner(items, interval) {
     var viewport = banner.querySelector('.b-news__viewport');
+    var dots = banner.querySelector('.b-news__dots');
     var index = 0;
     var timer;
     var paused = reducedMotion.matches;
@@ -16,8 +17,10 @@
     var hovered = false;
     var inView = true;
     var slides = [];
+    var dotButtons = [];
 
     viewport.replaceChildren();
+    dots.replaceChildren();
     items.forEach(function (item, i) {
       var slide = document.createElement('article');
       slide.className = 'b-news__slide';
@@ -110,6 +113,12 @@
       }
       viewport.append(slide);
       slides.push(slide);
+      var dot = document.createElement('button');
+      dot.type = 'button';
+      dot.setAttribute('aria-label', 'Mostrar imagen ' + (i + 1) + ': ' + item.titulo);
+      dot.addEventListener('click', function () { show(i); schedule(); });
+      dots.append(dot);
+      dotButtons.push(dot);
     });
 
     function stop() { window.clearTimeout(timer); }
@@ -125,6 +134,7 @@
         slide.classList.toggle('is-active', active);
         slide.setAttribute('aria-hidden', String(!active));
         slide.inert = !active;
+        dotButtons[i].setAttribute('aria-current', String(active));
       });
     }
     banner.addEventListener('pointerenter', function (event) { if (event.pointerType !== 'touch') { hovered = true; stop(); } });
@@ -136,6 +146,7 @@
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (entries) { inView = entries[0].isIntersecting; schedule(); }).observe(banner);
     }
+    dots.hidden = slides.length < 2;
     show(0);
     schedule();
   }

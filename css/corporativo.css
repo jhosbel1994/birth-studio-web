@@ -42,7 +42,11 @@ body:not(.corporate-home)>footer{max-width:none;background:#18181b;color:#d4d4d8
 
 
 
-.b-news__dots button::after{content:'';width:6px;height:6px;border-radius:50%;background:#73737c;transition:background-color .2s,width .2s}
+.b-news__dots{display:flex;align-items:center;justify-content:center;gap:2px}
+.b-news__dots button{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;background:transparent;cursor:pointer}
+.b-news__dots button::after{content:'';width:8px;height:8px;border-radius:50%;background:#93939c;transition:background-color .2s,width .2s}
+.b-news__dots button:hover::after{background:#fff}
+.b-news__dots button[aria-current=true]::after{background:#fff;width:20px;border-radius:4px}
 
 
 .b-news__artwork{display:block;width:100%;min-width:0}.b-news__artwork picture,.b-news__artwork img{display:block;width:100%;height:auto}.b-news__artwork img{object-fit:contain}.b-news__slide--image{grid-template-columns:minmax(0,1fr);gap:0}.b-news__slide--image>div,.b-news__slide--image>.b-news__link{display:none}
