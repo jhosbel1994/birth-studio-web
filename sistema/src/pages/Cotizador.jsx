@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, createContext } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   CATEGORIAS, PRODUCTOS, MULTIPLICADORES,
   TARJETAS, BANDERAS_VELA, VOLANTES,
@@ -14,6 +15,8 @@ import {
   subscribeProveedores,
 } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
+import NombreCliente from '../components/NombreCliente'
+import { datosClienteCotizacion, opcionCliente } from '../utils/clienteIdentidad'
 import { enviarCotizacionEmailJS, formatEmailJSError } from '../utils/email'
 import { clp, hoy, sumarDias } from '../utils/formatters'
 import MaterialesPanel from '../components/Materiales/MaterialesPanel'
@@ -93,7 +96,7 @@ function MultiplicadorButtons({ multiplicador, setMultiplicador, label = 'Instal
 }
 
 // ─── BARRA DE CLIENTE (top) ────────────────────────────────────────────────
-function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, clientes, onClienteGuardado }) {
+function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, clienteEmpresa, setClienteEmpresa, clientes, onClienteGuardado }) {
   const [modo, setModo] = useState('existente') // 'existente' | 'rapido'
   const [nombre, setNombre] = useState('')
   const [rut, setRut] = useState('')
@@ -102,7 +105,9 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
   const handleSeleccionar = (id) => {
     const c = clientes.find(c => c.id === id)
     setClienteId(id)
-    setClienteNombre(c ? c.nombre : '')
+    const datos = datosClienteCotizacion(c)
+    setClienteNombre(datos.clienteNombre)
+    setClienteEmpresa(datos.clienteEmpresa)
   }
 
   // Actualiza nombre en tiempo real sin necesidad de clic en Confirmar
@@ -116,7 +121,7 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
 
   const handleGuardarEnBD = async () => {
     if (!nombre.trim()) return
-    const c = await saveCliente({ nombre, rut, empresa: '', ciudad: '', correo: '', telefono: '' })
+    const c = await saveCliente({ nombre: nombre.trim(), rut, empresa: clienteEmpresa.trim(), ciudad: '', correo: '', telefono: '' })
     setClienteId(c.id)
     setClienteNombre(c.nombre)
     onClienteGuardado()
@@ -133,7 +138,7 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-dm border transition-colors ${modo === 'existente' ? 'bg-on-surface text-white border-on-surface' : 'bg-white text-on-surface-variant border-white/50 hover:border-on-surface'}`}>
           <User size={12} /> Existente
         </button>
-        <button onClick={() => setModo('rapido')}
+        <button onClick={() => { setModo('rapido'); setClienteId(''); setClienteNombre(''); setClienteEmpresa(''); setNombre(''); setRut('') }}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-dm border transition-colors ${modo === 'rapido' ? 'bg-on-surface text-white border-on-surface' : 'bg-white text-on-surface-variant border-white/50 hover:border-on-surface'}`}>
           <UserPlus size={12} /> Rápido
         </button>
@@ -144,14 +149,17 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
         <select value={clienteId} onChange={e => handleSeleccionar(e.target.value)}
           className="flex-1 min-w-40 max-w-xs border border-white/50 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
           <option value="">Sin cliente</option>
-          {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}{c.empresa ? ` — ${c.empresa}` : ''}</option>)}
+          {clientes.map(c => <option key={c.id} value={c.id}>{opcionCliente(c)}</option>)}
         </select>
       ) : (
         <div className="flex flex-wrap items-center gap-2 flex-1">
+          <input value={clienteEmpresa} onChange={e => { setClienteId(''); setClienteEmpresa(e.target.value); setClienteNombre(nombre) }}
+            placeholder="Empresa o razón social" aria-label="Empresa o razón social"
+            className="min-w-0 border border-white/50 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface w-48 max-w-full" />
           <input
             value={nombre}
             onChange={e => handleNombreChange(e.target.value)}
-            placeholder="Nombre *"
+            placeholder="Nombre de contacto *"
             className="border border-white/50 rounded px-3 py-1.5 text-sm font-dm focus:outline-none focus:border-on-surface w-36"
           />
           <input value={rut} onChange={e => setRut(e.target.value)} placeholder="RUT"
@@ -166,11 +174,11 @@ function ClienteBar({ clienteId, setClienteId, clienteNombre, setClienteNombre, 
       )}
 
       {/* Badge cliente activo */}
-      {clienteNombre && (
-        <div className="flex items-center gap-1.5 bg-white/50 px-3 py-1.5 rounded shrink-0">
+      {(clienteNombre || clienteEmpresa) && (
+        <div className="flex items-center gap-1.5 bg-white/50 px-3 py-1.5 rounded min-w-0 max-w-full">
           <User size={12} className="text-on-surface-variant" />
-          <span className="text-xs font-dm font-medium text-on-surface">{clienteNombre}</span>
-          <button onClick={() => { setClienteId(''); setClienteNombre('') }} className="text-on-surface-variant hover:text-primary ml-1">
+          <NombreCliente cliente={clientes.find(c => c.id === clienteId) || { nombre: clienteNombre, empresa: clienteEmpresa }} className="font-dm" nombreClassName="text-xs font-medium" />
+          <button aria-label="Quitar cliente" onClick={() => { setClienteId(''); setClienteNombre(''); setClienteEmpresa('') }} className="text-on-surface-variant hover:text-primary ml-1">
             <X size={11} />
           </button>
         </div>
@@ -1843,7 +1851,7 @@ function PreviewPDF({ url, filename, onClose, onDownload }) {
 }
 
 // ─── MODAL CREAR COTIZACIÓN ────────────────────────────────────────────────
-function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial = true, onClose, onGuardado }) {
+function ModalCrearCotizacion({ items, clienteId, clienteNombre, clienteEmpresa, cliente: clienteSeleccionado, conIvaInicial = true, onClose, onGuardado }) {
   const [descripcion, setDescripcion] = useState('')
   const [formaPago, setFormaPago] = useState('Transferencia bancaria — 50% anticipo, 50% contra entrega')
   const [plazo, setPlazo] = useState('')
@@ -1875,7 +1883,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
   const anticipo        = Math.round(total * 0.5)
 
   const buildCot = () => ({
-    clienteId, clienteNombre,
+    clienteId, ...datosClienteCotizacion(clienteSeleccionado, { clienteNombre, clienteEmpresa }),
     descripcion, formaPago, plazoEntrega: plazo,
     conIva, fecha: hoy(), validez: 15,
     fechaVencimiento: sumarDias(hoy(), 15),
@@ -1891,7 +1899,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
   const guardar = async (conPdf = false) => {
     setLoading(true)
     const cot = await saveCotizacion(buildCot())
-    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre }
+    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre, empresa: clienteEmpresa }
     if (conPdf) await generarCotizacionPDF(cot, cliente, 'download')
     setLoading(false)
     onGuardado()
@@ -1901,7 +1909,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
   const handlePreview = async () => {
     setLoading(true)
     const cot = await saveCotizacion(buildCot())
-    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre }
+    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre, empresa: clienteEmpresa }
     const result = await generarCotizacionPDF(cot, cliente, 'preview')
     setPreview(result)
     setLoading(false)
@@ -1913,7 +1921,7 @@ function ModalCrearCotizacion({ items, clienteId, clienteNombre, conIvaInicial =
     setLoading(true)
     setMsgEmail(null)
     const cot = await saveCotizacion(buildCot())
-    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre }
+    const cliente = await getClienteById(clienteId) || { nombre: clienteNombre, empresa: clienteEmpresa }
 
     try {
       await enviarCotizacionEmailJS(cot, cliente, emailCliente)
@@ -2213,9 +2221,12 @@ function QuotePanel({ items, setItems, conIva, setConIva, onCrear }) {
 
 // ─── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────
 export default function Cotizador() {
+  const location = useLocation()
+  const clienteInicial = location.state?.cliente
   const [clientes, setClientes] = useState([])
-  const [clienteId, setClienteId] = useState('')
-  const [clienteNombre, setClienteNombre] = useState('')
+  const [clienteId, setClienteId] = useState(clienteInicial?.id || '')
+  const [clienteNombre, setClienteNombre] = useState(() => datosClienteCotizacion(clienteInicial).clienteNombre)
+  const [clienteEmpresa, setClienteEmpresa] = useState(() => datosClienteCotizacion(clienteInicial).clienteEmpresa)
   const [categoria, setCategoria] = useState('acrilico')
   const [multiplicador, setMultiplicador] = useState(2)
   const [items, setItems] = useState([])
@@ -2418,6 +2429,8 @@ export default function Cotizador() {
           items={items.map(({ _id, ...r }) => r)}
           clienteId={clienteId}
           clienteNombre={clienteNombre}
+          clienteEmpresa={clienteEmpresa}
+          cliente={clientes.find(c => c.id === clienteId)}
           conIvaInicial={conIva}
           onClose={() => setModal(false)}
           onGuardado={() => setItems([])}
@@ -2458,6 +2471,7 @@ export default function Cotizador() {
         <ClienteBar
           clienteId={clienteId} setClienteId={setClienteId}
           clienteNombre={clienteNombre} setClienteNombre={setClienteNombre}
+          clienteEmpresa={clienteEmpresa} setClienteEmpresa={setClienteEmpresa}
           clientes={clientes} onClienteGuardado={cargarClientes}
         />
       </div>

@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { clp, fechaCorta } from './formatters'
+import { identidadCliente } from './clienteIdentidad'
 import logoBirthUrl from '../assets/logo-birth.png'
 import logoTensionUrl from '../assets/logo-tension.png'
 
@@ -289,20 +290,28 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
   doc.setTextColor(...NEGRO)
   doc.text('SEÑORES:', 14, y)
 
-  const nombreCompleto = [cliente?.nombre, cliente?.apellido].filter(Boolean).join(' ') || cotizacion.clienteNombre || '—'
+  const identidad = identidadCliente(cliente, cotizacion)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  doc.text(nombreCompleto, 14, y + 5)
+  const nombreLineas = doc.splitTextToSize(identidad.principal, 106)
+  doc.text(nombreLineas, 14, y + 5, { lineHeightFactor: 1.15 })
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(...GRIS)
-  let offsetCliente = 10
-  if (cliente?.empresa) { doc.text(cliente.empresa, 14, y + offsetCliente); offsetCliente += 4 }
-  if (cliente?.rut)     { doc.text(`RUT: ${cliente.rut}`, 14, y + offsetCliente); offsetCliente += 4 }
-  if (cliente?.ciudad)  { doc.text(cliente.ciudad, 14, y + offsetCliente) }
+  let offsetCliente = 5 + nombreLineas.length * 4.5
+  const detallesCliente = [
+    identidad.contacto && `Contacto: ${identidad.contacto}`,
+    cliente?.rut && `RUT: ${cliente.rut}`,
+    cliente?.direccion || cliente?.ciudad,
+  ].filter(Boolean)
+  detallesCliente.forEach(detalle => {
+    const lineas = doc.splitTextToSize(detalle, 106)
+    doc.text(lineas, 14, y + offsetCliente, { lineHeightFactor: 1.2 })
+    offsetCliente += lineas.length * 4
+  })
 
-  y += 28
+  y += Math.max(28, offsetCliente + 4)
   linea(doc, y)
   y += 6
 
@@ -515,7 +524,9 @@ export async function generarCotizacionPDF(cotizacion, cliente, modo = 'download
       empresa === EMPRESA_TENSION ? 'TENSIÓN' : 'BIRTH')
   }
 
-  const filename = `Cotizacion_${cotizacion.numero}_${(cliente?.nombre || 'cliente').replace(/\s+/g, '_')}.pdf`
+  const nombreArchivo = (identidad.empresa || identidad.nombre || 'cliente')
+    .replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, '_').slice(0, 100)
+  const filename = `Cotizacion_${cotizacion.numero}_${nombreArchivo}.pdf`
   if (modo === 'preview') {
     const blob = doc.output('blob')
     return { url: URL.createObjectURL(blob), filename }

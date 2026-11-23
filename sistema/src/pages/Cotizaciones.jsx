@@ -10,6 +10,8 @@ import { clp, fechaCorta, hoy, sumarDias, ESTADOS } from '../utils/formatters'
 import { FASES, faseLabel, urlSeguimiento } from '../utils/fases'
 import QRCode from 'qrcode'
 import { generarCotizacionPDF } from '../utils/pdf'
+import NombreCliente from '../components/NombreCliente'
+import { opcionCliente, datosClienteCotizacion } from '../utils/clienteIdentidad'
 import { enviarCotizacionEmailJS, abrirGmailCompose, buildWhatsAppUrl, buildDatosBancariosWhatsAppUrl, formatEmailJSError, buildSeguimientoWhatsAppUrl, buildSeguimientoGmailUrl } from '../utils/email'
 import { CATEGORIAS, PRODUCTOS } from '../data/productos'
 import { useLocation } from 'react-router-dom'
@@ -109,7 +111,7 @@ function CatalogoPicker({ onAgregar, onClose }) {
 }
 
 const EMPTY_COT = {
-  clienteId: '', clienteNombre: '', descripcion: '',
+  clienteId: '', clienteNombre: '', clienteEmpresa: '', descripcion: '',
   fecha: hoy(), validez: 15,
   items: [],
   formaPago: 'Transferencia bancaria — 50% anticipo, 50% contra entrega',
@@ -163,8 +165,7 @@ function ModalResumen({ cotizacion, cliente, onClose }) {
           <div className="grid grid-cols-2 gap-3 text-sm font-dm">
             <div>
               <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mb-0.5">Cliente</p>
-              <p className="font-medium text-on-surface">{cotizacion.clienteNombre || '—'}</p>
-              {cliente?.empresa && <p className="text-xs text-on-surface-variant">{cliente.empresa}</p>}
+              <NombreCliente cliente={cliente} cotizacion={cotizacion} />
             </div>
             <div>
               <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mb-0.5">Fecha</p>
@@ -461,19 +462,19 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
   const updateItem = (idx, item) => { const items = [...form.items]; items[idx] = item; set('items', items) }
   const deleteItem = (idx) => set('items', form.items.filter((_, i) => i !== idx))
 
-  const handleClienteChange = (id) => {
-    const c = clientes.find(c => c.id === id)
-    set('clienteId', id); set('clienteNombre', c ? c.nombre : '')
+  const handleClienteChange = (id, cliente = clientes.find(c => c.id === id)) => {
+    setForm(f => ({ ...f, clienteId: id, ...datosClienteCotizacion(cliente) }))
   }
   const crearCliente = async () => {
     if (!ncForm.nombre.trim()) return
     const c = await saveCliente(ncForm)
-    handleClienteChange(c.id)
+    handleClienteChange(c.id, c)
     setNuevoCliente(false)
   }
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSave({ ...form, ...totales, fechaVencimiento })
+    const cliente = clientes.find(c => c.id === form.clienteId)
+    onSave({ ...form, ...totales, fechaVencimiento, ...datosClienteCotizacion(cliente, form) })
   }
 
   return (
@@ -518,7 +519,7 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
                 <select value={form.clienteId} onChange={e => handleClienteChange(e.target.value)}
                   className="flex-1 border border-white/50 rounded px-3 py-2.5 text-sm font-dm focus:outline-none focus:border-on-surface bg-white">
                   <option value="">Seleccionar cliente...</option>
-                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}{c.empresa ? ` — ${c.empresa}` : ''}</option>)}
+                  {clientes.map(c => <option key={c.id} value={c.id}>{opcionCliente(c)}</option>)}
                 </select>
                 <button type="button" onClick={() => setNuevoCliente(true)}
                   className="px-3 border border-white/50 rounded text-sm font-dm text-on-surface-variant hover:border-on-surface whitespace-nowrap py-2.5">
@@ -528,10 +529,10 @@ function ModalCotizacion({ cotizacion, clientes, onClose, onSave }) {
             ) : (
               <div className="border border-white/50 rounded p-3 space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <input placeholder="Nombre *" value={ncForm.nombre} onChange={e => setNcForm(f => ({ ...f, nombre: e.target.value }))}
-                    className="border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
-                  <input placeholder="Empresa" value={ncForm.empresa} onChange={e => setNcForm(f => ({ ...f, empresa: e.target.value }))}
-                    className="border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                  <input placeholder="Empresa o razón social" value={ncForm.empresa} onChange={e => setNcForm(f => ({ ...f, empresa: e.target.value }))}
+                    className="min-w-0 border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
+                  <input placeholder="Nombre de contacto *" value={ncForm.nombre} onChange={e => setNcForm(f => ({ ...f, nombre: e.target.value }))}
+                    className="min-w-0 border border-white/50 rounded px-3 py-2 text-sm font-dm focus:outline-none focus:border-on-surface" />
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={crearCliente}
@@ -1357,7 +1358,7 @@ export default function Cotizaciones() {
     const u1 = subscribeCotizaciones((data) => { setCotizaciones(data); setCotizacionesCargadas(true) })
     const u2 = subscribeClientes(setClientes)
     if (location.state?.items) {
-      setModal({ items: location.state.items, clienteId: location.state.cliente?.id || '', clienteNombre: location.state.cliente?.nombre || '' })
+      setModal({ items: location.state.items, clienteId: location.state.cliente?.id || '', ...datosClienteCotizacion(location.state.cliente) })
     }
     return () => { u1(); u2() }
   }, [])
@@ -1562,7 +1563,7 @@ export default function Cotizaciones() {
 
   const filtradas = cotizaciones
     .filter(c => !filtroEstado || c.estado === filtroEstado)
-    .filter(c => !busqueda || c.numero?.includes(busqueda) || c.clienteNombre?.toLowerCase().includes(busqueda.toLowerCase()))
+    .filter(c => !busqueda || `${c.numero || ''} ${opcionCliente(clienteLocal(c.clienteId), c)}`.toLocaleLowerCase().includes(busqueda.trim().toLocaleLowerCase()))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
   const statusCounts = cotizaciones.reduce((counts, cotizacion) => {
@@ -1670,7 +1671,7 @@ export default function Cotizaciones() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 md:mb-8 px-0.5 md:px-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 md:mb-8 px-0.5 md:px-0">
         <div>
           <h1 className="font-barlow text-3xl md:text-4xl font-bold text-on-surface tracking-wide">COTIZACIONES</h1>
           <p className="text-on-surface-variant text-xs md:text-sm font-dm mt-1">{cotizaciones.length} cotizaciones</p>
@@ -1688,7 +1689,7 @@ export default function Cotizaciones() {
           <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar..."
             className="w-full pl-9 pr-4 py-2.5 border border-white/60 rounded-full text-sm font-dm focus:outline-none focus:border-primary bg-white/50 focus:bg-white" />
         </div>
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex min-w-0 gap-1 overflow-x-auto">
           {[
             { v: '', l: 'Todas', count: cotizaciones.length },
             { v: 'por_aceptar', l: 'Por aceptar', count: statusCounts.por_aceptar || 0 },
@@ -1743,7 +1744,7 @@ export default function Cotizaciones() {
                           aria-label={`Seleccionar cotización ${c.numero}`} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
                         <div className="min-w-0">
                           <p className="font-barlow text-xl leading-none font-bold text-on-surface">#{c.numero}</p>
-                          <p className="text-xs text-on-surface-variant font-dm truncate mt-1">{c.clienteNombre || '—'}</p>
+                          <NombreCliente cliente={clienteLocal(c.clienteId)} cotizacion={c} className="font-dm mt-1" nombreClassName="text-xs font-medium" />
                           <p className="text-[11px] text-on-surface-variant font-dm mt-0.5">{fechaCorta(c.createdAt)}</p>
                           {quoteTrackingLabel(c) && <p className="text-[10px] font-dm text-yellow-700 mt-0.5">Enviada · {quoteTrackingLabel(c)}</p>}
                         </div>
@@ -1811,7 +1812,7 @@ export default function Cotizaciones() {
                           aria-label={`Seleccionar cotización ${c.numero}`} className="w-4 h-4 accent-primary" />
                       </td>
                       <td className="px-5 py-3 font-medium text-on-surface">#{c.numero}</td>
-                      <td className="px-3 py-3 text-on-surface-variant">{c.clienteNombre || '—'}</td>
+                      <td className="px-3 py-3"><NombreCliente cliente={clienteLocal(c.clienteId)} cotizacion={c} /></td>
                       <td className="px-3 py-3 text-on-surface-variant">
                         <span>{fechaCorta(c.createdAt)}</span>
                         {quoteTrackingLabel(c) && <span className="block text-[10px] text-yellow-700 mt-0.5">Enviada · {quoteTrackingLabel(c)}</span>}

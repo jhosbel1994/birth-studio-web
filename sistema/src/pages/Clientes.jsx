@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { saveCliente, deleteCliente, subscribeClientes, subscribeCotizaciones } from '../utils/storage'
 import { generarCotizacionPDF } from '../utils/pdf'
+import NombreCliente from '../components/NombreCliente'
 import { fechaCorta, clp, ESTADOS } from '../utils/formatters'
 import { Plus, Search, Trash2, Edit2, Phone, Mail, X, MoreVertical, Download } from 'lucide-react'
 
@@ -36,26 +37,26 @@ function Modal({ cliente, onClose, onSave }) {
         <form onSubmit={e => { e.preventDefault(); if (!form.nombre.trim()) return; onSave(form) }} className="p-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Nombre *</label>
-              <input value={form.nombre} onChange={e => set('nombre', e.target.value)} required
-                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
-            </div>
-            <div>
-              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Apellido</label>
-              <input value={form.apellido || ''} onChange={e => set('apellido', e.target.value)}
-                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Empresa</label>
-              <input value={form.empresa} onChange={e => set('empresa', e.target.value)}
+              <label htmlFor="cliente-empresa" className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Empresa o razón social</label>
+              <input id="cliente-empresa" value={form.empresa} onChange={e => set('empresa', e.target.value)}
                 className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
             <div>
               <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">RUT empresa</label>
               <input value={form.rut} onChange={e => set('rut', e.target.value)}
                 className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" placeholder="76.123.456-7" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="cliente-contacto" className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Nombre de contacto *</label>
+              <input id="cliente-contacto" value={form.nombre} onChange={e => set('nombre', e.target.value)} required
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs text-on-surface-variant mb-1 font-dm uppercase tracking-wider">Apellido</label>
+              <input value={form.apellido || ''} onChange={e => set('apellido', e.target.value)}
+                className="w-full border border-white/60 bg-white/50 rounded-full px-4 py-2 text-sm font-dm focus:outline-none focus:border-primary focus:bg-white" />
             </div>
           </div>
           <div>
@@ -97,13 +98,11 @@ function Modal({ cliente, onClose, onSave }) {
 
 // ─── MENÚ DE OPCIONES DE TARJETA ──────────────────────────────────────────────
 function CardMenu({ cliente, onClose, onEditar, onEliminar }) {
-  const nombreCompleto = [cliente.nombre, cliente.apellido].filter(Boolean).join(' ')
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={onClose}>
       <div className="glass-panel bg-white/90 w-full md:max-w-xs rounded-t-[32px] md:rounded-widget shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-4 py-3 border-b border-white/40">
-          <p className="font-barlow font-bold text-on-surface">{nombreCompleto}</p>
-          {cliente.empresa && <p className="text-xs text-on-surface-variant font-dm">{cliente.empresa}</p>}
+          <NombreCliente cliente={cliente} nombreClassName="font-barlow font-bold" />
         </div>
         <button onClick={onEditar}
           className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/50 active:bg-white/70 transition-colors text-on-surface">
@@ -125,7 +124,6 @@ function CardMenu({ cliente, onClose, onEditar, onEliminar }) {
 function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuevaCotizacion }) {
   const historial = cotizaciones.filter(c => c.clienteId === cliente.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  const nombreCompleto = [cliente.nombre, cliente.apellido].filter(Boolean).join(' ')
   const [confirmEliminar, setConfirmEliminar] = useState(false)
 
   return (
@@ -138,8 +136,7 @@ function FichaCliente({ cliente, cotizaciones, onEdit, onDelete, onClose, onNuev
         <div className="px-4 pt-4 pb-3 border-b border-white/40 sticky top-0 bg-white/90 backdrop-blur-xl rounded-t-[32px] md:rounded-t-widget">
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="min-w-0">
-              <h2 className="font-barlow text-xl font-bold tracking-wide leading-tight">{nombreCompleto}</h2>
-              {cliente.empresa && <p className="text-xs text-on-surface-variant font-dm mt-0.5 truncate">{cliente.empresa}</p>}
+              <NombreCliente cliente={cliente} as="h2" nombreClassName="font-barlow text-xl font-bold tracking-wide leading-tight" />
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button onClick={() => onEdit(cliente)}
@@ -352,28 +349,20 @@ export default function Clientes() {
         <div className="md:hidden space-y-3">
           {filtrados.map(c => {
             const nCot = cotizaciones.filter(ct => ct.clienteId === c.id).length
-            const nombreCompleto = [c.nombre, c.apellido].filter(Boolean).join(' ')
             return (
-              <div key={c.id} className="glass-panel rounded-widget overflow-hidden">
+              <div key={c.id} className="glass-panel rounded-widget overflow-hidden relative">
                 {/* Info principal — clic abre ficha */}
                 <button type="button" onClick={() => setFicha(c)}
                   className="w-full p-4 text-left active:bg-white/50 transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="font-dm font-semibold text-on-surface truncate">{nombreCompleto}</p>
-                      <p className="text-xs text-on-surface-variant mt-0.5 truncate">{c.empresa || c.direccion || '—'}</p>
+                      <NombreCliente cliente={c} nombreClassName="font-dm font-semibold" />
+                      {(c.direccion || c.ciudad) && <p className="text-xs text-on-surface-variant mt-1 break-words">{c.direccion || c.ciudad}</p>}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 pr-7">
                       <span className="bg-white/60 text-on-surface px-2 py-0.5 rounded-full text-[11px] font-dm">
                         {nCot} cot.
                       </span>
-                      {/* Botón 3 puntos */}
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); setCardMenu(c) }}
-                        className="p-1.5 text-on-surface-variant hover:text-on-surface rounded-full active:bg-white/60">
-                        <MoreVertical size={16} />
-                      </button>
                     </div>
                   </div>
                   {(c.telefono || c.correo) && (
@@ -382,6 +371,11 @@ export default function Clientes() {
                       {c.correo && <p className="flex items-center gap-2 text-xs text-on-surface-variant font-dm truncate"><Mail size={11} className="text-on-surface-variant shrink-0" /><span className="truncate">{c.correo}</span></p>}
                     </div>
                   )}
+                </button>
+
+                <button type="button" onClick={() => setCardMenu(c)} aria-label="Más opciones del cliente"
+                  className="absolute right-3 top-3 p-1.5 text-on-surface-variant hover:text-on-surface rounded-full active:bg-white/60">
+                  <MoreVertical size={16} />
                 </button>
 
                 {/* Botones de contacto rápido */}
@@ -425,8 +419,7 @@ export default function Clientes() {
           <table className="w-full text-sm font-dm">
             <thead>
               <tr>
-                <th className="text-left px-5 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Nombre</th>
-                <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Empresa</th>
+                <th className="text-left px-5 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Cliente</th>
                 <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Dirección</th>
                 <th className="text-left px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Teléfono</th>
                 <th className="text-center px-3 py-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">Cot.</th>
@@ -436,11 +429,9 @@ export default function Clientes() {
             <tbody>
               {filtrados.map(c => {
                 const nCot = cotizaciones.filter(ct => ct.clienteId === c.id).length
-                const nombreCompleto = [c.nombre, c.apellido].filter(Boolean).join(' ')
-                return (
+                    return (
                   <tr key={c.id} className="hover:bg-white/50 cursor-pointer transition-colors" onClick={() => setFicha(c)}>
-                    <td className="px-5 py-3 font-medium text-on-surface">{nombreCompleto}</td>
-                    <td className="px-3 py-3 text-on-surface-variant">{c.empresa || '—'}</td>
+                    <td className="px-5 py-3"><NombreCliente cliente={c} /></td>
                     <td className="px-3 py-3 text-on-surface-variant">{c.direccion || c.ciudad || '—'}</td>
                     <td className="px-3 py-3 text-on-surface-variant">{c.telefono || '—'}</td>
                     <td className="px-3 py-3 text-center">
