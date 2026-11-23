@@ -1,0 +1,29 @@
+{
+  "intervaloMs": 3000,
+  "novedades": [
+    {
+      "etiqueta": "Corte láser",
+      "titulo": "Corte y grabado láser",
+      "descripcion": "Corte y grabado de acrílico hasta 10 mm y MDF hasta 12 mm a $500 por minuto. Planchas a consultar.",
+      "enlace": "/corte-laser-talca.html",
+      "boton": "Ver el servicio",
+      "imagen": "/assets/banners/corte-laser.jpg",
+      "imagenMovil": "",
+      "altImagen": "Birth Studio Publicidad: ofrecemos corte láser para tus proyectos.",
+      "servicio": "Corte y grabado láser",
+      "mensajeWhatsapp": "Hola, quiero cotizar un corte láser."
+    },
+    {
+      "etiqueta": "Señalética acrílica",
+      "titulo": "Acrílicos de puerta y pared",
+      "descripcion": "Señaléticas de puertas o pared en acrílico de 3 mm. Medidas, precios y promoción de segunda unidad.",
+      "enlace": "/senaletica-talca.html",
+      "boton": "Ver señalética",
+      "imagen": "/assets/banners/acrilicos-puerta-pared.png",
+      "imagenMovil": "",
+      "altImagen": "Señaléticas de puertas o pared en acrílico de 3 mm. Con vinil: 20 x 10 cm $25.000, 30 x 20 cm $40.000 y 40 x 30 cm $55.000. En relieve de acrílico: $40.000, $50.000 y $65.000 respectivamente, sujeto a evaluación de logo. Precios con IVA. Segunda unidad con 15% de descuento. Incluye separadores de aluminio. Acrílico negro, transparente o blanco. Retiro o despacho. No incluye diseño. Entrega en 48 horas hábiles. Instalación dentro de Talca: $25.000.",
+      "servicio": "Acrílicos de puerta y pared",
+      "mensajeWhatsapp": "Hola, estoy interesado en los acrílicos de puerta y pared."
+    }
+  ]
+}
